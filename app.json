@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Click Tabs",
+    "slug": "click-tabs-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Click Tabs needs your location for EVV visit check-in and check-out."
+      }
+    },
+    "android": {
+      "package": "com.clicktabs.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#FF6B7A",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
+      "predictiveBackGestureEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.svg"
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Click Tabs to use your location for EVV check-in and check-out."
+        }
+      ]
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120" role="img" aria-label="Click Tabs TECHNOLOGY">
+  <g fill="currentColor">
+    <!-- CT mark -->
+    <path d="M52 12c-24.3 0-44 19.7-44 44s19.7 44 44 44 44-19.7 44-44c0-5.4-1-10.6-2.8-15.4l-13.4 4.6A30.6 30.6 0 0 1 82.6 56c0 16.8-13.6 30.4-30.4 30.4S21.8 72.8 21.8 56 35.4 25.6 52.2 25.6c5.8 0 11.2 1.6 15.8 4.4l8-11A43.7 43.7 0 0 0 52 12z"/>
+    <path d="M38.5 39h37.2v12.2H60.8V82H46.6V51.2H38.5V39z"/>
+    <!-- Wordmark -->
+    <text x="112" y="58" font-family="Arial Black, Helvetica Neue, Arial, sans-serif" font-size="36" font-weight="800" letter-spacing="-0.5">Click Tabs</text>
+    <text x="112" y="86" font-family="Helvetica Neue, Arial, sans-serif" font-size="14" font-weight="600" letter-spacing="4.5">TECHNOLOGY</text>
+  </g>
+</svg>
