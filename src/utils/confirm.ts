@@ -1,4 +1,5 @@
 import { Alert, Platform } from 'react-native';
+import { showToast, type ToastType } from '../components/Toast';
 
 /**
  * Cross-platform confirm. RN Alert multi-button dialogs are unreliable on web
@@ -23,12 +24,36 @@ export function confirmAction(
   });
 }
 
-/** Simple alert that works on web (window.alert) and native. */
-export function showAlert(title: string, message?: string) {
-  if (Platform.OS === 'web') {
-    const text = message ? `${title}\n\n${message}` : title;
-    if (typeof window !== 'undefined') window.alert(text);
-    return;
+function inferType(title: string, message?: string): ToastType {
+  const t = `${title} ${message || ''}`.toLowerCase();
+  if (
+    t.includes('fail') ||
+    t.includes('error') ||
+    t.includes('invalid') ||
+    t.includes('missing') ||
+    t.includes('could not') ||
+    t.includes('required')
+  ) {
+    return 'error';
   }
-  Alert.alert(title, message);
+  if (
+    t.includes('success') ||
+    t.includes('saved') ||
+    t.includes('sent') ||
+    t.includes('recorded') ||
+    t.includes('created') ||
+    t.includes('completed') ||
+    t.includes('updated') ||
+    t.includes('clocked') ||
+    t.includes('downloaded') ||
+    t.includes('checked')
+  ) {
+    return 'success';
+  }
+  return 'info';
+}
+
+/** Nice in-app toast (replaces Alert.alert / window.alert). */
+export function showAlert(title: string, message?: string, type?: ToastType) {
+  showToast(title, message, type || inferType(title, message));
 }

@@ -47,6 +47,10 @@ export function Title({ children }: { children: React.ReactNode }) {
   return <Text style={styles.title}>{children}</Text>;
 }
 
+export function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <Text style={styles.sectionTitle}>{children}</Text>;
+}
+
 export function Subtitle({ children }: { children: React.ReactNode }) {
   return <Text style={styles.subtitle}>{children}</Text>;
 }
@@ -197,17 +201,26 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'web' ? 32 : 20,
   },
   title: {
-    fontSize: 26,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '700',
     color: colors.ink,
-    marginBottom: 4,
-    letterSpacing: -0.4,
+    marginBottom: 8,
+    letterSpacing: -0.25,
+    lineHeight: 28,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.ink,
+    marginBottom: 6,
+    letterSpacing: -0.1,
+    lineHeight: 22,
   },
   subtitle: {
     fontSize: 14,
     color: colors.textMuted,
-    marginBottom: 18,
-    lineHeight: 20,
+    marginBottom: 16,
+    lineHeight: 21,
   },
   card: {
     backgroundColor: colors.surface,
@@ -250,13 +263,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   fieldWrap: {
-    marginBottom: 14,
+    marginBottom: 18,
   },
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.text,
-    marginBottom: 6,
+    color: colors.textMuted,
+    marginBottom: 8,
+    letterSpacing: 0.15,
   },
   input: {
     backgroundColor: colors.surface,
@@ -264,8 +278,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingVertical: 14,
     fontSize: 16,
+    lineHeight: 22,
     color: colors.text,
   },
   inputError: {

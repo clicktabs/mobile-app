@@ -11,8 +11,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
+import { BrandMark } from './BrandLogo';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return <View style={styles.shell}>{children}</View>;
@@ -21,25 +23,69 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 export function AppHeader({
   title,
   actions,
+  showLogo = true,
+  onLogoPress,
 }: {
   title: string;
   actions?: { icon: keyof typeof Ionicons.glyphMap; label?: string; onPress: () => void }[];
+  /** White CT mark next to the title (default on) */
+  showLogo?: boolean;
+  /** Defaults to navigating to the Home tab */
+  onLogoPress?: () => void;
 }) {
+  const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
+  // Equal padding above/below the logo row (status bar inset sits above that).
+  const barPad = 12;
+  const topPad = Math.max(insets.top, 0) + barPad;
+  const goHome = () => {
+    if (onLogoPress) {
+      onLogoPress();
+      return;
+    }
+    navigation.navigate('Home');
+  };
+
   return (
     <LinearGradient colors={[...colors.brandGradient]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-      <SafeAreaView edges={['top']} style={styles.headerSafe}>
+      <View style={{ paddingTop: topPad, paddingBottom: barPad }}>
         <View style={styles.headerRow}>
-          <Text style={styles.headerTitle}>{title}</Text>
-          <View style={styles.headerActions}>
-            {(actions || []).map((a, i) => (
-              <Pressable key={`${a.icon}-${i}`} onPress={a.onPress} style={styles.headerAction}>
-                <Ionicons name={a.icon} size={22} color="#fff" />
-                {a.label ? <Text style={styles.headerActionLabel}>{a.label}</Text> : null}
+          <View style={styles.headerLeft}>
+            {showLogo ? (
+              <Pressable
+                onPress={goHome}
+                accessibilityRole="link"
+                accessibilityLabel="Go to Home"
+                hitSlop={8}
+                style={({ pressed }) => [styles.logoBadge, pressed && { opacity: 0.85 }]}
+              >
+                <BrandMark size={22} tone="black" />
               </Pressable>
-            ))}
+            ) : null}
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {title}
+            </Text>
           </View>
+          {actions && actions.length > 0 ? (
+            <View style={styles.headerActions}>
+              {actions.map((a, i) => (
+                <Pressable
+                  key={`${a.icon}-${i}`}
+                  onPress={a.onPress}
+                  style={({ pressed }) => [
+                    styles.headerAction,
+                    a.label ? styles.headerActionWide : styles.headerActionRound,
+                    pressed && styles.headerActionPressed,
+                  ]}
+                >
+                  <Ionicons name={a.icon} size={a.label ? 18 : 20} color="#fff" />
+                  {a.label ? <Text style={styles.headerActionLabel}>{a.label}</Text> : null}
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
         </View>
-      </SafeAreaView>
+      </View>
     </LinearGradient>
   );
 }
@@ -204,24 +250,67 @@ export async function openSupportEmail(to = 'support@clicktabs.technology') {
 
 const styles = StyleSheet.create({
   shell: { flex: 1, backgroundColor: colors.surface },
-  headerSafe: { backgroundColor: 'transparent' },
   headerRow: {
-    minHeight: 52,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingHorizontal: 14,
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 10,
+  },
+  headerLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minWidth: 0,
+  },
+  logoBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
+    flexShrink: 1,
     color: '#fff',
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
-  headerActions: { flexDirection: 'row', alignItems: 'flex-end', gap: 14 },
-  headerAction: { alignItems: 'center', minWidth: 36 },
-  headerActionLabel: { color: '#fff', fontSize: 9, marginTop: 2, fontWeight: '600' },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerAction: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
+  headerActionRound: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  headerActionWide: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 12,
+    height: 40,
+    borderRadius: 20,
+  },
+  headerActionPressed: {
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
+  headerActionLabel: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   updatedBar: {
     paddingVertical: 8,
     alignItems: 'center',

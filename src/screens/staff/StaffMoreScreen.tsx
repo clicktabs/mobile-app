@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, Text, View, StyleSheet } from 'react-native';
+import { RefreshControl, ScrollView, Text, View, StyleSheet } from 'react-native';
 import {
   Button,
   Card,
@@ -8,6 +8,7 @@ import {
   Field,
   LoadingBlock,
   Screen,
+  SectionTitle,
   Subtitle,
   Title,
 } from '../../components/ui';
@@ -16,7 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
 import { colors } from '../../theme/colors';
-import { confirmAction } from '../../utils/confirm';
+import { confirmAction, showAlert } from '../../utils/confirm';
 
 export function StaffMoreScreen() {
   const { token, staffUser, logout, handleUnauthorized } = useAuth();
@@ -143,12 +144,12 @@ export function StaffMoreScreen() {
                       subject,
                       body,
                     });
-                    Alert.alert('Sent');
+                    showAlert('Sent');
                     setSubject('');
                     setBody('');
                     openMessages();
                   } catch (e) {
-                    Alert.alert('Failed', e instanceof ApiError ? e.message : 'Error');
+                    showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
                   }
                 }}
               />
@@ -173,10 +174,10 @@ export function StaffMoreScreen() {
                   if (!token) return;
                   try {
                     await staffApi.clockIn(token);
-                    Alert.alert('Clocked in');
+                    showAlert('Clocked in');
                     openTime();
                   } catch (e) {
-                    Alert.alert('Failed', e instanceof ApiError ? e.message : 'Error');
+                    showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
                   }
                 }}
               />
@@ -187,10 +188,10 @@ export function StaffMoreScreen() {
                   if (!token) return;
                   try {
                     await staffApi.clockOut(token);
-                    Alert.alert('Clocked out');
+                    showAlert('Clocked out');
                     openTime();
                   } catch (e) {
-                    Alert.alert('Failed', e instanceof ApiError ? e.message : 'Error');
+                    showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
                   }
                 }}
               />
@@ -221,10 +222,10 @@ export function StaffMoreScreen() {
                       date,
                       miles: Number(miles),
                     });
-                    Alert.alert('Saved');
+                    showAlert('Saved');
                     openMileage();
                   } catch (e) {
-                    Alert.alert('Failed', e instanceof ApiError ? e.message : 'Error');
+                    showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
                   }
                 }}
               />
@@ -239,7 +240,10 @@ export function StaffMoreScreen() {
           )}
           {tab === 'password' && (
             <>
-              <Title>Change password</Title>
+              <SectionTitle>Change password</SectionTitle>
+              <Text style={{ color: colors.textMuted, marginBottom: 18, lineHeight: 20, fontSize: 14 }}>
+                Use a strong password you do not reuse elsewhere.
+              </Text>
               <Field label="Current password" value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry />
               <Field label="New password" value={newPassword} onChangeText={setNewPassword} secureTextEntry />
               <Field label="Confirm new password" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
@@ -249,13 +253,13 @@ export function StaffMoreScreen() {
                   if (!token) return;
                   try {
                     await staffApi.staffChangePassword(token, currentPassword, newPassword, confirmPassword);
-                    Alert.alert('Password changed');
+                    showAlert('Password changed');
                     setCurrentPassword('');
                     setNewPassword('');
                     setConfirmPassword('');
                     setTab('menu');
                   } catch (e) {
-                    Alert.alert('Failed', e instanceof ApiError ? e.message : 'Error');
+                    showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
                   }
                 }}
               />

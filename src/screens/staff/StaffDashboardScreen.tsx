@@ -3,7 +3,6 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppHeader, AppShell, OutlineButton } from '../../components/chrome';
-import { BrandMark } from '../../components/BrandLogo';
 import { EmptyState, ErrorBanner, LoadingBlock } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
@@ -70,7 +69,6 @@ export function StaffDashboardScreen() {
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
             />
-            <BrandMark size={56} tone="white" style={styles.bannerMark} />
             <Text style={styles.bannerEyebrow}>
               Welcome{staffUser?.first_name ? `, ${staffUser.first_name}` : ''}
             </Text>
@@ -136,12 +134,6 @@ const styles = StyleSheet.create({
     minHeight: 180,
     padding: 20,
     justifyContent: 'flex-end',
-  },
-  bannerMark: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    opacity: 0.95,
   },
   bannerEyebrow: { color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: 4 },
   bannerTitle: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 14 },

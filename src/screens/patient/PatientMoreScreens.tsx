@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, Text, View, StyleSheet } from 'react-native';
+import { RefreshControl, ScrollView, Text, View, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   Button,
@@ -17,7 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import * as patientApi from '../../api/patient';
 import { ApiError } from '../../api/client';
 import { colors } from '../../theme/colors';
-import { confirmAction } from '../../utils/confirm';
+import { confirmAction, showAlert } from '../../utils/confirm';
 
 export function PatientMessagesScreen() {
   const { token, handleUnauthorized } = useAuth();
@@ -76,13 +76,13 @@ export function PatientMessagesScreen() {
                   subject,
                   body,
                 });
-                Alert.alert('Message sent');
+                showAlert('Message sent');
                 setCompose(false);
                 setSubject('');
                 setBody('');
                 load();
               } catch (e) {
-                Alert.alert('Failed', e instanceof ApiError ? e.message : 'Error');
+                showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
               } finally {
                 setSending(false);
               }
@@ -167,7 +167,7 @@ export function PatientProfileScreen() {
       setEcRel(String(ec.relationship || ''));
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) await handleUnauthorized();
-      else Alert.alert('Error', e instanceof ApiError ? e.message : 'Failed');
+      else showAlert('Error', e instanceof ApiError ? e.message : 'Failed');
     } finally {
       setLoading(false);
     }
@@ -210,9 +210,9 @@ export function PatientProfileScreen() {
                 emergency_contact_phone: ecPhone,
                 emergency_contact_relationship: ecRel,
               });
-              Alert.alert('Profile updated');
+              showAlert('Profile updated');
             } catch (e) {
-              Alert.alert('Failed', e instanceof ApiError ? e.message : 'Error');
+              showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
             } finally {
               setSaving(false);
             }
@@ -418,12 +418,12 @@ export function PatientGrievancesScreen() {
             setSaving(true);
             try {
               await patientApi.submitGrievance(token, { subject, description });
-              Alert.alert('Submitted');
+              showAlert('Submitted');
               setSubject('');
               setDescription('');
               load();
             } catch (e) {
-              Alert.alert('Failed', e instanceof ApiError ? e.message : 'Error');
+              showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
             } finally {
               setSaving(false);
             }

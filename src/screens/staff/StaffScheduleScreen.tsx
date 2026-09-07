@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
   AppHeader,
@@ -14,7 +14,7 @@ import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
 import type { ScheduleItem } from '../../types';
 import { colors } from '../../theme/colors';
-import { confirmAction } from '../../utils/confirm';
+import { confirmAction, showAlert } from '../../utils/confirm';
 
 type TabKey = 'past' | 'upcoming' | 'completed';
 
@@ -98,10 +98,10 @@ export function StaffScheduleScreen() {
     setCompletingId(id);
     try {
       await staffApi.completeVisit(token, id);
-      Alert.alert('Visit completed');
+      showAlert('Visit completed');
       await load();
     } catch (e) {
-      Alert.alert('Could not complete', e instanceof ApiError ? e.message : 'Error');
+      showAlert('Could not complete', e instanceof ApiError ? e.message : 'Error');
     } finally {
       setCompletingId(null);
     }
@@ -113,20 +113,11 @@ export function StaffScheduleScreen() {
         title="My Schedule"
         actions={[
           {
-            icon: 'refresh',
+            icon: 'refresh-outline',
             onPress: () => {
               setRefreshing(true);
               load();
             },
-          },
-          {
-            icon: 'add',
-            label: 'New Task',
-            onPress: () =>
-              Alert.alert(
-                'New Task',
-                'Create tasks in the Click Tabs web schedule. Mobile can complete and check in to assigned visits.',
-              ),
           },
           {
             icon: 'calendar-outline',
@@ -180,7 +171,7 @@ export function StaffScheduleScreen() {
                 <View key={item.id} style={styles.card}>
                   <Text style={styles.name}>{item.patient_name || item.title}</Text>
                   <Text style={styles.meta}>
-                    {item.start_time ? new Date(item.start_time).toLocaleString() : '—'} ·{' '}
+                    {item.start_time ? new Date(item.start_time.replace(' ', 'T')).toLocaleString() : '—'} ·{' '}
                     {item.status || 'scheduled'}
                   </Text>
                   <View style={styles.actions}>

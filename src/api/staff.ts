@@ -84,6 +84,26 @@ export function completeVisit(
   });
 }
 
+export function createStaffSchedule(
+  token: string,
+  body: {
+    patient_id: number;
+    title: string;
+    start_datetime: string;
+    end_datetime?: string;
+    task_type?: string;
+    priority?: string;
+    special_instructions?: string;
+    description?: string;
+  },
+) {
+  return apiRequest<ApiEnvelope<ScheduleItem>>('mobile/staff/schedule', {
+    method: 'POST',
+    token,
+    body,
+  });
+}
+
 export function getPatientVitals(token: string, patientId: number, limit = 20) {
   return apiRequest<ApiEnvelope<Record<string, unknown>[]>>(`mobile/staff/patients/${patientId}/vitals`, {
     token,

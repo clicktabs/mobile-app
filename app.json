@@ -27,7 +27,7 @@
       "predictiveBackGestureEnabled": true
     },
     "web": {
-      "favicon": "./assets/favicon.svg"
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-secure-store",

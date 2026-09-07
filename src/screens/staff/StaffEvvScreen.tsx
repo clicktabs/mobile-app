@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import {
@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import * as evvApi from '../../api/evv';
 import { ApiError } from '../../api/client';
+import { confirmAction, showAlert } from '../../utils/confirm';
 import type { EvvVisit } from '../../types';
 import { colors } from '../../theme/colors';
 
@@ -76,10 +77,10 @@ export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
         verification_method: 'gps',
         device_id: 'android-app',
       });
-      Alert.alert('Checked in', res.check_in_time || res.message || 'Success');
+      showAlert('Checked in', res.check_in_time || res.message || 'Success');
       await load();
     } catch (e) {
-      Alert.alert('Check-in failed', e instanceof Error ? e.message : 'Error');
+      showAlert('Check-in failed', e instanceof Error ? e.message : 'Error');
     } finally {
       setBusyId(null);
     }
@@ -94,7 +95,7 @@ export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
         ...coords,
         notes: notes || undefined,
       });
-      Alert.alert(
+      showAlert(
         'Checked out',
         `Duration: ${res.duration_minutes ?? '—'} min${
           res.compliance_issues ? '\nCompliance notes returned from server.' : ''
@@ -103,7 +104,7 @@ export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
       setNotes('');
       await load();
     } catch (e) {
-      Alert.alert('Check-out failed', e instanceof Error ? e.message : 'Error');
+      showAlert('Check-out failed', e instanceof Error ? e.message : 'Error');
     } finally {
       setBusyId(null);
     }
@@ -147,12 +148,13 @@ export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
                   <Button
                     label="Check out"
                     loading={busyId === v.id}
-                    onPress={() =>
-                      Alert.alert('Check out?', 'Submit GPS check-out for this visit?', [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Check out', onPress: () => checkOut(v.id) },
-                      ])
-                    }
+                    onPress={async () => {
+                      const ok = await confirmAction(
+                        'Check out?',
+                        'Submit GPS check-out for this visit?',
+                      );
+                      if (ok) checkOut(v.id);
+                    }}
                   />
                 ) : null}
               </Card>

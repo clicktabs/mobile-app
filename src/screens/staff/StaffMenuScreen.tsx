@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   AppHeader,
@@ -9,11 +9,11 @@ import {
   openSupportEmail,
 } from '../../components/chrome';
 import { BrandLogo } from '../../components/BrandLogo';
-import { Button, Field, LoadingBlock, Subtitle, Title } from '../../components/ui';
+import { Button, Field, LoadingBlock, SectionTitle, Subtitle } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
-import { confirmAction } from '../../utils/confirm';
+import { confirmAction, showAlert } from '../../utils/confirm';
 import {
   getWorkOffline,
   loadOfflineVisits,
@@ -23,6 +23,13 @@ import {
 import { colors } from '../../theme/colors';
 import type { StaffMenuStackParamList } from '../../navigation/types';
 import { StaffEvvScreen } from './StaffEvvScreen';
+
+function formatRole(role?: string | null) {
+  if (!role) return '—';
+  return role
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 type MenuProps = NativeStackScreenProps<StaffMenuStackParamList, 'MenuHome'>;
 
@@ -49,9 +56,9 @@ export function StaffMenuHomeScreen({ navigation }: MenuProps) {
       const visits = res.data || [];
       await saveOfflineVisits(visits);
       setCachedCount(visits.length);
-      Alert.alert('Downloaded', `${visits.length} visit(s) saved for offline use.`);
+      showAlert('Downloaded', `${visits.length} visit(s) saved for offline use.`);
     } catch (e) {
-      Alert.alert('Download failed', e instanceof ApiError ? e.message : 'Error');
+      showAlert('Download failed', e instanceof ApiError ? e.message : 'Error');
     } finally {
       setDownloading(false);
     }
@@ -69,7 +76,7 @@ export function StaffMenuHomeScreen({ navigation }: MenuProps) {
             setOffline(v);
             await setWorkOffline(v);
             if (v && cachedCount === 0) {
-              Alert.alert('Tip', 'Download visits before working offline.');
+              showAlert('Tip', 'Download visits before working offline.');
             }
           }}
         />
@@ -136,35 +143,68 @@ export function StaffMenuAccountScreen({ navigation }: NativeStackScreenProps<St
   return (
     <AppShell>
       <AppHeader title="Account" actions={[{ icon: 'arrow-back', onPress: () => navigation.goBack() }]} />
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <BrandLogo size="sm" style={{ marginBottom: 12 }} />
-        <Title>{staffUser?.name || 'Staff'}</Title>
-        <Subtitle>{staffUser?.email}</Subtitle>
-        <Text style={styles.meta}>Role: {staffUser?.role || '—'}</Text>
-        <Text style={styles.meta}>Organization: {staffUser?.organization_name || '—'}</Text>
-        <Title>Change password</Title>
-        <Field label="Current password" value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry />
-        <Field label="New password" value={newPassword} onChangeText={setNewPassword} secureTextEntry />
-        <Field label="Confirm new password" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
-        <Button
-          label="Update password"
-          loading={saving}
-          onPress={async () => {
-            if (!token) return;
-            setSaving(true);
-            try {
-              await staffApi.staffChangePassword(token, currentPassword, newPassword, confirmPassword);
-              Alert.alert('Password changed');
-              setCurrentPassword('');
-              setNewPassword('');
-              setConfirmPassword('');
-            } catch (e) {
-              Alert.alert('Failed', e instanceof ApiError ? e.message : 'Error');
-            } finally {
-              setSaving(false);
-            }
-          }}
-        />
+      <ScrollView contentContainerStyle={styles.accountPad} keyboardShouldPersistTaps="handled">
+        <Pressable
+          onPress={() => navigation.getParent()?.navigate('Home')}
+          accessibilityRole="link"
+          accessibilityLabel="Go to Home"
+          style={({ pressed }) => [styles.logoLink, pressed && { opacity: 0.85 }]}
+        >
+          <BrandLogo size="sm" />
+        </Pressable>
+
+        <View style={styles.profileCard}>
+          <Text style={styles.profileName}>{staffUser?.name || 'Staff'}</Text>
+          <Text style={styles.profileEmail}>{staffUser?.email || '—'}</Text>
+          <View style={styles.metaList}>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Role</Text>
+              <Text style={styles.metaValue}>{formatRole(staffUser?.role)}</Text>
+            </View>
+            <View style={styles.metaDivider} />
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Organization</Text>
+              <Text style={styles.metaValue}>{staffUser?.organization_name || '—'}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.passwordSection}>
+          <SectionTitle>Change password</SectionTitle>
+          <Text style={styles.sectionHint}>Use a strong password you do not reuse elsewhere.</Text>
+          <Field
+            label="Current password"
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            secureTextEntry
+          />
+          <Field label="New password" value={newPassword} onChangeText={setNewPassword} secureTextEntry />
+          <Field
+            label="Confirm new password"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+          />
+          <Button
+            label="Update password"
+            loading={saving}
+            onPress={async () => {
+              if (!token) return;
+              setSaving(true);
+              try {
+                await staffApi.staffChangePassword(token, currentPassword, newPassword, confirmPassword);
+                showAlert('Password changed');
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmPassword('');
+              } catch (e) {
+                showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
+              } finally {
+                setSaving(false);
+              }
+            }}
+          />
+        </View>
       </ScrollView>
     </AppShell>
   );
@@ -255,7 +295,7 @@ export function StaffMenuTimeScreen({
       const res = await staffApi.getTimeEntries(token);
       setEntries(res.data || []);
     } catch (e) {
-      Alert.alert('Failed', e instanceof ApiError ? e.message : 'Error');
+      showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
     } finally {
       setLoading(false);
     }
@@ -278,10 +318,10 @@ export function StaffMenuTimeScreen({
               if (!token) return;
               try {
                 await staffApi.clockIn(token);
-                Alert.alert('Clocked in');
+                showAlert('Clocked in');
                 load();
               } catch (e) {
-                Alert.alert('Failed', e instanceof ApiError ? e.message : 'Error');
+                showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
               }
             }}
           />
@@ -292,10 +332,10 @@ export function StaffMenuTimeScreen({
               if (!token) return;
               try {
                 await staffApi.clockOut(token);
-                Alert.alert('Clocked out');
+                showAlert('Clocked out');
                 load();
               } catch (e) {
-                Alert.alert('Failed', e instanceof ApiError ? e.message : 'Error');
+                showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
               }
             }}
           />
@@ -331,7 +371,7 @@ export function StaffMenuMileageScreen({
       setMileage(res.data || []);
       setTotalMiles(Number(res.total_miles || 0));
     } catch (e) {
-      Alert.alert('Failed', e instanceof ApiError ? e.message : 'Error');
+      showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
     } finally {
       setLoading(false);
     }
@@ -362,10 +402,10 @@ export function StaffMenuMileageScreen({
                   date,
                   miles: Number(miles),
                 });
-                Alert.alert('Saved');
+                showAlert('Saved');
                 load();
               } catch (e) {
-                Alert.alert('Failed', e instanceof ApiError ? e.message : 'Error');
+                showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
               }
             }}
           />
@@ -402,6 +442,73 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   meta: { color: colors.textMuted, marginBottom: 4 },
+  accountPad: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+  },
+  logoLink: {
+    alignSelf: 'flex-start',
+    marginBottom: 20,
+  },
+  profileCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 18,
+    paddingTop: 20,
+    paddingBottom: 8,
+    marginBottom: 28,
+  },
+  profileName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.ink,
+    letterSpacing: -0.25,
+    lineHeight: 28,
+    marginBottom: 6,
+  },
+  profileEmail: {
+    fontSize: 15,
+    color: colors.textMuted,
+    lineHeight: 22,
+    marginBottom: 18,
+  },
+  metaList: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  metaRow: {
+    paddingVertical: 14,
+    gap: 4,
+  },
+  metaDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+  },
+  metaLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  metaValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    lineHeight: 21,
+  },
+  passwordSection: {
+    paddingTop: 4,
+  },
+  sectionHint: {
+    fontSize: 14,
+    color: colors.textMuted,
+    lineHeight: 20,
+    marginBottom: 18,
+  },
   body: { color: colors.text, lineHeight: 22, fontSize: 15, marginBottom: 16 },
   badgeWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   badge: {
