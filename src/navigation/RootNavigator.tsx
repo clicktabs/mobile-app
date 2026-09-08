@@ -12,6 +12,7 @@ import { StaffLoginScreen } from '../screens/auth/StaffLoginScreen';
 import { PatientLoginScreen } from '../screens/auth/PatientLoginScreen';
 import { StaffDashboardScreen } from '../screens/staff/StaffDashboardScreen';
 import { StaffScheduleScreen } from '../screens/staff/StaffScheduleScreen';
+import { StaffSkilledNurseVisitScreen } from '../screens/staff/StaffSkilledNurseVisitScreen';
 import { StaffPatientsScreen } from '../screens/staff/StaffPatientsScreen';
 import { StaffPatientDetailScreen } from '../screens/staff/StaffPatientDetailScreen';
 import { StaffMessagesScreen } from '../screens/staff/StaffMessagesScreen';
@@ -23,7 +24,9 @@ import {
   StaffMenuTimeScreen,
   StaffMenuMileageScreen,
   StaffMenuEvvScreen,
+  StaffMenuSwitchAgencyScreen,
 } from '../screens/staff/StaffMenuScreen';
+import { StaffMenuRouteVisitsScreen } from '../screens/staff/StaffRouteVisitsScreen';
 import { PatientHomeScreen } from '../screens/patient/PatientHomeScreen';
 import { PatientScheduleScreen } from '../screens/patient/PatientScheduleScreen';
 import { PatientMedsScreen } from '../screens/patient/PatientMedsScreen';
@@ -39,17 +42,31 @@ import type {
   AuthStackParamList,
   PatientHomeStackParamList,
   PatientTabParamList,
+  StaffHomeStackParamList,
   StaffMenuStackParamList,
   StaffPatientsStackParamList,
+  StaffScheduleStackParamList,
   StaffTabParamList,
 } from './types';
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const StaffTabs = createBottomTabNavigator<StaffTabParamList>();
+const StaffHomeStack = createNativeStackNavigator<StaffHomeStackParamList>();
 const StaffPatientsStack = createNativeStackNavigator<StaffPatientsStackParamList>();
+const StaffScheduleStack = createNativeStackNavigator<StaffScheduleStackParamList>();
 const StaffMenuStack = createNativeStackNavigator<StaffMenuStackParamList>();
 const PatientTabs = createBottomTabNavigator<PatientTabParamList>();
 const PatientHomeStack = createNativeStackNavigator<PatientHomeStackParamList>();
+
+function StaffHomeNavigator() {
+  return (
+    <StaffHomeStack.Navigator screenOptions={{ headerShown: false }}>
+      <StaffHomeStack.Screen name="HomeMain" component={StaffDashboardScreen} />
+      <StaffHomeStack.Screen name="RouteVisits" component={StaffMenuRouteVisitsScreen} />
+      <StaffHomeStack.Screen name="ElectronicIdBadge" component={StaffMenuBadgeScreen} />
+    </StaffHomeStack.Navigator>
+  );
+}
 
 function StaffPatientsNavigator() {
   return (
@@ -64,6 +81,15 @@ function StaffPatientsNavigator() {
   );
 }
 
+function StaffScheduleNavigator() {
+  return (
+    <StaffScheduleStack.Navigator screenOptions={{ headerShown: false }}>
+      <StaffScheduleStack.Screen name="ScheduleList" component={StaffScheduleScreen} />
+      <StaffScheduleStack.Screen name="SkilledNurseVisit" component={StaffSkilledNurseVisitScreen} />
+    </StaffScheduleStack.Navigator>
+  );
+}
+
 function StaffMenuNavigator() {
   return (
     <StaffMenuStack.Navigator screenOptions={{ headerShown: false }}>
@@ -75,10 +101,10 @@ function StaffMenuNavigator() {
       <StaffMenuStack.Screen name="MenuContact" component={StaffMenuInfoScreen} />
       <StaffMenuStack.Screen name="MenuCertification" component={StaffMenuInfoScreen} />
       <StaffMenuStack.Screen name="MenuUpdates" component={StaffMenuInfoScreen} />
-      <StaffMenuStack.Screen name="MenuBadge" component={StaffMenuBadgeScreen} />
       <StaffMenuStack.Screen name="MenuTime" component={StaffMenuTimeScreen} />
       <StaffMenuStack.Screen name="MenuMileage" component={StaffMenuMileageScreen} />
       <StaffMenuStack.Screen name="MenuEvv" component={StaffMenuEvvScreen} />
+      <StaffMenuStack.Screen name="MenuSwitchAgency" component={StaffMenuSwitchAgencyScreen} />
     </StaffMenuStack.Navigator>
   );
 }
@@ -106,11 +132,27 @@ function StaffApp() {
         },
       })}
     >
-      <StaffTabs.Screen name="Home" component={StaffDashboardScreen} />
+      <StaffTabs.Screen name="Home" component={StaffHomeNavigator} />
       <StaffTabs.Screen name="Patients" component={StaffPatientsNavigator} />
-      <StaffTabs.Screen name="Schedule" component={StaffScheduleScreen} />
+      <StaffTabs.Screen
+        name="Schedule"
+        component={StaffScheduleNavigator}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            navigation.navigate('Schedule', { screen: 'ScheduleList' });
+          },
+        })}
+      />
       <StaffTabs.Screen name="Messages" component={StaffMessagesScreen} />
-      <StaffTabs.Screen name="Menu" component={StaffMenuNavigator} />
+      <StaffTabs.Screen
+        name="Menu"
+        component={StaffMenuNavigator}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            navigation.navigate('Menu', { screen: 'MenuHome' });
+          },
+        })}
+      />
     </StaffTabs.Navigator>
   );
 }

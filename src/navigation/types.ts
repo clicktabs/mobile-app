@@ -1,3 +1,5 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export type AuthStackParamList = {
   RoleSelect: undefined;
   StaffLogin: undefined;
@@ -9,6 +11,12 @@ export type StaffPatientsStackParamList = {
   PatientDetail: { patientId: number };
 };
 
+export type StaffHomeStackParamList = {
+  HomeMain: undefined;
+  RouteVisits: undefined;
+  ElectronicIdBadge: undefined;
+};
+
 export type StaffMenuStackParamList = {
   MenuHome: undefined;
   MenuAccount: undefined;
@@ -18,18 +26,28 @@ export type StaffMenuStackParamList = {
   MenuContact: undefined;
   MenuCertification: undefined;
   MenuUpdates: undefined;
-  MenuBadge: undefined;
   MenuTime: undefined;
   MenuMileage: undefined;
   MenuEvv: undefined;
+  MenuSwitchAgency: undefined;
+};
+
+export type StaffScheduleStackParamList = {
+  ScheduleList: undefined;
+  SkilledNurseVisit: {
+    scheduleId: number;
+    patientId?: number;
+    patientName?: string;
+    startTime?: string;
+  };
 };
 
 export type StaffTabParamList = {
-  Home: undefined;
-  Patients: undefined;
-  Schedule: undefined;
+  Home: NavigatorScreenParams<StaffHomeStackParamList> | undefined;
+  Patients: NavigatorScreenParams<StaffPatientsStackParamList> | undefined;
+  Schedule: NavigatorScreenParams<StaffScheduleStackParamList> | undefined;
   Messages: undefined;
-  Menu: undefined;
+  Menu: NavigatorScreenParams<StaffMenuStackParamList> | undefined;
 };
 
 export type PatientHomeStackParamList = {

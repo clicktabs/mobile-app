@@ -84,12 +84,12 @@ export function StaffDashboardScreen() {
           <OutlineButton
             label="Route Visits"
             color="#7C3AED"
-            onPress={() => navigation.navigate('Schedule')}
+            onPress={() => navigation.navigate('RouteVisits')}
           />
           <OutlineButton
             label="Electronic ID Badge"
             color={colors.brandMagenta}
-            onPress={() => navigation.navigate('Menu', { screen: 'MenuBadge' })}
+            onPress={() => navigation.navigate('ElectronicIdBadge')}
           />
 
           <Text style={styles.section}>Upcoming visits</Text>

@@ -1,5 +1,13 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
   AppHeader,
@@ -8,13 +16,12 @@ import {
   SearchBar,
   SegmentTabs,
 } from '../../components/chrome';
-import { Button, EmptyState, ErrorBanner, LoadingBlock } from '../../components/ui';
+import { EmptyState, ErrorBanner, LoadingBlock } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
 import type { ScheduleItem } from '../../types';
 import { colors } from '../../theme/colors';
-import { confirmAction, showAlert } from '../../utils/confirm';
 
 type TabKey = 'past' | 'upcoming' | 'completed';
 
@@ -27,6 +34,18 @@ function isCompleted(item: ScheduleItem) {
   return (item.status || '').toLowerCase() === 'completed';
 }
 
+function formatWhen(start?: string) {
+  if (!start) return '—';
+  const d = new Date(start.replace(' ', 'T'));
+  if (Number.isNaN(d.getTime())) return start;
+  return d.toLocaleString([], {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function StaffScheduleScreen() {
   const { token, handleUnauthorized } = useAuth();
   const navigation = useNavigation<any>();
@@ -37,7 +56,6 @@ export function StaffScheduleScreen() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-  const [completingId, setCompletingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -91,20 +109,13 @@ export function StaffScheduleScreen() {
     [items],
   );
 
-  const complete = async (id: number) => {
-    if (!token) return;
-    const ok = await confirmAction('Complete visit?', 'Mark this visit as completed?');
-    if (!ok) return;
-    setCompletingId(id);
-    try {
-      await staffApi.completeVisit(token, id);
-      showAlert('Visit completed');
-      await load();
-    } catch (e) {
-      showAlert('Could not complete', e instanceof ApiError ? e.message : 'Error');
-    } finally {
-      setCompletingId(null);
-    }
+  const openVisitNote = (item: ScheduleItem) => {
+    navigation.navigate('SkilledNurseVisit', {
+      scheduleId: item.id,
+      patientId: item.patient_id,
+      patientName: item.patient_name || item.title || 'Patient',
+      startTime: item.start_time,
+    });
   };
 
   return (
@@ -168,32 +179,45 @@ export function StaffScheduleScreen() {
               />
             ) : (
               filtered.map((item) => (
-                <View key={item.id} style={styles.card}>
-                  <Text style={styles.name}>{item.patient_name || item.title}</Text>
-                  <Text style={styles.meta}>
-                    {item.start_time ? new Date(item.start_time.replace(' ', 'T')).toLocaleString() : '—'} ·{' '}
-                    {item.status || 'scheduled'}
-                  </Text>
-                  <View style={styles.actions}>
+                <View key={item.id} style={styles.row}>
+                  <View style={styles.rowMain}>
+                    <Text style={styles.name} numberOfLines={1}>
+                      {item.patient_name || item.title}
+                    </Text>
+                    <Text style={styles.meta} numberOfLines={1}>
+                      {formatWhen(item.start_time)} · {item.status || 'scheduled'}
+                    </Text>
+                  </View>
+                  <View style={styles.rowActions}>
                     {item.patient_id ? (
-                      <Button
-                        label="Patient"
-                        variant="ghost"
+                      <Pressable
+                        accessibilityLabel="Open patient"
+                        hitSlop={8}
+                        style={styles.iconBtn}
                         onPress={() =>
                           navigation.navigate('Patients', {
                             screen: 'PatientDetail',
                             params: { patientId: item.patient_id },
                           })
                         }
-                      />
+                      >
+                        <Ionicons name="person-outline" size={20} color={colors.brandMagenta} />
+                      </Pressable>
                     ) : null}
                     {!isCompleted(item) ? (
-                      <Button
-                        label="Complete"
-                        loading={completingId === item.id}
-                        onPress={() => complete(item.id)}
-                      />
-                    ) : null}
+                      <Pressable
+                        accessibilityLabel="Complete visit"
+                        hitSlop={8}
+                        style={[styles.iconBtn, styles.completeBtn]}
+                        onPress={() => openVisitNote(item)}
+                      >
+                        <Ionicons name="checkmark" size={18} color="#fff" />
+                      </Pressable>
+                    ) : (
+                      <View style={[styles.iconBtn, styles.doneChip]}>
+                        <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+                      </View>
+                    )}
                   </View>
                 </View>
               ))
@@ -208,16 +232,35 @@ export function StaffScheduleScreen() {
 
 const styles = StyleSheet.create({
   empty: { flexGrow: 1, justifyContent: 'center' },
-  card: {
-    marginHorizontal: 14,
-    marginBottom: 10,
-    padding: 14,
+  row: {
+    marginHorizontal: 12,
+    marginBottom: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-  name: { fontWeight: '700', color: colors.text, fontSize: 15 },
-  meta: { color: colors.textMuted, marginTop: 4, marginBottom: 6 },
-  actions: { gap: 4 },
+  rowMain: { flex: 1, minWidth: 0 },
+  name: { fontWeight: '700', color: colors.text, fontSize: 14 },
+  meta: { color: colors.textMuted, marginTop: 2, fontSize: 12 },
+  rowActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF1F5',
+  },
+  completeBtn: {
+    backgroundColor: colors.brandMagenta,
+  },
+  doneChip: {
+    backgroundColor: '#ECFDF5',
+  },
 });

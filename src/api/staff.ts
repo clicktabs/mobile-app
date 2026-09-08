@@ -138,6 +138,23 @@ export function createVisitNote(
   });
 }
 
+export function saveNursingNote(
+  token: string,
+  body: {
+    patient_id: number;
+    schedule_id?: number;
+    status?: 'draft' | 'completed';
+    form_data: Record<string, unknown>;
+    note_text?: string;
+  },
+) {
+  return apiRequest<ApiEnvelope<{ id: number; status?: string }>>('mobile/staff/nursing-notes', {
+    method: 'POST',
+    token,
+    body,
+  });
+}
+
 export function getMedicationSchedule(token: string, patientId: number) {
   return apiRequest<ApiEnvelope<Record<string, unknown>[]>>(
     `mobile/staff/patients/${patientId}/medication-schedule`,

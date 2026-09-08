@@ -28,7 +28,8 @@ export function StaffPatientsScreen() {
       try {
         const res = await staffApi.staffPatients(token, {
           search: search || undefined,
-          status: 'active',
+          // Include pending/on-hold — many assigned patients are not yet "active"
+          status: 'all',
           page: pageNum,
           limit: 20,
         });

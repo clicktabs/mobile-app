@@ -201,8 +201,11 @@ export function MenuRow({
   danger?: boolean;
 }) {
   return (
-    <Pressable onPress={onPress} style={styles.menuRow}>
-      <Ionicons name={icon} size={22} color={danger ? colors.danger : colors.ink} />
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: '#FAFAFA' }]}
+    >
+      <Ionicons name={icon} size={24} color={danger ? colors.danger : colors.ink} />
       <Text style={[styles.menuLabel, danger && { color: colors.danger }]}>{label}</Text>
       <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
     </Pressable>
@@ -358,14 +361,22 @@ const styles = StyleSheet.create({
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
+    gap: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
+    minHeight: 58,
   },
-  menuLabel: { flex: 1, fontSize: 16, color: colors.ink, fontWeight: '500' },
+  menuLabel: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.ink,
+    fontWeight: '500',
+    letterSpacing: -0.1,
+    lineHeight: 22,
+  },
   offlineCard: {
     padding: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,

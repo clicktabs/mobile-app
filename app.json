@@ -9,7 +9,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Click Tabs needs your location for EVV visit check-in and check-out."
+        "NSLocationWhenInUseUsageDescription": "Click Tabs needs your location for Route Visits and EVV check-in and check-out.",
+        "NSPhotoLibraryUsageDescription": "Click Tabs needs photo access for your Electronic ID Badge."
       }
     },
     "android": {
@@ -34,7 +35,13 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Allow Click Tabs to use your location for EVV check-in and check-out."
+          "locationWhenInUsePermission": "Allow Click Tabs to use your location for Route Visits and EVV check-in and check-out."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Click Tabs to access photos for your Electronic ID Badge."
         }
       ]
     ]
