@@ -354,6 +354,9 @@ export type WoundCareRow = {
   status?: string;
   care_not_performed?: boolean;
   care_not_performed_reason?: string;
+  map_x?: number | null;
+  map_y?: number | null;
+  map_region?: string | null;
   tissue_type?: string;
   drainage?: string;
   odor?: string;
@@ -393,6 +396,9 @@ export function createWoundCare(
     description?: string;
     notes?: string;
     treatment_performed?: string;
+    map_x?: number;
+    map_y?: number;
+    map_region?: string;
   },
 ) {
   return apiRequest<ApiEnvelope<{ id: number; wound_number?: number }>>(

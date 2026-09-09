@@ -15,6 +15,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { AppHeader, AppShell } from '../../components/chrome';
+import {
+  AnatomicalBodyMap,
+  BODY_MAP_REGIONS,
+  pinFromRegionId,
+  type BodyMapPin,
+} from '../../components/AnatomicalBodyMap';
 import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import type { WoundCareRow, WoundButtonState } from '../../api/staff';
@@ -26,33 +32,6 @@ import { showAlert } from '../../utils/confirm';
 type Props = NativeStackScreenProps<StaffScheduleStackParamList, 'WoundManager'>;
 
 type TabId = 'wounds' | 'document' | 'history' | 'resources';
-
-const BODY_LOCATIONS = [
-  'Scalp',
-  'Face',
-  'Neck',
-  'Chest',
-  'Abdomen',
-  'Back',
-  'Sacrum',
-  'Right upper arm',
-  'Left upper arm',
-  'Right forearm',
-  'Left forearm',
-  'Right hand',
-  'Left hand',
-  'Right hip',
-  'Left hip',
-  'Right thigh',
-  'Left thigh',
-  'Right lower leg',
-  'Left lower leg',
-  'Right heel',
-  'Left heel',
-  'Right foot',
-  'Left foot',
-  'Other',
-];
 
 const WOUND_TYPES = [
   'Pressure ulcer',
@@ -135,7 +114,8 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [pickReason, setPickReason] = useState('');
 
-  const [location, setLocation] = useState('');
+  const [location, setLocation] = useState('Sacrum');
+  const [mapPin, setMapPin] = useState<BodyMapPin>(() => pinFromRegionId('back_sacrum'));
   const [additionalLocation, setAdditionalLocation] = useState('Not Applicable');
   const [onsetDate, setOnsetDate] = useState(new Date().toISOString().slice(0, 10));
   const [poa, setPoa] = useState<'yes' | 'no' | ''>('');
@@ -159,6 +139,44 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
 
   const activeWounds = useMemo(() => wounds.filter(isActive), [wounds]);
   const historyWounds = useMemo(() => wounds.filter((w) => !isActive(w)), [wounds]);
+
+  const mapPins: BodyMapPin[] = useMemo(() => {
+    return activeWounds.map((w) => {
+      let x = w.map_x != null ? Number(w.map_x) : NaN;
+      let y = w.map_y != null ? Number(w.map_y) : NaN;
+      let regionId = w.map_region || undefined;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        const match = BODY_MAP_REGIONS.find(
+          (r) =>
+            r.label.toLowerCase() === String(w.location || '').toLowerCase() ||
+            String(w.location || '').toLowerCase().includes(r.label.toLowerCase().split(' ')[0]),
+        );
+        if (match) {
+          x = match.x;
+          y = match.y;
+          regionId = match.id;
+        } else {
+          const fallback = BODY_MAP_REGIONS.find((r) => r.id === 'back_sacrum')!;
+          x = fallback.x;
+          y = fallback.y;
+          regionId = fallback.id;
+        }
+      }
+      const sameSpot = activeWounds.filter((o) => {
+        const ox = o.map_x != null ? Number(o.map_x) : null;
+        return ox != null && Math.abs(ox - x) < 2 && Math.abs(Number(o.map_y) - y) < 2;
+      });
+      return {
+        id: w.id,
+        x,
+        y,
+        label: w.location,
+        regionId,
+        number: w.wound_number ?? w.id,
+        multi: sameSpot.length > 1,
+      };
+    });
+  }, [activeWounds]);
 
   const load = useCallback(
     async (isRefresh = false) => {
@@ -186,7 +204,9 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
   );
 
   const resetCreate = () => {
-    setLocation('');
+    const pin = pinFromRegionId('back_sacrum');
+    setMapPin(pin);
+    setLocation(pin.label || 'Sacrum');
     setAdditionalLocation('Not Applicable');
     setOnsetDate(new Date().toISOString().slice(0, 10));
     setPoa('');
@@ -230,6 +250,9 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
         additional_location: additionalLocation,
         treatment_performed: treatmentPerformed,
         notes: createNotes || undefined,
+        map_x: mapPin.x,
+        map_y: mapPin.y,
+        map_region: mapPin.regionId,
       });
       setAddOpen(false);
       resetCreate();
@@ -423,32 +446,23 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
           >
             {tab === 'wounds' ? (
               <View style={styles.section}>
-                <View style={styles.figure}>
-                  <Ionicons name="body-outline" size={72} color="#94A3B8" />
-                  <Text style={styles.figureTitle}>Body map</Text>
-                  <Text style={styles.figureSub}>
-                    {activeWounds.length
-                      ? `${activeWounds.length} active wound(s) marked`
-                      : 'No active wounds — add a location to begin'}
-                  </Text>
-                  <View style={styles.dotRow}>
-                    {activeWounds.slice(0, 12).map((w) => (
-                      <View
-                        key={w.id}
-                        style={[
-                          styles.dot,
-                          activeWounds.filter((x) => x.location === w.location).length > 1 && styles.dotMulti,
-                        ]}
-                      >
-                        <Text style={styles.dotText}>{w.wound_number ?? w.id}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
+                <AnatomicalBodyMap
+                  pins={mapPins}
+                  editable={false}
+                  height={340}
+                  showHint
+                  onPinPress={(p) => {
+                    const wound = activeWounds.find((w) => String(w.id) === String(p.id));
+                    if (wound) openDocument(wound);
+                  }}
+                />
 
                 <View style={styles.rowActions}>
                   <Pressable
-                    onPress={() => setAddOpen(true)}
+                    onPress={() => {
+                      resetCreate();
+                      setAddOpen(true);
+                    }}
                     style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.9 }]}
                   >
                     <Ionicons name="add-circle-outline" size={18} color="#fff" />
@@ -762,12 +776,18 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
           />
           <Text style={styles.subline}>{patientName || 'Patient'}</Text>
           <ScrollView contentContainerStyle={styles.modalContent}>
-            <Text style={styles.label}>Location *</Text>
-            <View style={styles.chipRow}>
-              {BODY_LOCATIONS.map((o) => (
-                <Chip key={o} label={o} selected={location === o} onPress={() => setLocation(o)} />
-              ))}
-            </View>
+            <Text style={styles.label}>Drop pin on body map *</Text>
+            <AnatomicalBodyMap
+              activePin={mapPin}
+              editable
+              defaultRegionId="back_sacrum"
+              height={300}
+              showHint
+              onPinChange={(p) => {
+                setMapPin(p);
+                setLocation(p.label || location);
+              }}
+            />
             <Field
               label="Additional location description *"
               value={additionalLocation}

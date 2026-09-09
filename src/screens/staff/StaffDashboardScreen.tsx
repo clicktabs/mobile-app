@@ -56,10 +56,21 @@ export function StaffDashboardScreen() {
     if (!token) return;
     setError(null);
     try {
-      const dash = await staffApi.staffDashboard(token);
+      const [dash, patients] = await Promise.all([
+        staffApi.staffDashboard(token),
+        staffApi.staffPatients(token, { status: 'all', limit: 1, page: 1 }).catch(() => null),
+      ]);
       const s = dash.data?.stats;
+      const listTotal =
+        (patients as any)?.pagination?.total ??
+        (patients as any)?.count ??
+        (Array.isArray(patients?.data) ? patients.data.length : null);
+      const fromDash = Number(s?.assigned_patients ?? 0) || 0;
+      const fromList = listTotal != null ? Number(listTotal) || 0 : null;
+
       setStats({
-        patients: Number(s?.assigned_patients ?? 0) || 0,
+        // Prefer patient-list total so Home matches My Patients tab
+        patients: fromList != null && fromList > 0 ? fromList : fromDash || fromList || 0,
         shiftOffers: Number(s?.shift_offers ?? 0) || 0,
         availableShifts: Number(s?.available_shifts ?? 0) || 0,
         licenses: s?.licenses != null ? Number(s.licenses) || 0 : null,
