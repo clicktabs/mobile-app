@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -10,10 +10,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { AppHeader, AppShell } from '../../components/chrome';
 import { Button, Field } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
+import type { WoundButtonState } from '../../api/staff';
 import { ApiError } from '../../api/client';
 import { VISIT_SECTIONS } from '../../data/visitAssessment';
 import {
@@ -117,6 +119,7 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
   const [patientGoals, setPatientGoals] = useState('');
   const [painProfile, setPainProfile] = useState<PainProfileState>(emptyPainProfile);
   const [integument, setIntegument] = useState<IntegumentState>(emptyIntegument);
+  const [woundButtonState, setWoundButtonState] = useState<WoundButtonState>('na');
   const [coordination, setCoordination] = useState<CareCoordinationState>(emptyCareCoordination);
   const [responseToCare, setResponseToCare] = useState('');
   const [medicalNecessity, setMedicalNecessity] = useState('');
@@ -125,6 +128,24 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
   const [signOpen, setSignOpen] = useState(false);
   const [signaturePin, setSignaturePin] = useState('');
   const signedAt = useMemo(() => new Date().toLocaleString(), [signOpen]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        if (!token || !patientId) return;
+        try {
+          const res = await staffApi.getWoundCare(token, patientId);
+          if (!cancelled) setWoundButtonState(res.meta?.button_state || 'na');
+        } catch {
+          /* non-blocking */
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [token, patientId]),
+  );
 
   const subtitle = `For ${patientName || 'Patient'}${
     startTime ? ` on ${new Date(startTime.replace(' ', 'T')).toLocaleDateString()}` : ''
@@ -639,6 +660,18 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
                       value={integument}
                       onChange={setIntegument}
                       patientId={patientId}
+                      woundButtonState={woundButtonState}
+                      onOpenWoundManager={() => {
+                        if (!patientId) {
+                          showAlert('Missing patient', 'This visit has no patient linked.');
+                          return;
+                        }
+                        navigation.navigate('WoundManager', {
+                          patientId,
+                          patientName,
+                          scheduleId,
+                        });
+                      }}
                     />
                   ) : sec.id === 'coordination' ? (
                     <CareCoordinationForm

@@ -1,29 +1,72 @@
 import React, { useCallback, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ImageBackground,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { AppHeader, AppShell, OutlineButton } from '../../components/chrome';
-import { EmptyState, ErrorBanner, LoadingBlock } from '../../components/ui';
+import { Ionicons } from '@expo/vector-icons';
+import { AppHeader, AppShell } from '../../components/chrome';
+import { ErrorBanner, LoadingBlock } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
-import type { ScheduleItem } from '../../types';
-import { colors } from '../../theme/colors';
+
+const HOME_BANNER =
+  'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=1200&q=80';
+
+type HomeStats = {
+  patients: number;
+  shiftOffers: number;
+  availableShifts: number;
+  licenses: number | null;
+  payrollHours: string;
+};
+
+type DashTile = {
+  key: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  value?: string | number;
+  showChevron?: boolean;
+  onPress: () => void;
+};
+
+const EMPTY_STATS: HomeStats = {
+  patients: 0,
+  shiftOffers: 0,
+  availableShifts: 0,
+  licenses: null,
+  payrollHours: '0.00',
+};
 
 export function StaffDashboardScreen() {
-  const { token, staffUser, handleUnauthorized } = useAuth();
+  const { token, handleUnauthorized } = useAuth();
   const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [visits, setVisits] = useState<ScheduleItem[]>([]);
+  const [stats, setStats] = useState<HomeStats>(EMPTY_STATS);
 
   const load = useCallback(async () => {
     if (!token) return;
     setError(null);
     try {
-      const res = await staffApi.staffDashboard(token);
-      setVisits(res.data?.upcoming_visits || []);
+      const dash = await staffApi.staffDashboard(token);
+      const s = dash.data?.stats;
+      setStats({
+        patients: Number(s?.assigned_patients ?? 0) || 0,
+        shiftOffers: Number(s?.shift_offers ?? 0) || 0,
+        availableShifts: Number(s?.available_shifts ?? 0) || 0,
+        licenses: s?.licenses != null ? Number(s.licenses) || 0 : null,
+        payrollHours:
+          s?.payroll_hours_label ||
+          (s?.payroll_hours != null ? Number(s.payroll_hours).toFixed(2) : '0.00'),
+      });
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         await handleUnauthorized();
@@ -43,6 +86,45 @@ export function StaffDashboardScreen() {
     }, [load]),
   );
 
+  const tiles: DashTile[] = [
+    {
+      key: 'patients',
+      label: 'My Patients',
+      icon: 'person-circle-outline',
+      value: stats.patients,
+      onPress: () => navigation.navigate('Patients'),
+    },
+    {
+      key: 'shift_offers',
+      label: 'Shift Offers',
+      icon: 'swap-horizontal-outline',
+      value: stats.shiftOffers,
+      onPress: () => navigation.navigate('Schedule', { screen: 'ScheduleList' }),
+    },
+    {
+      key: 'available_shifts',
+      label: 'Available Shifts',
+      icon: 'time-outline',
+      value: stats.availableShifts,
+      onPress: () => navigation.navigate('Schedule', { screen: 'ScheduleList' }),
+    },
+    {
+      key: 'licenses',
+      label: 'Licenses',
+      icon: 'ribbon-outline',
+      value: stats.licenses != null ? stats.licenses : undefined,
+      showChevron: true,
+      onPress: () => navigation.navigate('Menu', { screen: 'MenuCertification' }),
+    },
+    {
+      key: 'payroll',
+      label: 'My Payroll Hours',
+      icon: 'wallet-outline',
+      value: stats.payrollHours,
+      onPress: () => navigation.navigate('Menu', { screen: 'MenuTime' }),
+    },
+  ];
+
   return (
     <AppShell>
       <AppHeader title="Home" />
@@ -50,6 +132,7 @@ export function StaffDashboardScreen() {
         <LoadingBlock />
       ) : (
         <ScrollView
+          contentContainerStyle={styles.pad}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -62,64 +145,35 @@ export function StaffDashboardScreen() {
         >
           {error ? <ErrorBanner message={error} onRetry={load} /> : null}
 
-          <View style={styles.banner}>
-            <LinearGradient
-              colors={['#FFB347', '#FF6B7A', '#FF4D8D']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <Text style={styles.bannerEyebrow}>
-              Welcome{staffUser?.first_name ? `, ${staffUser.first_name}` : ''}
-            </Text>
-            <Text style={styles.bannerTitle}>New & Exciting Features</Text>
-            <Pressable
-              style={styles.seeUpdates}
-              onPress={() => navigation.navigate('Menu', { screen: 'MenuUpdates' })}
-            >
-              <Text style={styles.seeUpdatesText}>SEE UPDATES</Text>
-            </Pressable>
-          </View>
-
-          <OutlineButton
-            label="Route Visits"
-            color="#7C3AED"
-            onPress={() => navigation.navigate('RouteVisits')}
-          />
-          <OutlineButton
-            label="Electronic ID Badge"
-            color={colors.brandMagenta}
-            onPress={() => navigation.navigate('ElectronicIdBadge')}
-          />
-
-          <Text style={styles.section}>Upcoming visits</Text>
-          {visits.length === 0 ? (
-            <EmptyState message="No visits scheduled today" />
-          ) : (
-            visits.map((v) => (
-              <Pressable
-                key={v.id}
-                style={styles.visitCard}
-                onPress={() => navigation.navigate('Schedule')}
-              >
-                <Text style={styles.visitName}>{v.patient_name || v.title}</Text>
-                <Text style={styles.visitMeta}>
-                  {v.start_time
-                    ? new Date(v.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : '—'}
-                  {' · '}
-                  {v.status || 'scheduled'}
-                </Text>
-              </Pressable>
-            ))
-          )}
-
-          <Pressable
-            style={styles.evvLink}
-            onPress={() => navigation.navigate('Menu', { screen: 'MenuEvv' })}
+          <ImageBackground
+            source={{ uri: HOME_BANNER }}
+            style={styles.banner}
+            imageStyle={styles.bannerImage}
           >
-            <Text style={styles.evvLinkText}>Open EVV check-in / check-out</Text>
-          </Pressable>
+            <View style={styles.bannerScrim} />
+          </ImageBackground>
+
+          <View style={styles.tileList}>
+            {tiles.map((tile) => (
+              <Pressable
+                key={tile.key}
+                onPress={tile.onPress}
+                style={({ pressed }) => [styles.tile, pressed && { opacity: 0.9 }]}
+              >
+                <Ionicons name={tile.icon} size={22} color="#475569" />
+                <Text style={styles.tileLabel}>{tile.label}</Text>
+                {tile.value !== undefined ? (
+                  <Text style={styles.tileValue}>{tile.value}</Text>
+                ) : null}
+                {tile.showChevron && tile.value === undefined ? (
+                  <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                ) : null}
+                {tile.showChevron && tile.value !== undefined ? (
+                  <Ionicons name="chevron-forward" size={18} color="#94a3b8" style={{ marginLeft: 4 }} />
+                ) : null}
+              </Pressable>
+            ))}
+          </View>
         </ScrollView>
       )}
     </AppShell>
@@ -127,43 +181,43 @@ export function StaffDashboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  pad: { paddingBottom: 28 },
   banner: {
-    margin: 16,
-    borderRadius: 12,
+    marginHorizontal: 12,
+    marginTop: 8,
+    height: 168,
+    borderRadius: 10,
     overflow: 'hidden',
-    minHeight: 180,
-    padding: 20,
-    justifyContent: 'flex-end',
+    backgroundColor: '#E5E7EB',
   },
-  bannerEyebrow: { color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: 4 },
-  bannerTitle: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 14 },
-  seeUpdates: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.brandMagenta,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 6,
+  bannerImage: { borderRadius: 10 },
+  bannerScrim: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(15,23,42,0.08)',
   },
-  seeUpdatesText: { color: '#fff', fontWeight: '800', letterSpacing: 0.5 },
-  section: {
-    marginTop: 20,
-    marginHorizontal: 16,
-    marginBottom: 8,
+  tileList: {
+    marginTop: 14,
+    marginHorizontal: 12,
+    gap: 10,
+  },
+  tile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+  },
+  tileLabel: {
+    flex: 1,
+    fontSize: 15,
     fontWeight: '700',
-    color: colors.ink,
+    color: '#1e293b',
+  },
+  tileValue: {
     fontSize: 16,
+    fontWeight: '800',
+    color: '#334155',
   },
-  visitCard: {
-    marginHorizontal: 16,
-    marginBottom: 8,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  visitName: { fontWeight: '700', color: colors.text },
-  visitMeta: { color: colors.textMuted, marginTop: 4 },
-  evvLink: { alignItems: 'center', padding: 20 },
-  evvLinkText: { color: colors.brandMagenta, fontWeight: '700' },
 });

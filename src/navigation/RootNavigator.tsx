@@ -15,6 +15,8 @@ import { StaffScheduleScreen } from '../screens/staff/StaffScheduleScreen';
 import { StaffSkilledNurseVisitScreen } from '../screens/staff/StaffSkilledNurseVisitScreen';
 import { StaffPlanOfCareScreen } from '../screens/staff/StaffPlanOfCareScreen';
 import { StaffAddProblemStatementScreen } from '../screens/staff/StaffAddProblemStatementScreen';
+import { StaffWoundManagerScreen } from '../screens/staff/StaffWoundManagerScreen';
+import { StaffNewWoundOrderScreen } from '../screens/staff/StaffNewWoundOrderScreen';
 import { StaffPatientsScreen } from '../screens/staff/StaffPatientsScreen';
 import { StaffPatientDetailScreen } from '../screens/staff/StaffPatientDetailScreen';
 import { StaffMessagesScreen } from '../screens/staff/StaffMessagesScreen';
@@ -90,6 +92,8 @@ function StaffScheduleNavigator() {
       <StaffScheduleStack.Screen name="SkilledNurseVisit" component={StaffSkilledNurseVisitScreen} />
       <StaffScheduleStack.Screen name="PlanOfCareProfile" component={StaffPlanOfCareScreen} />
       <StaffScheduleStack.Screen name="AddProblemStatement" component={StaffAddProblemStatementScreen} />
+      <StaffScheduleStack.Screen name="WoundManager" component={StaffWoundManagerScreen} />
+      <StaffScheduleStack.Screen name="NewWoundOrder" component={StaffNewWoundOrderScreen} />
     </StaffScheduleStack.Navigator>
   );
 }

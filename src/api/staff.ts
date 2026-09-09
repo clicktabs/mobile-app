@@ -37,6 +37,11 @@ export function staffDashboard(token: string) {
         completed_today: number;
         assigned_patients: number;
         pending_tasks: number;
+        shift_offers?: number;
+        available_shifts?: number;
+        licenses?: number;
+        payroll_hours?: number;
+        payroll_hours_label?: string;
       };
       upcoming_visits: ScheduleItem[];
     }>
@@ -330,6 +335,137 @@ export function updatePlanOfCareOrder(
     token,
     body,
   });
+}
+
+export type WoundButtonState = 'na' | 'needs_documentation' | 'complete';
+
+export type WoundCareRow = {
+  id: number;
+  wound_number?: number | string;
+  wound_type?: string;
+  location?: string;
+  additional_location?: string;
+  stage?: string;
+  length?: number | string | null;
+  width?: number | string | null;
+  depth?: number | string | null;
+  onset_date?: string;
+  present_on_admission?: boolean | null;
+  status?: string;
+  care_not_performed?: boolean;
+  care_not_performed_reason?: string;
+  tissue_type?: string;
+  drainage?: string;
+  odor?: string;
+  pain?: string;
+  infection_signs?: string;
+  response_to_treatment?: string;
+  treatment_performed?: string;
+  wound_score?: number | null;
+  validated?: boolean;
+  assessed_at?: string;
+  updated_at?: string;
+  notes?: string;
+  description?: string;
+};
+
+export type WoundCareListResponse = ApiEnvelope<WoundCareRow[]> & {
+  meta?: {
+    active_count?: number;
+    button_state?: WoundButtonState;
+  };
+};
+
+export function getWoundCare(token: string, patientId: number) {
+  return apiRequest<WoundCareListResponse>(`mobile/staff/patients/${patientId}/wound-care`, { token });
+}
+
+export function createWoundCare(
+  token: string,
+  patientId: number,
+  body: {
+    location: string;
+    wound_type: string;
+    stage_grade?: string;
+    onset_date?: string;
+    present_on_admission?: boolean;
+    additional_location?: string;
+    description?: string;
+    notes?: string;
+    treatment_performed?: string;
+  },
+) {
+  return apiRequest<ApiEnvelope<{ id: number; wound_number?: number }>>(
+    `mobile/staff/patients/${patientId}/wound-care`,
+    { method: 'POST', token, body },
+  );
+}
+
+export function updateWoundCare(
+  token: string,
+  patientId: number,
+  woundId: number,
+  body: Record<string, unknown>,
+) {
+  return apiRequest<ApiEnvelope<{ id: number }>>(
+    `mobile/staff/patients/${patientId}/wound-care/${woundId}`,
+    { method: 'PATCH', token, body },
+  );
+}
+
+export type WoundOrderRow = {
+  id: number;
+  wound_location?: string;
+  wound_type?: string;
+  wound_stage?: string;
+  length?: number | string | null;
+  width?: number | string | null;
+  depth?: number | string | null;
+  treatment_frequency?: string;
+  treatment_instructions?: string;
+  supplies_needed?: string;
+  status?: string;
+  start_date?: string;
+  end_date?: string;
+  signed?: boolean;
+  created_at?: string;
+};
+
+export function getWoundOrders(token: string, patientId: number) {
+  return apiRequest<ApiEnvelope<WoundOrderRow[]>>(`mobile/staff/patients/${patientId}/wound-orders`, {
+    token,
+  });
+}
+
+export function createWoundOrder(
+  token: string,
+  patientId: number,
+  body: {
+    wound_location: string;
+    wound_type?: string;
+    wound_stage?: string;
+    length?: number;
+    width?: number;
+    depth?: number;
+    undermining_tunneling?: string;
+    treatment_frequency?: string;
+    treatment_instructions?: string;
+    supplies_needed?: string;
+    start_date?: string;
+    end_date?: string | null;
+    status?: string;
+    treatment_notes?: string;
+    electronic_signature?: {
+      path: string | null;
+      name: string;
+      signed_at: string;
+    };
+  },
+) {
+  return apiRequest<ApiEnvelope<{ id: number; status?: string }>>(
+    `mobile/staff/patients/${patientId}/wound-orders`,
+    { method: 'POST', token, body },
+  );
 }
 
 export function removePlanOfCareSection(token: string, pocId: number, section_key: string) {

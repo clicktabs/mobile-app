@@ -52,6 +52,16 @@ export type StaffScheduleStackParamList = {
     takenLabels?: string[];
     preselectLabel?: string;
   };
+  WoundManager: {
+    patientId: number;
+    patientName?: string;
+    scheduleId?: number;
+  };
+  NewWoundOrder: {
+    patientId: number;
+    patientName?: string;
+    patientMrn?: string;
+  };
 };
 
 export type StaffTabParamList = {

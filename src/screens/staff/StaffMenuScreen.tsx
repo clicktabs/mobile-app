@@ -127,6 +127,16 @@ export function StaffMenuHomeScreen({ navigation }: MenuProps) {
             onPress={() => tabs?.navigate('Patients')}
           />
           <MenuRow
+            icon="map-outline"
+            label="Route Visits"
+            onPress={() => tabs?.navigate('Home', { screen: 'RouteVisits' })}
+          />
+          <MenuRow
+            icon="id-card-outline"
+            label="Electronic ID Badge"
+            onPress={() => tabs?.navigate('Home', { screen: 'ElectronicIdBadge' })}
+          />
+          <MenuRow
             icon="alert-circle-outline"
             label="My COVID-19 Screening(s)"
             onPress={() => navigation.navigate('MenuCovid')}

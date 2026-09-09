@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { VoiceInputButton } from './VoiceInputButton';
 import { colors } from '../theme/colors';
+import type { WoundButtonState } from '../api/staff';
 import { showAlert } from '../utils/confirm';
 
 export type IntegumentState = {
@@ -119,6 +120,8 @@ type Props = {
   value: IntegumentState;
   onChange: (next: IntegumentState) => void;
   patientId?: number;
+  woundButtonState?: WoundButtonState;
+  onOpenWoundManager?: () => void;
 };
 
 function OptionSelect({
@@ -176,7 +179,13 @@ function CheckRow({
   );
 }
 
-export function IntegumentForm({ value, onChange, patientId }: Props) {
+export function IntegumentForm({
+  value,
+  onChange,
+  patientId,
+  woundButtonState = 'na',
+  onOpenWoundManager,
+}: Props) {
   const [locOpen, setLocOpen] = useState(false);
   const set = (patch: Partial<IntegumentState>) => onChange({ ...value, ...patch });
 
@@ -202,19 +211,41 @@ export function IntegumentForm({ value, onChange, patientId }: Props) {
   };
 
   const openWoundLog = () => {
+    if (onOpenWoundManager) {
+      onOpenWoundManager();
+      return;
+    }
     showAlert(
-      'Wound Treatment Log',
+      'Wound Management',
       patientId
-        ? `Open Enter Wound Treatment Log on the web chart for patient #${patientId}.`
-        : 'Open Enter Wound Treatment Log on the web chart.',
+        ? `Open Wound Management on the web chart for patient #${patientId}.`
+        : 'Open Wound Management on the web chart.',
     );
   };
 
+  const woundBtnStyle =
+    woundButtonState === 'complete'
+      ? styles.woundBtnComplete
+      : woundButtonState === 'needs_documentation'
+        ? styles.woundBtnNeeds
+        : styles.woundBtnNa;
+  const woundBtnTextStyle =
+    woundButtonState === 'complete'
+      ? styles.woundBtnTextOn
+      : woundButtonState === 'needs_documentation'
+        ? styles.woundBtnTextOn
+        : styles.woundBtnText;
+  const woundIconColor =
+    woundButtonState === 'na' ? '#475569' : '#fff';
+
   return (
     <View style={styles.wrap}>
-      <Pressable onPress={openWoundLog} style={({ pressed }) => [styles.woundBtn, pressed && { opacity: 0.9 }]}>
-        <Ionicons name="medkit-outline" size={16} color="#fff" />
-        <Text style={styles.woundBtnText}>Enter Wound Treatment Log</Text>
+      <Pressable
+        onPress={openWoundLog}
+        style={({ pressed }) => [styles.woundBtn, woundBtnStyle, pressed && { opacity: 0.9 }]}
+      >
+        <Ionicons name="medkit-outline" size={16} color={woundIconColor} />
+        <Text style={woundBtnTextStyle}>Wound Management</Text>
       </Pressable>
 
       {SIMPLE.map((o) => (
@@ -451,13 +482,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#b45309',
     borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 9,
     marginBottom: 4,
   },
+  woundBtnNa: { backgroundColor: '#1E3A8A' },
+  woundBtnNeeds: { backgroundColor: '#0D9488' },
+  woundBtnComplete: { backgroundColor: '#16A34A' },
   woundBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  woundBtnTextOn: { color: '#fff', fontWeight: '700', fontSize: 12 },
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
