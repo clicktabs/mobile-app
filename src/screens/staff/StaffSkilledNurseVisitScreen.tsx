@@ -571,12 +571,12 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
             <View key={sec.id} style={styles.sectionWrap}>
               <Pressable
                 onPress={() => toggleOpen(sec.id)}
-                style={[styles.sectionHeader, { backgroundColor: sec.color }]}
+                style={styles.sectionHeader}
               >
                 <Ionicons
                   name={st.open ? 'chevron-down' : 'chevron-forward'}
                   size={18}
-                  color="#fff"
+                  color="#64748b"
                 />
                 <Text style={styles.sectionTitle}>{sec.title}</Text>
                 {count > 0 ? (
@@ -917,23 +917,24 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
+    backgroundColor: '#E5E7EB',
   },
   sectionTitle: {
     flex: 1,
-    color: '#fff',
+    color: '#374151',
     fontWeight: '800',
     fontSize: 13,
     letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
   countChip: {
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: '#CBD5E1',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
   },
   countChipText: {
-    color: '#fff',
+    color: '#334155',
     fontWeight: '700',
     fontSize: 12,
   },
