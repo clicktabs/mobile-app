@@ -260,3 +260,83 @@ export function orgDashboard(token: string) {
 export function adminDashboard(token: string) {
   return apiRequest<ApiEnvelope<Record<string, unknown>>>('mobile/admin/dashboard', { token });
 }
+
+export type PocOrderRow = {
+  poc_id?: number | null;
+  section_key: string;
+  field_key: string;
+  order: string;
+  type: string;
+  value: string | boolean;
+  description: string;
+  clinician?: string;
+  effective_date?: string;
+  goal_status?: string;
+};
+
+export type PocOrdersPayload = {
+  rows: PocOrderRow[];
+  poc_id: number | null;
+  cms485_id?: number | null;
+  pending_qa?: boolean;
+  next_episode?: boolean;
+  assessment_date?: string;
+};
+
+export function getPlanOfCareOrders(
+  token: string,
+  patientId: number,
+  discipline: 'sn' | 'pt' | 'ot' | 'st' = 'sn',
+) {
+  return apiRequest<ApiEnvelope<PocOrdersPayload>>(`mobile/staff/patients/${patientId}/plan-of-care/orders`, {
+    token,
+    query: { discipline },
+  });
+}
+
+export function upsertPlanOfCareSection(
+  token: string,
+  patientId: number,
+  body: {
+    section_key: string;
+    label: string;
+    plan_of_care?: string;
+    interventions?: Array<{ field: string; label: string; notes?: string }>;
+    goals?: Array<{ field: string; label: string; notes?: string }>;
+    plan_of_care_id?: number | null;
+  },
+) {
+  return apiRequest<ApiEnvelope<{ plan_of_care_id: number; section_key: string }>>(
+    `mobile/staff/patients/${patientId}/plan-of-care/sections`,
+    { method: 'POST', token, body },
+  );
+}
+
+export function updatePlanOfCareOrder(
+  token: string,
+  pocId: number,
+  body: {
+    section_key: string;
+    field_key: string;
+    description?: string;
+    clinician?: string;
+    effective_date?: string;
+    discontinued?: boolean;
+    goal_status?: string;
+  },
+) {
+  return apiRequest<ApiEnvelope<Record<string, unknown>>>(`mobile/staff/plan-of-care/${pocId}/orders`, {
+    method: 'PATCH',
+    token,
+    body,
+  });
+}
+
+export function removePlanOfCareSection(token: string, pocId: number, section_key: string) {
+  return apiRequest<ApiEnvelope<Record<string, unknown>>>(`mobile/staff/plan-of-care/${pocId}/sections`, {
+    method: 'DELETE',
+    token,
+    body: { section_key },
+  });
+}
+

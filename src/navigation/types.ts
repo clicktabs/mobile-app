@@ -40,6 +40,18 @@ export type StaffScheduleStackParamList = {
     patientName?: string;
     startTime?: string;
   };
+  PlanOfCareProfile: {
+    patientId: number;
+    patientName?: string;
+  };
+  AddProblemStatement: {
+    patientId: number;
+    patientName?: string;
+    discipline: 'sn' | 'pt' | 'ot' | 'st';
+    pocId?: number;
+    takenLabels?: string[];
+    preselectLabel?: string;
+  };
 };
 
 export type StaffTabParamList = {
