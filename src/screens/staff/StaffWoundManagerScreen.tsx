@@ -17,8 +17,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { AppHeader, AppShell } from '../../components/chrome';
 import {
   AnatomicalBodyMap,
-  BODY_MAP_REGIONS,
-  pinFromRegionId,
+  regionByExactLabel,
+  regionById,
   type BodyMapPin,
 } from '../../components/AnatomicalBodyMap';
 import { useAuth } from '../../context/AuthContext';
@@ -114,8 +114,8 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [pickReason, setPickReason] = useState('');
 
-  const [location, setLocation] = useState('Sacrum');
-  const [mapPin, setMapPin] = useState<BodyMapPin>(() => pinFromRegionId('back_sacrum'));
+  const [location, setLocation] = useState('');
+  const [mapPin, setMapPin] = useState<BodyMapPin | null>(null);
   const [additionalLocation, setAdditionalLocation] = useState('Not Applicable');
   const [onsetDate, setOnsetDate] = useState(new Date().toISOString().slice(0, 10));
   const [poa, setPoa] = useState<'yes' | 'no' | ''>('');
@@ -141,41 +141,36 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
   const historyWounds = useMemo(() => wounds.filter((w) => !isActive(w)), [wounds]);
 
   const mapPins: BodyMapPin[] = useMemo(() => {
-    return activeWounds.map((w) => {
-      let x = w.map_x != null ? Number(w.map_x) : NaN;
-      let y = w.map_y != null ? Number(w.map_y) : NaN;
-      let regionId = w.map_region || undefined;
-      if (!Number.isFinite(x) || !Number.isFinite(y)) {
-        const match = BODY_MAP_REGIONS.find(
-          (r) =>
-            r.label.toLowerCase() === String(w.location || '').toLowerCase() ||
-            String(w.location || '').toLowerCase().includes(r.label.toLowerCase().split(' ')[0]),
-        );
-        if (match) {
-          x = match.x;
-          y = match.y;
-          regionId = match.id;
-        } else {
-          const fallback = BODY_MAP_REGIONS.find((r) => r.id === 'back_sacrum')!;
-          x = fallback.x;
-          y = fallback.y;
-          regionId = fallback.id;
-        }
+    // Only show pins that were actually placed (saved map coords / region) — never invent sacrum
+    const placed: BodyMapPin[] = [];
+    activeWounds.forEach((w) => {
+      const x = w.map_x != null ? Number(w.map_x) : NaN;
+      const y = w.map_y != null ? Number(w.map_y) : NaN;
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        placed.push({
+          id: w.id,
+          x,
+          y,
+          label: w.location,
+          regionId: w.map_region || undefined,
+          number: w.wound_number ?? w.id,
+        });
+        return;
       }
-      const sameSpot = activeWounds.filter((o) => {
-        const ox = o.map_x != null ? Number(o.map_x) : null;
-        return ox != null && Math.abs(ox - x) < 2 && Math.abs(Number(o.map_y) - y) < 2;
-      });
-      return {
+      const byRegion = regionById(w.map_region);
+      const byLabel = regionByExactLabel(w.location);
+      const region = byRegion || byLabel;
+      if (!region) return;
+      placed.push({
         id: w.id,
-        x,
-        y,
-        label: w.location,
-        regionId,
+        x: region.x,
+        y: region.y,
+        label: w.location || region.label,
+        regionId: region.id,
         number: w.wound_number ?? w.id,
-        multi: sameSpot.length > 1,
-      };
+      });
     });
+    return placed;
   }, [activeWounds]);
 
   const load = useCallback(
@@ -204,9 +199,8 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
   );
 
   const resetCreate = () => {
-    const pin = pinFromRegionId('back_sacrum');
-    setMapPin(pin);
-    setLocation(pin.label || 'Sacrum');
+    setMapPin(null);
+    setLocation('');
     setAdditionalLocation('Not Applicable');
     setOnsetDate(new Date().toISOString().slice(0, 10));
     setPoa('');
@@ -235,8 +229,12 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
 
   const createWound = async () => {
     if (!token) return;
-    if (!location || !woundType || !poa || !onsetDate) {
-      showAlert('Required fields', 'Location, onset date, present on admission, and wound type are required.');
+    if (!mapPin || !location) {
+      showAlert('Location required', 'Tap the body map to place a wound pin first.');
+      return;
+    }
+    if (!woundType || !poa || !onsetDate) {
+      showAlert('Required fields', 'Onset date, present on admission, and wound type are required.');
       return;
     }
     setSaving(true);
@@ -470,7 +468,7 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
                   </Pressable>
                   <Pressable
                     onPress={() =>
-                      navigation.navigate('NewWoundOrder', {
+                      navigation.navigate('WoundOrderProfiles', {
                         patientId,
                         patientName,
                       })
@@ -657,7 +655,7 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
                       </Pressable>
                       <Pressable
                         onPress={() =>
-                          navigation.navigate('NewWoundOrder', {
+                          navigation.navigate('WoundOrderProfiles', {
                             patientId,
                             patientName,
                           })
@@ -780,12 +778,11 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
             <AnatomicalBodyMap
               activePin={mapPin}
               editable
-              defaultRegionId="back_sacrum"
               height={300}
               showHint
               onPinChange={(p) => {
                 setMapPin(p);
-                setLocation(p.label || location);
+                setLocation(p.label || '');
               }}
             />
             <Field

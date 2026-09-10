@@ -61,6 +61,16 @@ export type StaffScheduleStackParamList = {
     patientId: number;
     patientName?: string;
     patientMrn?: string;
+    profileId?: number;
+    profileName?: string;
+    cleansing?: string;
+    primaryDressing?: string;
+    secondaryDressing?: string;
+    frequency?: string;
+  };
+  WoundOrderProfiles: {
+    patientId: number;
+    patientName?: string;
   };
 };
 

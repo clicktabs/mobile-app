@@ -474,6 +474,74 @@ export function createWoundOrder(
   );
 }
 
+export type WoundOrderProfileRow = {
+  id: number;
+  name: string;
+  cleansing?: string | null;
+  primary_dressing?: string | null;
+  secondary_dressing?: string | null;
+  frequency?: string | null;
+  notes?: string | null;
+  is_default?: boolean;
+};
+
+export type WoundOrderProfilesResponse = ApiEnvelope<WoundOrderProfileRow[]> & {
+  clinician?: {
+    id: number;
+    name: string;
+    title?: string;
+    avatar_url?: string | null;
+  };
+};
+
+export function getWoundOrderProfiles(token: string) {
+  return apiRequest<WoundOrderProfilesResponse>('mobile/staff/wound-order-profiles', { token });
+}
+
+export function createWoundOrderProfile(
+  token: string,
+  body: {
+    name: string;
+    cleansing?: string;
+    primary_dressing?: string;
+    secondary_dressing?: string;
+    frequency?: string;
+    notes?: string;
+  },
+) {
+  return apiRequest<ApiEnvelope<WoundOrderProfileRow>>('mobile/staff/wound-order-profiles', {
+    method: 'POST',
+    token,
+    body,
+  });
+}
+
+export function updateWoundOrderProfile(
+  token: string,
+  profileId: number,
+  body: Partial<{
+    name: string;
+    cleansing: string;
+    primary_dressing: string;
+    secondary_dressing: string;
+    frequency: string;
+    notes: string;
+  }>,
+) {
+  return apiRequest<ApiEnvelope<WoundOrderProfileRow>>(`mobile/staff/wound-order-profiles/${profileId}`, {
+    method: 'PATCH',
+    token,
+    body,
+  });
+}
+
+export function deleteWoundOrderProfile(token: string, profileId: number) {
+  return apiRequest<ApiEnvelope<null>>(`mobile/staff/wound-order-profiles/${profileId}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
 export function removePlanOfCareSection(token: string, pocId: number, section_key: string) {
   return apiRequest<ApiEnvelope<Record<string, unknown>>>(`mobile/staff/plan-of-care/${pocId}/sections`, {
     method: 'DELETE',
