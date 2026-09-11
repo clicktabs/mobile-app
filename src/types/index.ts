@@ -77,6 +77,10 @@ export type EvvVisit = {
     id: number;
     name?: string;
     address?: string;
+    status?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+    photo_url?: string | null;
   };
   evv?: {
     id: number;
@@ -85,5 +89,7 @@ export type EvvVisit = {
     verification_status?: string;
     sandata_sync_status?: string;
     duration_minutes?: number;
+    gps_checkin?: { latitude?: number | null; longitude?: number | null } | null;
+    gps_checkout?: { latitude?: number | null; longitude?: number | null } | null;
   } | null;
 };

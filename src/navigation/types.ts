@@ -29,8 +29,11 @@ export type StaffMenuStackParamList = {
   MenuCertification: undefined;
   MenuUpdates: undefined;
   MenuTime: undefined;
+  MenuPay: undefined;
   MenuMileage: undefined;
   MenuEvv: undefined;
+  MenuEvvClockIn: { scheduleId: number };
+  MenuEvvClockOut: { scheduleId: number };
   MenuSwitchAgency: undefined;
 };
 

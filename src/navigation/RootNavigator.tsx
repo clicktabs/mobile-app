@@ -26,6 +26,9 @@ import {
   StaffShiftOffersScreen,
 } from '../screens/staff/StaffShiftMarketplaceScreens';
 import { StaffLicensesScreen } from '../screens/staff/StaffLicensesScreen';
+import { StaffPayrollScreen } from '../screens/staff/StaffPayrollScreen';
+import { StaffEvvClockInScreen } from '../screens/staff/StaffEvvClockInScreen';
+import { StaffEvvClockOutScreen } from '../screens/staff/StaffEvvClockOutScreen';
 import {
   StaffMenuHomeScreen,
   StaffMenuAccountScreen,
@@ -119,8 +122,11 @@ function StaffMenuNavigator() {
       <StaffMenuStack.Screen name="MenuCertification" component={StaffLicensesScreen} />
       <StaffMenuStack.Screen name="MenuUpdates" component={StaffMenuInfoScreen} />
       <StaffMenuStack.Screen name="MenuTime" component={StaffMenuTimeScreen} />
+      <StaffMenuStack.Screen name="MenuPay" component={StaffPayrollScreen} />
       <StaffMenuStack.Screen name="MenuMileage" component={StaffMenuMileageScreen} />
       <StaffMenuStack.Screen name="MenuEvv" component={StaffMenuEvvScreen} />
+      <StaffMenuStack.Screen name="MenuEvvClockIn" component={StaffEvvClockInScreen} />
+      <StaffMenuStack.Screen name="MenuEvvClockOut" component={StaffEvvClockOutScreen} />
       <StaffMenuStack.Screen name="MenuSwitchAgency" component={StaffMenuSwitchAgencyScreen} />
     </StaffMenuStack.Navigator>
   );

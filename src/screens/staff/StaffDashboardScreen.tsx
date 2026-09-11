@@ -56,9 +56,12 @@ export function StaffDashboardScreen() {
     if (!token) return;
     setError(null);
     try {
-      const [dash, patients] = await Promise.all([
+      const [dash, patients, available, offers, pay] = await Promise.all([
         staffApi.staffDashboard(token),
         staffApi.staffPatients(token, { status: 'all', limit: 1, page: 1 }).catch(() => null),
+        staffApi.staffAvailableShifts(token, 30).catch(() => null),
+        staffApi.staffShiftOffers(token).catch(() => null),
+        staffApi.staffPayrollPeriods(token).catch(() => null),
       ]);
       const s = dash.data?.stats;
       const listTotal =
@@ -68,15 +71,41 @@ export function StaffDashboardScreen() {
       const fromDash = Number(s?.assigned_patients ?? 0) || 0;
       const fromList = listTotal != null ? Number(listTotal) || 0 : null;
 
+      const marketAvailable =
+        (available as any)?.count ??
+        (Array.isArray((available as any)?.data) ? (available as any).data.length : null);
+      const marketOffers =
+        (offers as any)?.count ??
+        (Array.isArray((offers as any)?.data) ? (offers as any).data.length : null);
+
+      let payrollLabel =
+        s?.payroll_hours_label ||
+        (s?.payroll_hours != null ? Number(s.payroll_hours).toFixed(2) : null);
+
+      // Prefer live payroll periods API when dashboard still shows 0
+      if ((!payrollLabel || payrollLabel === '0.00') && pay && Array.isArray((pay as any).data)) {
+        const rows = (pay as any).data as { regular_hours?: number; overtime_hours?: number }[];
+        if (rows.length) {
+          const hours = rows.reduce(
+            (sum, r) => sum + Number(r.regular_hours || 0) + Number(r.overtime_hours || 0),
+            0,
+          );
+          if (hours > 0) {
+            payrollLabel = hours.toFixed(2);
+          }
+        }
+      }
+
       setStats({
-        // Prefer patient-list total so Home matches My Patients tab
         patients: fromList != null && fromList > 0 ? fromList : fromDash || fromList || 0,
-        shiftOffers: Number(s?.shift_offers ?? 0) || 0,
-        availableShifts: Number(s?.available_shifts ?? 0) || 0,
+        shiftOffers:
+          marketOffers != null ? Number(marketOffers) || 0 : Number(s?.shift_offers ?? 0) || 0,
+        availableShifts:
+          marketAvailable != null
+            ? Number(marketAvailable) || 0
+            : Number(s?.available_shifts ?? 0) || 0,
         licenses: s?.licenses != null ? Number(s.licenses) || 0 : null,
-        payrollHours:
-          s?.payroll_hours_label ||
-          (s?.payroll_hours != null ? Number(s.payroll_hours).toFixed(2) : '0.00'),
+        payrollHours: payrollLabel || '0.00',
       });
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
@@ -132,7 +161,7 @@ export function StaffDashboardScreen() {
       label: 'My Payroll Hours',
       icon: 'wallet-outline',
       value: stats.payrollHours,
-      onPress: () => navigation.navigate('Menu', { screen: 'MenuTime' }),
+      onPress: () => navigation.navigate('Menu', { screen: 'MenuPay' }),
     },
   ];
 

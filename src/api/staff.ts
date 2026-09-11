@@ -610,6 +610,13 @@ export function declineShiftOffer(token: string, scheduleId: number) {
   });
 }
 
+export function withdrawShiftClaim(token: string, scheduleId: number) {
+  return apiRequest<ApiEnvelope<StaffShiftItem>>(`mobile/staff/shifts/${scheduleId}/withdraw-claim`, {
+    method: 'POST',
+    token,
+  });
+}
+
 export type StaffLicenseItem = {
   code: string;
   name: string;
@@ -663,5 +670,40 @@ export function uploadStaffLicenseDocument(
       body,
     },
   );
+}
+
+export type StaffPayPeriodRow = {
+  id: number;
+  name?: string;
+  start?: string;
+  end?: string;
+  status?: string;
+  gross?: number;
+  net?: number;
+  regular_hours?: number;
+  overtime_hours?: number;
+  processing_route?: string;
+  sync_status?: string | null;
+  paid_at?: string | null;
+};
+
+export function staffPayrollPeriods(token: string) {
+  return apiRequest<
+    ApiEnvelope<StaffPayPeriodRow[]> & { ytd?: { gross: number; net: number } }
+  >('mobile/staff/payroll/periods', { token });
+}
+
+export function staffPayrollPeriodDetail(token: string, periodId: number) {
+  return apiRequest<ApiEnvelope<Record<string, unknown>>>(`mobile/staff/payroll/periods/${periodId}`, {
+    token,
+  });
+}
+
+export function disputeStaffPayrollPeriod(token: string, periodId: number, reason: string) {
+  return apiRequest<ApiEnvelope<null>>(`mobile/staff/payroll/periods/${periodId}/dispute`, {
+    method: 'POST',
+    token,
+    body: { reason },
+  });
 }
 

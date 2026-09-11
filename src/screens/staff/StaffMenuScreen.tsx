@@ -172,6 +172,11 @@ export function StaffMenuHomeScreen({ navigation }: MenuProps) {
             onPress={() => navigation.navigate('MenuTime')}
           />
           <MenuRow
+            icon="wallet-outline"
+            label="My Pay"
+            onPress={() => navigation.navigate('MenuPay')}
+          />
+          <MenuRow
             icon="car-outline"
             label="Mileage"
             onPress={() => navigation.navigate('MenuMileage')}

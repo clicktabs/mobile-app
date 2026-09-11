@@ -109,7 +109,22 @@ function ShiftCard({
         ) : null}
 
         <View style={styles.actions}>
-          {mode === 'available' ? (
+          {mode === 'available' && awaiting ? (
+            <>
+              <View style={styles.pendingBanner}>
+                <Ionicons name="hourglass-outline" size={16} color="#92400E" />
+                <Text style={styles.pendingText}>Claim pending — waiting for agency approval</Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                disabled={actionDisabled}
+                onPress={() => onWithdraw(item.id)}
+                style={[styles.btnGhost, actionDisabled && styles.btnDisabled]}
+              >
+                <Text style={styles.btnGhostText}>{busy ? '…' : 'Withdraw Claim'}</Text>
+              </TouchableOpacity>
+            </>
+          ) : mode === 'available' ? (
             <TouchableOpacity
               activeOpacity={0.85}
               disabled={actionDisabled}
@@ -203,13 +218,11 @@ function useShiftList(mode: 'available' | 'offers') {
     try {
       const res =
         mode === 'available'
-          ? await staffApi.staffAvailableShifts(token)
+          ? await staffApi.staffAvailableShifts(token, 30)
           : await staffApi.staffShiftOffers(token);
       const next = Array.isArray(res.data) ? res.data : [];
-      // Keep session-locked claims out of Available even if API is briefly stale.
-      setItems(
-        mode === 'available' ? next.filter((x) => !lockedIdsRef.current[x.id]) : next,
-      );
+      // Keep session-locked claims visible as awaiting (API already flags them).
+      setItems(next);
       setUpdatedAt(new Date());
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
@@ -230,17 +243,21 @@ function useShiftList(mode: 'available' | 'offers') {
     }, [load]),
   );
 
-  const runAction = async (id: number, action: 'claim' | 'accept' | 'decline') => {
+  const runAction = async (id: number, action: 'claim' | 'accept' | 'decline' | 'withdraw') => {
     if (!token) return false;
     if (actionLockRef.current) return false;
     actionLockRef.current = true;
     setBusyId(id);
 
-    // Optimistic: remove claimed card immediately so it cannot be tapped again.
+    // Optimistic: mark claimed as awaiting so Claim cannot be tapped again.
     if (action === 'claim') {
       lockedIdsRef.current = { ...lockedIdsRef.current, [id]: true };
       setLockedIds(lockedIdsRef.current);
-      setItems((prev) => prev.filter((x) => x.id !== id));
+      setItems((prev) =>
+        prev.map((x) =>
+          x.id === id ? { ...x, awaiting_admin_approval: true, status: 'pending' } : x,
+        ),
+      );
     }
 
     try {
@@ -249,7 +266,7 @@ function useShiftList(mode: 'available' | 'offers') {
       if (action === 'claim') {
         const res = await staffApi.claimAvailableShift(token, id);
         title = 'Claim submitted';
-        message = res.message || 'Waiting for your agency to approve. Check Shift Offers.';
+        message = res.message || 'Waiting for your agency to approve. You cannot claim this shift again while pending.';
       }
       if (action === 'accept') {
         const res = await staffApi.acceptShiftOffer(token, id);
@@ -263,6 +280,26 @@ function useShiftList(mode: 'available' | 'offers') {
         message = res.message || 'Shift updated.';
         setItems((prev) => prev.filter((x) => x.id !== id));
       }
+      if (action === 'withdraw') {
+        const res = await staffApi.withdrawShiftClaim(token, id);
+        title = 'Claim withdrawn';
+        message = res.message || 'You can claim again if the shift is still open.';
+        const next = { ...lockedIdsRef.current };
+        delete next[id];
+        lockedIdsRef.current = next;
+        setLockedIds(next);
+        setItems((prev) =>
+          prev.map((x) =>
+            x.id === id
+              ? {
+                  ...x,
+                  awaiting_admin_approval: false,
+                  status: x.status === 'pending' ? 'unassigned' : x.status,
+                }
+              : x,
+          ),
+        );
+      }
       showAlert(title, message, 'success');
       return true;
     } catch (e) {
@@ -270,7 +307,7 @@ function useShiftList(mode: 'available' | 'offers') {
         await handleUnauthorized();
         return false;
       }
-      // Same user already claimed / no longer available — keep card out of Available.
+      // Same user already claimed — keep as awaiting, not Claim again.
       if (
         action === 'claim' &&
         e instanceof ApiError &&
@@ -279,7 +316,11 @@ function useShiftList(mode: 'available' | 'offers') {
       ) {
         lockedIdsRef.current = { ...lockedIdsRef.current, [id]: true };
         setLockedIds(lockedIdsRef.current);
-        setItems((prev) => prev.filter((x) => x.id !== id));
+        setItems((prev) =>
+          prev.map((x) =>
+            x.id === id ? { ...x, awaiting_admin_approval: true, status: 'pending' } : x,
+          ),
+        );
         showAlert(
           /already/i.test(e.message) ? 'Already claimed' : 'Shift unavailable',
           e.message || 'This shift is no longer available.',
@@ -332,7 +373,7 @@ export function StaffAvailableShiftsScreen() {
 
     const ok = await confirmAction(
       'Claim this shift?',
-      'Your request goes to your agency for approval. You are not assigned until an admin approves. You can claim each shift only once.',
+      'Your request goes to your agency for approval. You are not assigned until an admin approves. You can claim each shift only once while pending.',
       { confirmLabel: 'Submit Claim', icon: 'briefcase-outline' },
     );
 
@@ -345,6 +386,24 @@ export function StaffAvailableShiftsScreen() {
     // Unlock so runAction can take the lock for the API call.
     state.actionLockRef.current = false;
     await state.runAction(id, 'claim');
+  };
+
+  const onWithdraw = async (id: number) => {
+    if (state.actionLockRef.current || state.busyId != null) return;
+    state.actionLockRef.current = true;
+    state.setBusyId(id);
+    const ok = await confirmAction(
+      'Withdraw your claim?',
+      'After withdrawing you can claim this shift again if it is still open.',
+      { confirmLabel: 'Withdraw', destructive: true, icon: 'arrow-undo-outline' },
+    );
+    if (!ok) {
+      state.actionLockRef.current = false;
+      state.setBusyId(null);
+      return;
+    }
+    state.actionLockRef.current = false;
+    await state.runAction(id, 'withdraw');
   };
 
   return (
@@ -367,7 +426,7 @@ export function StaffAvailableShiftsScreen() {
       <View style={styles.hintBar}>
         <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
         <Text style={styles.hintText}>
-          Claim once → pending until your agency approves. Check Shift Offers after claiming.
+          Claim once → pending until agency approves. While pending you cannot claim again (you can withdraw).
         </Text>
       </View>
       {state.error ? <ErrorBanner message={state.error} /> : null}
@@ -401,7 +460,7 @@ export function StaffAvailableShiftsScreen() {
               onClaim={onClaim}
               onAccept={() => {}}
               onDecline={() => {}}
-              onWithdraw={() => {}}
+              onWithdraw={onWithdraw}
             />
           )}
         />
@@ -465,7 +524,7 @@ export function StaffShiftOffersScreen() {
       return;
     }
     state.actionLockRef.current = false;
-    await state.runAction(id, 'decline');
+    await state.runAction(id, 'withdraw');
   };
 
   return (
