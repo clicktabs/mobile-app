@@ -15,6 +15,8 @@ export type StaffHomeStackParamList = {
   HomeMain: undefined;
   RouteVisits: undefined;
   ElectronicIdBadge: undefined;
+  AvailableShifts: undefined;
+  ShiftOffers: undefined;
 };
 
 export type StaffMenuStackParamList = {

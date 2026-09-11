@@ -40,6 +40,8 @@ export function staffDashboard(token: string) {
         shift_offers?: number;
         available_shifts?: number;
         licenses?: number;
+        licenses_on_file?: number;
+        licenses_pending?: number;
         payroll_hours?: number;
         payroll_hours_label?: string;
       };
@@ -548,5 +550,118 @@ export function removePlanOfCareSection(token: string, pocId: number, section_ke
     token,
     body: { section_key },
   });
+}
+
+export type StaffShiftItem = {
+  id: number;
+  patient_id?: number;
+  patient_name?: string;
+  patient_phone?: string;
+  patient_address?: string;
+  mrn?: string;
+  title?: string;
+  task_type?: string;
+  start_time?: string;
+  end_time?: string;
+  start_display?: string;
+  end_display?: string;
+  status?: string;
+  priority?: string;
+  required_role?: string | null;
+  notes?: string | null;
+  special_instructions?: string;
+  source?: string;
+  is_open?: boolean;
+  awaiting_admin_approval?: boolean;
+  is_admin_offer?: boolean;
+};
+
+export function staffAvailableShifts(token: string, days?: number) {
+  return apiRequest<ApiEnvelope<StaffShiftItem[]> & { count?: number }>('mobile/staff/shifts/available', {
+    token,
+    query: days != null ? { days } : undefined,
+  });
+}
+
+export function staffShiftOffers(token: string) {
+  return apiRequest<ApiEnvelope<StaffShiftItem[]> & { count?: number }>('mobile/staff/shifts/offers', {
+    token,
+  });
+}
+
+export function claimAvailableShift(token: string, scheduleId: number) {
+  return apiRequest<ApiEnvelope<StaffShiftItem>>(`mobile/staff/shifts/${scheduleId}/claim`, {
+    method: 'POST',
+    token,
+  });
+}
+
+export function acceptShiftOffer(token: string, scheduleId: number) {
+  return apiRequest<ApiEnvelope<StaffShiftItem>>(`mobile/staff/shifts/${scheduleId}/accept`, {
+    method: 'POST',
+    token,
+  });
+}
+
+export function declineShiftOffer(token: string, scheduleId: number) {
+  return apiRequest<ApiEnvelope<StaffShiftItem>>(`mobile/staff/shifts/${scheduleId}/decline`, {
+    method: 'POST',
+    token,
+  });
+}
+
+export type StaffLicenseItem = {
+  code: string;
+  name: string;
+  document_type?: string;
+  document_id?: number | null;
+  issue_date?: string | null;
+  expiration_date?: string | null;
+  notes?: string | null;
+  verification_status?: 'empty' | 'pending' | 'verified' | 'rejected' | string;
+  rejection_reason?: string | null;
+  verified_at?: string | null;
+  has_document?: boolean;
+  file_name?: string | null;
+};
+
+export function staffLicenses(token: string) {
+  return apiRequest<
+    ApiEnvelope<StaffLicenseItem[]> & { meta?: { pending?: number; verified?: number; total?: number } }
+  >('mobile/staff/licenses', { token });
+}
+
+export function updateStaffLicense(
+  token: string,
+  code: string,
+  body: { issue_date?: string | null; expiration_date?: string | null; notes?: string | null },
+) {
+  return apiRequest<ApiEnvelope<StaffLicenseItem>>(`mobile/staff/licenses/${encodeURIComponent(code)}`, {
+    method: 'PUT',
+    token,
+    body,
+  });
+}
+
+export function uploadStaffLicenseDocument(
+  token: string,
+  code: string,
+  body: {
+    file_base64: string;
+    file_name?: string;
+    mime_type?: string;
+    issue_date?: string | null;
+    expiration_date?: string | null;
+    notes?: string | null;
+  },
+) {
+  return apiRequest<ApiEnvelope<StaffLicenseItem>>(
+    `mobile/staff/licenses/${encodeURIComponent(code)}/document`,
+    {
+      method: 'POST',
+      token,
+      body,
+    },
+  );
 }
 

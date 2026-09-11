@@ -110,14 +110,14 @@ export function StaffDashboardScreen() {
       label: 'Shift Offers',
       icon: 'swap-horizontal-outline',
       value: stats.shiftOffers,
-      onPress: () => navigation.navigate('Schedule', { screen: 'ScheduleList' }),
+      onPress: () => navigation.navigate('ShiftOffers'),
     },
     {
       key: 'available_shifts',
       label: 'Available Shifts',
       icon: 'time-outline',
       value: stats.availableShifts,
-      onPress: () => navigation.navigate('Schedule', { screen: 'ScheduleList' }),
+      onPress: () => navigation.navigate('AvailableShifts'),
     },
     {
       key: 'licenses',

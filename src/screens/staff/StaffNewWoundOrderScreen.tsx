@@ -13,7 +13,6 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppHeader, AppShell } from '../../components/chrome';
 import { AnatomicalBodyMap, type BodyMapPin } from '../../components/AnatomicalBodyMap';
 import { SignaturePad } from '../../components/SignaturePad';
-import { VoiceInputButton } from '../../components/VoiceInputButton';
 import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
@@ -31,11 +30,20 @@ type LocationRow = {
   depth: number;
 };
 
+/** Exact labels from design image */
 const BLUE = '#2563EB';
 const STAGES = ['Stage I', 'Stage II', 'Stage III', 'Stage IV', 'Unstageable', 'DTI'];
-const PRIMARY = ['Alginate', 'Foam', 'Hydrogel', 'Collagen', 'Gauze'];
-const SECUREMENT = ['Transparent Film', 'Surgical Tape', 'Coban Wrap'];
-const TOPICALS = ['Antimicrobial Ointment', 'Enzymatic Debrider', 'Barrier Cream', 'Normal Saline'];
+const PRIMARY_DRESSINGS = [
+  'Alginate',
+  'Foam',
+  'Hydrogel',
+  'Collagen',
+  'Gauze',
+  'Transparent Film',
+  'Surgical Tape',
+  'Coban Wrap',
+];
+const TOPICALS = ['Antimicrobial Ointment', 'Enzymatic Debrider', 'Barrier Cream'];
 const FREQS = ['Daily', 'Q2 Days', 'Q3 Days', 'QW'];
 const DURATIONS = ['30 Days', '60 Days', 'Until Healed'];
 
@@ -52,6 +60,31 @@ function Chip({
     <Pressable onPress={onPress} style={[styles.chip, selected && styles.chipOn]}>
       <Text style={[styles.chipText, selected && styles.chipTextOn]}>{label}</Text>
     </Pressable>
+  );
+}
+
+function SegRow({
+  options,
+  value,
+  onChange,
+}: {
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <View style={styles.segRow}>
+      {options.map((o) => {
+        const on = value === o;
+        return (
+          <Pressable key={o} onPress={() => onChange(o)} style={[styles.segItem, on && styles.segItemOn]}>
+            <Text style={[styles.segText, on && styles.segTextOn]} numberOfLines={1}>
+              {o}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
@@ -72,15 +105,19 @@ function Stepper({
         <Pressable onPress={() => bump(-0.1)} style={styles.stepBtn}>
           <Text style={styles.stepBtnText}>−</Text>
         </Pressable>
-        <TextInput
-          value={String(value)}
-          keyboardType="decimal-pad"
-          onChangeText={(t) => {
-            const n = parseFloat(t);
-            onChange(Number.isFinite(n) ? n : 0);
-          }}
-          style={styles.stepInput}
-        />
+        <View style={styles.stepInputWrap}>
+          <TextInput
+            value={String(value)}
+            keyboardType="decimal-pad"
+            onChangeText={(t) => {
+              const cleaned = t.replace(/[^0-9.]/g, '');
+              const n = parseFloat(cleaned);
+              onChange(Number.isFinite(n) ? n : 0);
+            }}
+            style={styles.stepInput}
+            maxLength={6}
+          />
+        </View>
         <Pressable onPress={() => bump(0.1)} style={styles.stepBtn}>
           <Text style={styles.stepBtnText}>+</Text>
         </Pressable>
@@ -98,6 +135,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+function toggleInList(list: string[], value: string) {
+  return list.includes(value) ? list.filter((x) => x !== value) : [...list, value];
+}
+
 export function StaffNewWoundOrderScreen({ navigation, route }: Props) {
   const { token, staffUser } = useAuth();
   const {
@@ -110,24 +151,29 @@ export function StaffNewWoundOrderScreen({ navigation, route }: Props) {
     frequency,
   } = route.params;
 
+  const initialPrimaries = useMemo(() => {
+    const seed = [primaryDressing, secondaryDressing].filter(
+      (v): v is string => !!v && PRIMARY_DRESSINGS.includes(v),
+    );
+    return seed.length ? seed : ['Foam', 'Surgical Tape'];
+  }, [primaryDressing, secondaryDressing]);
+
+  const [step, setStep] = useState(0); // 0 → 1 → 2 (screens 1, 2, 3)
   const [locations, setLocations] = useState<LocationRow[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [stage, setStage] = useState('Stage II');
   const [length, setLength] = useState(2.5);
   const [width, setWidth] = useState(1.8);
   const [depth, setDepth] = useState(0.5);
-  const [tunneling, setTunneling] = useState('');
-  const [primary, setPrimary] = useState(primaryDressing || 'Foam');
-  const [securement, setSecurement] = useState(secondaryDressing || 'Surgical Tape');
+  const [primaries, setPrimaries] = useState<string[]>(initialPrimaries);
   const [topical, setTopical] = useState(
     cleansing && TOPICALS.includes(cleansing) ? cleansing : 'Enzymatic Debrider',
   );
   const [dressingFreq, setDressingFreq] = useState(frequency || 'Q2 Days');
   const [orderFreq, setOrderFreq] = useState(frequency || 'Q2 Days');
   const [duration, setDuration] = useState('30 Days');
-  const [instructions, setInstructions] = useState('');
+  const [instructions, setInstructions] = useState('Ensure offloading');
   const [signaturePath, setSignaturePath] = useState<string | null>(null);
-  const [signerName, setSignerName] = useState(staffUser?.name || '');
   const [saving, setSaving] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
 
@@ -141,10 +187,7 @@ export function StaffNewWoundOrderScreen({ navigation, route }: Props) {
     return patientMrn?.trim() ? `${name}, #${patientMrn.trim()}` : name;
   }, [patientName, patientMrn]);
 
-  const woundId = useMemo(() => {
-    const loc = (active?.pin.label || 'LOC').replace(/\s+/g, '').slice(0, 6).toUpperCase();
-    return `W-${patientId}-${loc}`;
-  }, [patientId, active?.pin.label]);
+  const signerName = staffUser?.name || 'Clinician';
 
   const onPinChange = (pin: BodyMapPin) => {
     setLocations((prev) => {
@@ -152,9 +195,7 @@ export function StaffNewWoundOrderScreen({ navigation, route }: Props) {
       if (existing) {
         setActiveId(existing.id);
         return prev.map((l) =>
-          l.id === existing.id
-            ? { ...l, pin, stage, length, width, depth }
-            : l,
+          l.id === existing.id ? { ...l, pin, stage, length, width, depth } : l,
         );
       }
       const id = `loc-${Date.now()}`;
@@ -171,7 +212,23 @@ export function StaffNewWoundOrderScreen({ navigation, route }: Props) {
     setDepth(row.depth);
   };
 
-  // Keep active row in sync when stage/measures change
+  const removeLocation = (id: string) => {
+    setLocations((prev) => {
+      const next = prev.filter((l) => l.id !== id);
+      if (activeId === id) {
+        const first = next[0] || null;
+        setActiveId(first?.id || null);
+        if (first) {
+          setStage(first.stage);
+          setLength(first.length);
+          setWidth(first.width);
+          setDepth(first.depth);
+        }
+      }
+      return next;
+    });
+  };
+
   const syncActive = (patch: Partial<LocationRow>) => {
     if (!activeId) return;
     setLocations((prev) => prev.map((l) => (l.id === activeId ? { ...l, ...patch } : l)));
@@ -202,39 +259,56 @@ export function StaffNewWoundOrderScreen({ navigation, route }: Props) {
     return d.toISOString().slice(0, 10);
   };
 
-  const validate = (requireSign: boolean) => {
+  const canLeaveScreen1 = () => {
     if (!active?.pin.label) {
       showAlert('Location required', 'Tap the body map to drop a pin.');
-      return false;
-    }
-    if (!stage) {
-      showAlert('Stage required', 'Select wound stage.');
-      return false;
-    }
-    if (!primary) {
-      showAlert('Dressing required', 'Select a primary dressing.');
-      return false;
-    }
-    if (requireSign && !signaturePath) {
-      showAlert('Signature required', 'Draw your signature, then Sign & Submit.');
-      return false;
-    }
-    if (requireSign && !signerName.trim()) {
-      showAlert('Signer name', 'Enter the signing clinician name.');
       return false;
     }
     return true;
   };
 
+  const canLeaveScreen2 = () => {
+    if (!canLeaveScreen1()) return false;
+    if (primaries.length === 0) {
+      showAlert('Dressing required', 'Select at least one primary dressing.');
+      return false;
+    }
+    return true;
+  };
+
+  const goBack = () => {
+    if (step > 0) setStep((s) => s - 1);
+    else navigation.goBack();
+  };
+
+  /** Footer blue button: screens 1–2 advance; screen 3 submits */
+  const onSignSubmitPress = () => {
+    if (step === 0) {
+      if (!canLeaveScreen1()) return;
+      setStep(1);
+      return;
+    }
+    if (step === 1) {
+      if (!canLeaveScreen2()) return;
+      setStep(2);
+      return;
+    }
+    submit(true);
+  };
+
   const submit = async (signed: boolean) => {
-    if (!token || !validate(signed)) return;
+    if (!token) return;
+    if (!canLeaveScreen2()) return;
+    if (signed && !signaturePath) {
+      showAlert('Signature required', 'TAP TO SIGN, then Sign & Submit.');
+      return;
+    }
     setSaving(true);
     try {
       const supplies = [
-        `Primary: ${primary}`,
-        securement ? `Securement: ${securement}` : '',
-        topical ? `Topical/cleansing: ${topical}` : '',
-        `Dressing change: ${dressingFreq}`,
+        `Primary dressing: ${primaries.join(', ')}`,
+        topical ? `Topical: ${topical}` : '',
+        `Secondary dressing: ${dressingFreq}`,
       ]
         .filter(Boolean)
         .join('\n');
@@ -243,9 +317,8 @@ export function StaffNewWoundOrderScreen({ navigation, route }: Props) {
         instructions.trim(),
         `Duration: ${duration}`,
         `Frequency: ${orderFreq}`,
-        tunneling.trim() ? `Tunneling/undermining: ${tunneling.trim()}` : '',
         `Body map: ${active!.pin.label}`,
-        signed ? `Electronically signed by ${signerName.trim()}` : '',
+        signed ? `Electronically signed by ${signerName}` : '',
       ]
         .filter(Boolean)
         .join('\n');
@@ -257,7 +330,6 @@ export function StaffNewWoundOrderScreen({ navigation, route }: Props) {
         length,
         width,
         depth,
-        undermining_tunneling: tunneling || undefined,
         treatment_frequency: orderFreq,
         treatment_instructions: notes,
         supplies_needed: supplies,
@@ -265,12 +337,10 @@ export function StaffNewWoundOrderScreen({ navigation, route }: Props) {
         end_date: endDateForDuration(),
         status: signed ? 'active' : 'draft',
         treatment_notes: JSON.stringify({
-          wound_id: woundId,
           signature_path: signaturePath,
-          signed_by: signerName.trim(),
+          signed_by: signerName,
           signed_at: signed ? new Date().toISOString() : null,
-          primary,
-          securement,
+          primary_dressings: primaries,
           topical,
           dressing_frequency: dressingFreq,
           duration,
@@ -286,11 +356,10 @@ export function StaffNewWoundOrderScreen({ navigation, route }: Props) {
           })),
         }),
         electronic_signature: signed
-          ? { path: signaturePath, name: signerName.trim(), signed_at: new Date().toISOString() }
+          ? { path: signaturePath, name: signerName, signed_at: new Date().toISOString() }
           : undefined,
       });
 
-      // Also create wound care record with map pin for Wound Manager
       try {
         await staffApi.createWoundCare(token, patientId, {
           location: active!.pin.label || 'Unspecified',
@@ -325,158 +394,139 @@ export function StaffNewWoundOrderScreen({ navigation, route }: Props) {
       <AppHeader
         title="New Wound Order"
         showLogo={false}
-        actions={[{ icon: 'arrow-back', onPress: () => navigation.goBack() }]}
+        actions={[{ icon: 'arrow-back', onPress: goBack }]}
       />
       <Text style={styles.patientSub}>{patientLine}</Text>
 
       <ScrollView
+        key={`step-${step}`}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Section title="Section 1: Assessment">
-          <AnatomicalBodyMap
-            activePin={active?.pin || null}
-            editable
-            height={300}
-            showHint={false}
-            showLocationLabel={false}
-            onPinChange={onPinChange}
-          />
-          <Text style={styles.quietHint}>Tap body map to drop pin · Wound ID auto-assigns</Text>
-          {active ? <Text style={styles.woundId}>{woundId}</Text> : null}
+        {/* ——— SCREEN 1 ——— */}
+        {step === 0 ? (
+          <Section title="Section 1: Assessment">
+            <AnatomicalBodyMap
+              activePin={active?.pin || null}
+              editable
+              height={300}
+              showHint={false}
+              showLocationLabel={false}
+              onPinChange={onPinChange}
+            />
+            <View style={styles.chipRow}>
+              {STAGES.map((s) => (
+                <Chip key={s} label={s} selected={stage === s} onPress={() => setStageAndSync(s)} />
+              ))}
+            </View>
+            <View style={styles.measureRow}>
+              <Stepper label="Length (cm)" value={length} onChange={setLengthAndSync} />
+              <Stepper label="Width (cm)" value={width} onChange={setWidthAndSync} />
+              <Stepper label="Depth (cm)" value={depth} onChange={setDepthAndSync} />
+            </View>
+          </Section>
+        ) : null}
 
-          <Text style={styles.fieldLabel}>Stage</Text>
-          <View style={styles.chipRow}>
-            {STAGES.map((s) => (
-              <Chip key={s} label={s} selected={stage === s} onPress={() => setStageAndSync(s)} />
-            ))}
-          </View>
-
-          <Text style={styles.fieldLabel}>Measurements (cm)</Text>
-          <View style={styles.measureRow}>
-            <Stepper label="Length (cm)" value={length} onChange={setLengthAndSync} />
-            <Stepper label="Width (cm)" value={width} onChange={setWidthAndSync} />
-            <Stepper label="Depth (cm)" value={depth} onChange={setDepthAndSync} />
-          </View>
-
-          <Text style={styles.fieldLabel}>Tunneling / undermining (clock)</Text>
-          <TextInput
-            value={tunneling}
-            onChangeText={setTunneling}
-            placeholder="e.g. 3 cm at 7 o'clock"
-            placeholderTextColor="#94A3B8"
-            style={styles.input}
-          />
-
-          {locations.length > 0 ? (
-            <>
-              <Text style={styles.fieldLabel}>Location</Text>
+        {/* ——— SCREEN 2 ——— */}
+        {step === 1 ? (
+          <>
+            <Section title="Section 1: Assessment">
               <View style={styles.locList}>
                 {locations.map((row) => {
                   const on = row.id === activeId;
                   return (
-                    <Pressable
-                      key={row.id}
-                      onPress={() => selectLocation(row)}
-                      style={[styles.locRow, on && styles.locRowOn]}
-                    >
-                      <View style={styles.stageBadge}>
-                        <Text style={styles.stageBadgeText}>{row.stage}</Text>
-                      </View>
-                      <Ionicons name="body-outline" size={16} color="#64748B" />
-                      <Text style={styles.locLabel} numberOfLines={1}>
-                        {row.pin.label}
-                      </Text>
-                      <Ionicons
-                        name={on ? 'radio-button-on' : 'radio-button-off'}
-                        size={20}
-                        color={on ? BLUE : '#CBD5E1'}
-                      />
-                    </Pressable>
+                    <View key={row.id} style={[styles.locRow, on && styles.locRowOn]}>
+                      <Pressable
+                        onPress={() => selectLocation(row)}
+                        style={styles.locMain}
+                      >
+                        <View style={styles.stageBadge}>
+                          <Text style={styles.stageBadgeText}>{row.stage}</Text>
+                        </View>
+                        <Ionicons name="body-outline" size={16} color="#64748B" />
+                        <Text style={styles.locLabel} numberOfLines={1}>
+                          {row.pin.label}
+                        </Text>
+                      </Pressable>
+                      {on ? (
+                        <Ionicons name="checkmark-circle" size={22} color={BLUE} />
+                      ) : (
+                        <Pressable onPress={() => removeLocation(row.id)} hitSlop={8}>
+                          <Ionicons name="close" size={20} color="#94A3B8" />
+                        </Pressable>
+                      )}
+                    </View>
                   );
                 })}
               </View>
-            </>
-          ) : null}
-        </Section>
+            </Section>
 
-        <Section title="Section 2: Dressings">
-          <Text style={styles.fieldLabel}>Primary dressing</Text>
-          <View style={styles.chipRow}>
-            {PRIMARY.map((d) => (
-              <Chip key={d} label={d} selected={primary === d} onPress={() => setPrimary(d)} />
-            ))}
-          </View>
+            <Section title="Section 2: Dressings">
+              <Text style={styles.fieldLabel}>Primary Dressing</Text>
+              <View style={styles.chipRow}>
+                {PRIMARY_DRESSINGS.map((d) => (
+                  <Chip
+                    key={d}
+                    label={d}
+                    selected={primaries.includes(d)}
+                    onPress={() => setPrimaries((prev) => toggleInList(prev, d))}
+                  />
+                ))}
+              </View>
+              <Text style={styles.fieldLabel}>Topicals</Text>
+              <View style={styles.chipRow}>
+                {TOPICALS.map((d) => (
+                  <Chip key={d} label={d} selected={topical === d} onPress={() => setTopical(d)} />
+                ))}
+              </View>
+            </Section>
+          </>
+        ) : null}
 
-          <Text style={styles.fieldLabel}>Securement</Text>
-          <View style={styles.chipRow}>
-            {SECUREMENT.map((d) => (
-              <Chip key={d} label={d} selected={securement === d} onPress={() => setSecurement(d)} />
-            ))}
-          </View>
+        {/* ——— SCREEN 3 ——— */}
+        {step === 2 ? (
+          <>
+            <Section title="Section 2: Dressings">
+              <Text style={styles.fieldLabel}>Secondary Dressing</Text>
+              <SegRow options={FREQS} value={dressingFreq} onChange={setDressingFreq} />
+            </Section>
 
-          <Text style={styles.fieldLabel}>Topicals / cleansing</Text>
-          <View style={styles.chipRow}>
-            {TOPICALS.map((d) => (
-              <Chip key={d} label={d} selected={topical === d} onPress={() => setTopical(d)} />
-            ))}
-          </View>
+            <Section title="Section 3: Instructions">
+              <Text style={styles.fieldLabel}>Frequency</Text>
+              <View style={styles.freqSelect}>
+                <Text style={styles.freqSelectText}>{orderFreq}</Text>
+                <Ionicons name="chevron-down" size={18} color="#64748B" />
+              </View>
+              <SegRow options={FREQS} value={orderFreq} onChange={setOrderFreq} />
 
-          <Text style={styles.fieldLabel}>Secondary dressing frequency</Text>
-          <View style={styles.chipRow}>
-            {FREQS.map((f) => (
-              <Chip key={f} label={f} selected={dressingFreq === f} onPress={() => setDressingFreq(f)} />
-            ))}
-          </View>
-        </Section>
+              <Text style={styles.fieldLabel}>Treatment Duration</Text>
+              <SegRow options={DURATIONS} value={duration} onChange={setDuration} />
 
-        <Section title="Section 3: Instructions">
-          <Text style={styles.fieldLabel}>Frequency</Text>
-          <View style={styles.chipRow}>
-            {FREQS.map((f) => (
-              <Chip key={f} label={f} selected={orderFreq === f} onPress={() => setOrderFreq(f)} />
-            ))}
-          </View>
+              <Text style={styles.fieldLabel}>Special Instructions</Text>
+              <TextInput
+                value={instructions}
+                onChangeText={setInstructions}
+                multiline
+                placeholder="Ensure offloading..."
+                placeholderTextColor="#94A3B8"
+                style={[styles.input, styles.inputMulti]}
+              />
+            </Section>
 
-          <Text style={styles.fieldLabel}>Treatment duration</Text>
-          <View style={styles.chipRow}>
-            {DURATIONS.map((d) => (
-              <Chip key={d} label={d} selected={duration === d} onPress={() => setDuration(d)} />
-            ))}
-          </View>
-
-          <View style={styles.instrHead}>
-            <Text style={styles.fieldLabel}>Special instructions</Text>
-            <VoiceInputButton value={instructions} onChange={setInstructions} />
-          </View>
-          <TextInput
-            value={instructions}
-            onChangeText={setInstructions}
-            multiline
-            placeholder="Ensure offloading..."
-            placeholderTextColor="#94A3B8"
-            style={[styles.input, styles.inputMulti]}
-          />
-        </Section>
-
-        <Section title="Section 4: Authentication">
-          <TextInput
-            value={signerName}
-            onChangeText={setSignerName}
-            placeholder="Signer full name"
-            placeholderTextColor="#94A3B8"
-            style={styles.input}
-          />
-          <SignaturePad onChange={setSignaturePath} height={140} />
-        </Section>
+            <Section title="Section 4: Authentication">
+              <SignaturePad onChange={setSignaturePath} height={140} />
+            </Section>
+          </>
+        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
         <Pressable
           disabled={saving}
           onPress={() => {
-            if (!validate(false)) return;
+            if (step === 0 && !canLeaveScreen1()) return;
+            if (step >= 1 && !canLeaveScreen2()) return;
             setReviewOpen(true);
           }}
           style={({ pressed }) => [styles.reviewBtn, pressed && { opacity: 0.9 }]}
@@ -485,10 +535,12 @@ export function StaffNewWoundOrderScreen({ navigation, route }: Props) {
         </Pressable>
         <Pressable
           disabled={saving}
-          onPress={() => submit(true)}
+          onPress={onSignSubmitPress}
           style={({ pressed }) => [styles.submitBtn, pressed && { opacity: 0.9 }]}
         >
-          <Text style={styles.submitBtnText}>{saving ? 'Submitting…' : 'Sign & Submit'}</Text>
+          <Text style={styles.submitBtnText}>
+            {saving ? 'Submitting…' : 'Sign & Submit'}
+          </Text>
         </Pressable>
       </View>
 
@@ -501,22 +553,17 @@ export function StaffNewWoundOrderScreen({ navigation, route }: Props) {
           />
           <ScrollView contentContainerStyle={styles.content}>
             <Text style={styles.reviewLine}>Patient: {patientLine}</Text>
-            <Text style={styles.reviewLine}>Wound ID: {woundId}</Text>
             <Text style={styles.reviewLine}>Location: {active?.pin.label || '—'}</Text>
             <Text style={styles.reviewLine}>Stage: {stage}</Text>
             <Text style={styles.reviewLine}>
               Size: {length} × {width} × {depth} cm
             </Text>
+            <Text style={styles.reviewLine}>Dressing: {primaries.join(', ') || '—'}</Text>
+            <Text style={styles.reviewLine}>Topical: {topical}</Text>
             <Text style={styles.reviewLine}>
-              Dressing: {primary} · {securement} · {topical}
-            </Text>
-            <Text style={styles.reviewLine}>
-              Freq: {orderFreq} · Duration: {duration}
+              Secondary: {dressingFreq} · Freq: {orderFreq} · {duration}
             </Text>
             <Text style={styles.reviewLine}>Instructions: {instructions || '—'}</Text>
-            <Text style={styles.reviewLine}>
-              Signature: {signaturePath ? 'Captured' : 'Not signed'}
-            </Text>
             <Pressable
               onPress={() => {
                 setReviewOpen(false);
@@ -529,7 +576,8 @@ export function StaffNewWoundOrderScreen({ navigation, route }: Props) {
             <Pressable
               onPress={() => {
                 setReviewOpen(false);
-                submit(true);
+                if (step < 2) setStep(2);
+                else submit(true);
               }}
               style={[styles.submitBtn, { marginTop: 10 }]}
             >
@@ -558,21 +606,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     padding: 14,
-    gap: 8,
+    gap: 10,
   },
   sectionTitle: {
     fontSize: 15,
     fontWeight: '800',
     color: '#0F172A',
-    marginBottom: 2,
   },
-  quietHint: { fontSize: 11, color: '#94A3B8' },
-  woundId: { fontSize: 12, fontWeight: '700', color: '#166534' },
   fieldLabel: {
     fontSize: 12,
     fontWeight: '700',
     color: '#64748B',
-    marginTop: 6,
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
@@ -587,7 +631,7 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 12, color: '#334155', fontWeight: '600' },
   chipTextOn: { color: '#fff' },
   measureRow: { flexDirection: 'row', gap: 8 },
-  stepper: { flex: 1, gap: 4 },
+  stepper: { flex: 1, minWidth: 0, gap: 4 },
   stepperRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -600,17 +644,27 @@ const styles = StyleSheet.create({
   stepBtn: {
     width: 34,
     height: 38,
+    flexShrink: 0,
+    flexGrow: 0,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#E2E8F0',
+    zIndex: 1,
   },
   stepBtnText: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
-  stepInput: {
+  stepInputWrap: {
     flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    overflow: 'hidden',
+  },
+  stepInput: {
+    width: '100%',
     textAlign: 'center',
     fontWeight: '700',
     color: '#0F172A',
     paddingVertical: 8,
+    paddingHorizontal: 4,
   },
   input: {
     borderWidth: 1,
@@ -623,11 +677,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   inputMulti: { minHeight: 80, textAlignVertical: 'top' },
-  instrHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   locList: { gap: 6 },
   locRow: {
     flexDirection: 'row',
@@ -641,6 +690,7 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   locRowOn: { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' },
+  locMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   stageBadge: {
     backgroundColor: BLUE,
     borderRadius: 6,
@@ -649,6 +699,36 @@ const styles = StyleSheet.create({
   },
   stageBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   locLabel: { flex: 1, fontSize: 13, fontWeight: '600', color: '#0F172A' },
+  segRow: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#F8FAFC',
+  },
+  segItem: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segItemOn: { backgroundColor: BLUE },
+  segText: { fontSize: 11, fontWeight: '700', color: '#64748B' },
+  segTextOn: { color: '#fff' },
+  freqSelect: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+  },
+  freqSelectText: { fontSize: 14, fontWeight: '600', color: '#0F172A' },
   footer: {
     flexDirection: 'row',
     gap: 10,
@@ -660,13 +740,13 @@ const styles = StyleSheet.create({
   reviewBtn: {
     flex: 1,
     borderWidth: 1.5,
-    borderColor: BLUE,
+    borderColor: '#CBD5E1',
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
     backgroundColor: '#fff',
   },
-  reviewBtnText: { color: BLUE, fontWeight: '800', fontSize: 14 },
+  reviewBtnText: { color: '#475569', fontWeight: '800', fontSize: 14 },
   submitBtn: {
     flex: 1,
     borderRadius: 10,

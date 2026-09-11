@@ -110,9 +110,8 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
   const [sections, setSections] = useState<Record<string, SectionState>>(() => {
     const init: Record<string, SectionState> = {};
     VISIT_SECTIONS.forEach((s) => {
-      init[s.id] = emptySection();
+      init[s.id] = emptySection(); // all collapsed by default
     });
-    init.vitals = { ...emptySection(), open: true };
     return init;
   });
   const [vitals, setVitals] = useState<VitalSignsState>(emptyVitalSigns);
@@ -548,11 +547,13 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
         title="Skilled Nurse Visit"
         actions={[{ icon: 'arrow-back', onPress: () => navigation.goBack() }]}
       />
-      <Text style={styles.subtitle}>{subtitle}</Text>
-      <Pressable style={styles.loadPrev}>
-        <Text style={styles.loadPrevText}>Load Previous Note</Text>
-        <Ionicons name="chevron-down" size={16} color={colors.brandMagenta} />
-      </Pressable>
+      <View style={styles.contextBar}>
+        <Text style={styles.subtitle}>{subtitle}</Text>
+        <Pressable style={styles.loadPrev}>
+          <Text style={styles.loadPrevText}>Load Previous Note</Text>
+          <Ionicons name="chevron-down" size={16} color={colors.brandMagenta} />
+        </Pressable>
+      </View>
 
       <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
         {VISIT_SECTIONS.map((sec) => {
@@ -592,17 +593,23 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
             <View key={sec.id} style={styles.sectionWrap}>
               <Pressable
                 onPress={() => toggleOpen(sec.id)}
-                style={styles.sectionHeader}
+                style={[styles.sectionHeader, st.open && styles.sectionHeaderOpen]}
               >
-                <Ionicons
-                  name={st.open ? 'chevron-down' : 'chevron-forward'}
-                  size={18}
-                  color="#64748b"
-                />
-                <Text style={styles.sectionTitle}>{sec.title}</Text>
+                <View style={[styles.sectionChevron, st.open && styles.sectionChevronOpen]}>
+                  <Ionicons
+                    name={st.open ? 'chevron-down' : 'chevron-forward'}
+                    size={18}
+                    color={st.open ? '#1D4ED8' : '#64748b'}
+                  />
+                </View>
+                <Text style={[styles.sectionTitle, st.open && styles.sectionTitleOpen]}>
+                  {sec.title}
+                </Text>
                 {count > 0 ? (
-                  <View style={styles.countChip}>
-                    <Text style={styles.countChipText}>{count}</Text>
+                  <View style={[styles.countChip, st.open && styles.countChipOpen]}>
+                    <Text style={[styles.countChipText, st.open && styles.countChipTextOpen]}>
+                      {count}
+                    </Text>
                   </View>
                 ) : null}
               </Pressable>
@@ -920,78 +927,117 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  subtitle: {
+  contextBar: {
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 4,
-    color: colors.textMuted,
-    fontSize: 13,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    gap: 8,
+  },
+  subtitle: {
+    color: '#0F172A',
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 22,
   },
   loadPrev: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
+    alignSelf: 'flex-start',
   },
-  loadPrevText: { color: colors.brandMagenta, fontWeight: '600', fontSize: 14 },
-  list: { paddingHorizontal: 12, paddingBottom: 100 },
+  loadPrevText: { color: colors.brandMagenta, fontWeight: '700', fontSize: 14 },
+  list: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 110 },
   sectionWrap: {
-    marginBottom: 10,
-    borderRadius: 12,
+    marginBottom: 12,
+    borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#E2E8F0',
     backgroundColor: '#fff',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: '#E5E7EB',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    backgroundColor: '#F1F5F9',
+  },
+  sectionHeaderOpen: {
+    backgroundColor: '#EFF6FF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#DBEAFE',
+  },
+  sectionChevron: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E2E8F0',
+  },
+  sectionChevronOpen: {
+    backgroundColor: '#DBEAFE',
   },
   sectionTitle: {
     flex: 1,
-    color: '#374151',
+    color: '#334155',
     fontWeight: '800',
-    fontSize: 13,
-    letterSpacing: 0.4,
+    fontSize: 14,
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
+  },
+  sectionTitleOpen: {
+    color: '#1E3A8A',
   },
   countChip: {
     backgroundColor: '#CBD5E1',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    minWidth: 28,
+    alignItems: 'center',
+  },
+  countChipOpen: {
+    backgroundColor: '#2563EB',
   },
   countChipText: {
     color: '#334155',
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 12,
   },
-  sectionBody: { padding: 10, gap: 6 },
+  countChipTextOpen: {
+    color: '#fff',
+  },
+  sectionBody: { padding: 14, gap: 10, backgroundColor: '#fff' },
   groupLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     color: '#64748b',
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginTop: 8,
-    marginBottom: 2,
+    letterSpacing: 0.4,
+    marginTop: 10,
+    marginBottom: 4,
     marginLeft: 2,
   },
   selectDetailWrap: {
     marginLeft: 8,
     marginTop: 4,
     marginBottom: 6,
-    padding: 8,
-    borderRadius: 8,
+    padding: 12,
+    borderRadius: 10,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    gap: 6,
+    gap: 8,
   },
   selectTrigger: {
     flexDirection: 'row',
@@ -1000,29 +1046,30 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1,
     borderColor: '#d1d5db',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     backgroundColor: '#fff',
+    minHeight: 48,
   },
-  selectTriggerText: { flex: 1, fontSize: 13, color: colors.textMuted },
+  selectTriggerText: { flex: 1, fontSize: 15, color: colors.textMuted },
   selectOption: {
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 8,
     backgroundColor: '#1e293b',
     marginTop: 4,
   },
   selectOptionOn: { backgroundColor: '#006bb7' },
-  selectOptionText: { color: '#fff', fontSize: 13 },
+  selectOptionText: { color: '#fff', fontSize: 14 },
   selectNotes: {
-    minHeight: 56,
+    minHeight: 64,
     borderWidth: 1,
     borderColor: '#d1d5db',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 13,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
     color: colors.text,
     backgroundColor: '#fff',
     textAlignVertical: 'top',
@@ -1030,21 +1077,27 @@ const styles = StyleSheet.create({
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: '#F0F7FF',
-  },
-  optionRowOn: { backgroundColor: '#FFE4EC' },
-  optionLabel: { flex: 1, color: colors.text, fontSize: 14 },
-  optionLabelOn: { fontWeight: '600', color: colors.ink },
-  childWrap: {
-    marginLeft: 12,
-    marginTop: 4,
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     marginBottom: 6,
-    padding: 10,
-    borderRadius: 8,
+  },
+  optionRowOn: {
+    backgroundColor: '#FFF1F5',
+    borderColor: '#FECDD3',
+  },
+  optionLabel: { flex: 1, color: colors.text, fontSize: 15, lineHeight: 21 },
+  optionLabelOn: { fontWeight: '700', color: colors.ink },
+  childWrap: {
+    marginLeft: 8,
+    marginTop: 4,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 10,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: colors.border,
@@ -1059,66 +1112,75 @@ const styles = StyleSheet.create({
   childRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 8,
   },
   childRowOn: { backgroundColor: '#FFF1F5' },
-  childLabel: { color: colors.text, fontSize: 13 },
+  childLabel: { color: colors.text, fontSize: 14 },
   commentBlock: { marginTop: 8 },
-  commentLabel: { fontWeight: '700', color: colors.textMuted, marginBottom: 6, fontSize: 12 },
+  commentLabel: {
+    fontWeight: '800',
+    color: '#475569',
+    marginBottom: 6,
+    fontSize: 13,
+  },
   voiceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   voiceLabel: {
     flex: 1,
     marginBottom: 0,
     textTransform: 'uppercase',
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
   commentInput: {
-    minHeight: 72,
+    minHeight: 88,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 10,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 14,
     textAlignVertical: 'top',
     color: colors.text,
+    backgroundColor: '#F8FAFC',
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  responseBlock: { gap: 10 },
+  ordersBlock: { gap: 12, paddingVertical: 4 },
+  ordersDesc: { fontSize: 14, color: '#64748b', lineHeight: 21 },
+  ordersBtn: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#2563EB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  ordersBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  ordersHint: { fontSize: 13, color: '#94a3b8' },
+  ordersSecondary: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     backgroundColor: '#fff',
   },
-  responseBlock: { gap: 8 },
-  ordersBlock: { gap: 10, paddingVertical: 4 },
-  ordersDesc: { fontSize: 13, color: '#64748b', lineHeight: 19 },
-  ordersBtn: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    backgroundColor: '#006bb7',
-    borderRadius: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  ordersBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
-  ordersHint: { fontSize: 12, color: '#94a3b8' },
-  ordersSecondary: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#f8fafc',
-  },
-  ordersSecondaryText: { color: '#334155', fontWeight: '600', fontSize: 12 },
+  ordersSecondaryText: { color: '#334155', fontWeight: '700', fontSize: 14 },
   footer: {
     position: 'absolute',
     left: 0,
@@ -1126,23 +1188,23 @@ const styles = StyleSheet.create({
     bottom: 0,
     flexDirection: 'row',
     gap: 10,
-    padding: 12,
+    padding: 14,
     backgroundColor: '#fff',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
   },
   footerBtn: {
     flex: 1,
-    height: 48,
-    borderRadius: 10,
+    height: 52,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
   },
   saveBtn: { borderColor: '#2563EB', backgroundColor: '#fff' },
-  saveBtnText: { color: '#2563EB', fontWeight: '700' },
+  saveBtnText: { color: '#2563EB', fontWeight: '800', fontSize: 15 },
   completeBtn: { borderColor: '#0D9488', backgroundColor: '#fff' },
-  completeBtnText: { color: '#0D9488', fontWeight: '700' },
+  completeBtnText: { color: '#0D9488', fontWeight: '800', fontSize: 15 },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -1170,3 +1232,4 @@ const styles = StyleSheet.create({
   signDate: { color: colors.ink, marginBottom: 16, fontSize: 15 },
   modalActions: { gap: 8 },
 });
+

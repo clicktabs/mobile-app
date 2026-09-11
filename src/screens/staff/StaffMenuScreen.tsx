@@ -141,6 +141,46 @@ export function StaffMenuHomeScreen({ navigation }: MenuProps) {
             label="My COVID-19 Screening(s)"
             onPress={() => navigation.navigate('MenuCovid')}
           />
+          <MenuRow
+            icon="clipboard-outline"
+            label="NVA Log"
+            onPress={() => navigation.navigate('MenuNva')}
+          />
+          <MenuRow
+            icon="medkit-outline"
+            label="Immunizations"
+            onPress={() => navigation.navigate('MenuImmunizations')}
+          />
+          <MenuRow
+            icon="mail-outline"
+            label="Contact Us"
+            onPress={() => navigation.navigate('MenuContact')}
+          />
+          <MenuRow
+            icon="ribbon-outline"
+            label="Licenses & Credentials"
+            onPress={() => navigation.navigate('MenuCertification')}
+          />
+          <MenuRow
+            icon="sparkles-outline"
+            label="Product Updates"
+            onPress={() => navigation.navigate('MenuUpdates')}
+          />
+          <MenuRow
+            icon="time-outline"
+            label="Time Clock"
+            onPress={() => navigation.navigate('MenuTime')}
+          />
+          <MenuRow
+            icon="car-outline"
+            label="Mileage"
+            onPress={() => navigation.navigate('MenuMileage')}
+          />
+          <MenuRow
+            icon="navigate-outline"
+            label="EVV"
+            onPress={() => navigation.navigate('MenuEvv')}
+          />
         </View>
 
         <View style={styles.menuSpacer} />
@@ -311,7 +351,15 @@ export function StaffMenuInfoScreen({
     <AppShell>
       <AppHeader
         title={titles[route.name] || 'Info'}
-        actions={[{ icon: 'arrow-back', onPress: () => navigation.goBack() }]}
+        actions={[
+          {
+            icon: 'arrow-back',
+            onPress: () => {
+              if (navigation.canGoBack()) navigation.goBack();
+              else navigation.navigate('MenuHome');
+            },
+          },
+        ]}
       />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
         <Text style={styles.body}>{bodies[route.name]}</Text>

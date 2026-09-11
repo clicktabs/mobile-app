@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { AppHeader, AppShell } from '../../components/chrome';
@@ -118,7 +119,7 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
   const [mapPin, setMapPin] = useState<BodyMapPin | null>(null);
   const [additionalLocation, setAdditionalLocation] = useState('Not Applicable');
   const [onsetDate, setOnsetDate] = useState(new Date().toISOString().slice(0, 10));
-  const [poa, setPoa] = useState<'yes' | 'no' | ''>('');
+  const [poa, setPoa] = useState<'yes' | 'no' | ''>('yes');
   const [woundType, setWoundType] = useState('');
   const [stage, setStage] = useState('');
   const [treatmentPerformed, setTreatmentPerformed] = useState('');
@@ -203,7 +204,7 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
     setLocation('');
     setAdditionalLocation('Not Applicable');
     setOnsetDate(new Date().toISOString().slice(0, 10));
-    setPoa('');
+    setPoa('yes');
     setWoundType('');
     setStage('');
     setTreatmentPerformed('');
@@ -773,42 +774,70 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
             actions={[{ icon: 'close', onPress: () => setAddOpen(false) }]}
           />
           <Text style={styles.subline}>{patientName || 'Patient'}</Text>
-          <ScrollView contentContainerStyle={styles.modalContent}>
-            <Text style={styles.label}>Drop pin on body map *</Text>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.addModalContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator
+          >
+            <ReqLabel>Drop pin on body map</ReqLabel>
             <AnatomicalBodyMap
               activePin={mapPin}
               editable
               height={300}
               showHint
+              showLocationLabel={!!mapPin}
               onPinChange={(p) => {
                 setMapPin(p);
                 setLocation(p.label || '');
               }}
             />
+
             <Field
-              label="Additional location description *"
+              label="Additional location description"
+              required
               value={additionalLocation}
               onChangeText={setAdditionalLocation}
-              placeholder="Not Applicable or proximal / distal, etc."
+              placeholder="Not Applicable"
             />
-            <Field label="Onset date * (YYYY-MM-DD)" value={onsetDate} onChangeText={setOnsetDate} />
-            <Text style={styles.label}>Present on admission *</Text>
-            <View style={styles.chipRow}>
-              <Chip label="Yes" selected={poa === 'yes'} onPress={() => setPoa('yes')} />
-              <Chip label="No" selected={poa === 'no'} onPress={() => setPoa('no')} />
+            <Field
+              label="Onset date (YYYY-MM-DD)"
+              required
+              value={onsetDate}
+              onChangeText={setOnsetDate}
+              placeholder="YYYY-MM-DD"
+            />
+
+            <ReqLabel>Present on admission</ReqLabel>
+            <View style={styles.yesNoRow}>
+              <Pressable
+                onPress={() => setPoa('yes')}
+                style={[styles.yesNoBtn, poa === 'yes' && styles.yesNoBtnOn]}
+              >
+                <Text style={[styles.yesNoText, poa === 'yes' && styles.yesNoTextOn]}>Yes</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setPoa('no')}
+                style={[styles.yesNoBtn, poa === 'no' && styles.yesNoBtnOn]}
+              >
+                <Text style={[styles.yesNoText, poa === 'no' && styles.yesNoTextOn]}>No</Text>
+              </Pressable>
             </View>
-            <Text style={styles.label}>Wound type / tissue injury level *</Text>
+
+            <ReqLabel>Wound type / tissue injury level</ReqLabel>
             <View style={styles.chipRow}>
               {WOUND_TYPES.map((o) => (
                 <Chip key={o} label={o} selected={woundType === o} onPress={() => setWoundType(o)} />
               ))}
             </View>
-            <Text style={styles.label}>Stage / grade</Text>
+
+            <Text style={styles.addLabel}>Stage / grade</Text>
             <View style={styles.chipRow}>
               {STAGES.map((o) => (
                 <Chip key={o} label={o} selected={stage === o} onPress={() => setStage(o)} />
               ))}
             </View>
+
             <Field
               label="Treatment performed"
               value={treatmentPerformed}
@@ -817,14 +846,24 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
               placeholder="Clear asterisks from associated order text and document what was performed"
             />
             <Field label="Notes" value={createNotes} onChangeText={setCreateNotes} multiline />
-            <Pressable
-              disabled={saving}
-              onPress={createWound}
-              style={({ pressed }) => [styles.primaryBtn, { marginTop: 12 }, pressed && { opacity: 0.9 }]}
-            >
-              <Text style={styles.primaryBtnText}>{saving ? 'Creating…' : 'Create Wound'}</Text>
-            </Pressable>
           </ScrollView>
+
+          <View style={styles.createFooter}>
+            <Pressable disabled={saving} onPress={createWound}>
+              {({ pressed }) => (
+                <LinearGradient
+                  colors={[...colors.brandGradient]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.createWoundBtn, pressed && { opacity: 0.92 }]}
+                >
+                  <Text style={styles.createWoundBtnText}>
+                    {saving ? 'Creating…' : 'Create Wound'}
+                  </Text>
+                </LinearGradient>
+              )}
+            </Pressable>
+          </View>
         </AppShell>
       </Modal>
 
@@ -880,16 +919,21 @@ function Field({
   onChangeText,
   multiline,
   placeholder,
+  required,
 }: {
   label: string;
   value: string;
   onChangeText: (t: string) => void;
   multiline?: boolean;
   placeholder?: string;
+  required?: boolean;
 }) {
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.addLabel}>
+        {label}
+        {required ? <Text style={styles.reqStar}> *</Text> : null}
+      </Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -899,6 +943,15 @@ function Field({
         style={[styles.input, multiline && styles.inputMulti]}
       />
     </View>
+  );
+}
+
+function ReqLabel({ children }: { children: string }) {
+  return (
+    <Text style={styles.addLabel}>
+      {children}
+      <Text style={styles.reqStar}> *</Text>
+    </Text>
   );
 }
 
@@ -1057,6 +1110,30 @@ const styles = StyleSheet.create({
   link: { color: colors.brandMagenta, fontWeight: '600', fontSize: 13 },
   hint: { color: colors.textMuted, fontSize: 12, lineHeight: 17 },
   label: { fontSize: 12, fontWeight: '700', color: colors.textMuted, marginTop: 4 },
+  addLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  reqStar: { color: '#DC2626', fontWeight: '800' },
+  yesNoRow: { flexDirection: 'row', gap: 10 },
+  yesNoBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  yesNoBtnOn: {
+    backgroundColor: '#FFE4EC',
+    borderColor: colors.brandMagenta,
+  },
+  yesNoText: { fontSize: 14, fontWeight: '600', color: colors.ink },
+  yesNoTextOn: { color: colors.brandMagenta, fontWeight: '800' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: {
     paddingHorizontal: 10,
@@ -1094,6 +1171,26 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: 11, color: colors.textMuted },
   tabLabelOn: { color: colors.brandMagenta, fontWeight: '700' },
   modalContent: { padding: 16, gap: 8, paddingBottom: 40 },
+  addModalContent: { padding: 16, gap: 10, paddingBottom: 28 },
+  createFooter: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    backgroundColor: '#fff',
+  },
+  createWoundBtn: {
+    borderRadius: 10,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createWoundBtnText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 16,
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(15,23,42,0.45)',

@@ -22,6 +22,11 @@ import { StaffPatientsScreen } from '../screens/staff/StaffPatientsScreen';
 import { StaffPatientDetailScreen } from '../screens/staff/StaffPatientDetailScreen';
 import { StaffMessagesScreen } from '../screens/staff/StaffMessagesScreen';
 import {
+  StaffAvailableShiftsScreen,
+  StaffShiftOffersScreen,
+} from '../screens/staff/StaffShiftMarketplaceScreens';
+import { StaffLicensesScreen } from '../screens/staff/StaffLicensesScreen';
+import {
   StaffMenuHomeScreen,
   StaffMenuAccountScreen,
   StaffMenuInfoScreen,
@@ -69,6 +74,8 @@ function StaffHomeNavigator() {
       <StaffHomeStack.Screen name="HomeMain" component={StaffDashboardScreen} />
       <StaffHomeStack.Screen name="RouteVisits" component={StaffMenuRouteVisitsScreen} />
       <StaffHomeStack.Screen name="ElectronicIdBadge" component={StaffMenuBadgeScreen} />
+      <StaffHomeStack.Screen name="AvailableShifts" component={StaffAvailableShiftsScreen} />
+      <StaffHomeStack.Screen name="ShiftOffers" component={StaffShiftOffersScreen} />
     </StaffHomeStack.Navigator>
   );
 }
@@ -109,7 +116,7 @@ function StaffMenuNavigator() {
       <StaffMenuStack.Screen name="MenuCovid" component={StaffMenuInfoScreen} />
       <StaffMenuStack.Screen name="MenuImmunizations" component={StaffMenuInfoScreen} />
       <StaffMenuStack.Screen name="MenuContact" component={StaffMenuInfoScreen} />
-      <StaffMenuStack.Screen name="MenuCertification" component={StaffMenuInfoScreen} />
+      <StaffMenuStack.Screen name="MenuCertification" component={StaffLicensesScreen} />
       <StaffMenuStack.Screen name="MenuUpdates" component={StaffMenuInfoScreen} />
       <StaffMenuStack.Screen name="MenuTime" component={StaffMenuTimeScreen} />
       <StaffMenuStack.Screen name="MenuMileage" component={StaffMenuMileageScreen} />
@@ -158,7 +165,9 @@ function StaffApp() {
         name="Menu"
         component={StaffMenuNavigator}
         listeners={({ navigation }) => ({
-          tabPress: () => {
+          tabPress: (e) => {
+            // Always return to the full Menu list (not a nested page like Certification).
+            e.preventDefault();
             navigation.navigate('Menu', { screen: 'MenuHome' });
           },
         })}
