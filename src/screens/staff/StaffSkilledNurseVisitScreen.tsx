@@ -974,10 +974,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
     backgroundColor: '#fff',
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
+    boxShadow: '0px 2px 6px rgba(15, 23, 42, 0.03)',
     elevation: 1,
   },
   sectionHeader: {
