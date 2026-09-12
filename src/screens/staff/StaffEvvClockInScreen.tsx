@@ -53,6 +53,21 @@ function deviceMeta() {
   };
 }
 
+function goToVisitDocumentation(
+  navigation: Props['navigation'],
+  params: {
+    scheduleId: number;
+    patientId?: number;
+    patientName?: string;
+    startTime?: string;
+  },
+) {
+  navigation.getParent()?.navigate('Schedule', {
+    screen: 'SkilledNurseVisit',
+    params: { ...params, evvFlow: true },
+  });
+}
+
 function staticMapUri(lat: number, lng: number) {
   return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=16&size=600x320&markers=${lat},${lng},red-pushpin`;
 }
@@ -266,7 +281,12 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
           verification_method: 'gps',
         });
         showAlert('Saved offline', 'Clock-in queued. It will sync when you are online.', 'info');
-        navigation.goBack();
+        goToVisitDocumentation(navigation, {
+          scheduleId,
+          patientId: patient?.id,
+          patientName: patient?.name,
+          startTime: visit?.start_datetime,
+        });
         return;
       }
 
@@ -276,7 +296,12 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
         verification_method: 'gps',
       });
       showAlert('Visit started', res.check_in_time || res.message || 'Clock-in transmitted.', 'success');
-      navigation.goBack();
+      goToVisitDocumentation(navigation, {
+        scheduleId,
+        patientId: patient?.id,
+        patientName: patient?.name,
+        startTime: visit?.start_datetime,
+      });
     } catch (e) {
       if (!(e instanceof ApiError) || e.status === 0) {
         try {
@@ -288,7 +313,12 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
             verification_method: 'gps',
           });
           showAlert('Saved offline', 'Network issue — clock-in queued for sync.', 'info');
-          navigation.goBack();
+          goToVisitDocumentation(navigation, {
+            scheduleId,
+            patientId: patient?.id,
+            patientName: patient?.name,
+            startTime: visit?.start_datetime,
+          });
           return;
         } catch {
           // fall through
@@ -344,6 +374,31 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
                 </Text>
               </View>
             </View>
+          </View>
+
+          <Text style={styles.sectionTitle}>Step 1: Validate Visit Details</Text>
+          <View style={styles.visitMetaCard}>
+            <MetaRow label="Visit Type" value={visit?.service_type || 'Home Health Visit'} />
+            <MetaRow
+              label="Date"
+              value={
+                visit?.start_datetime
+                  ? new Date(visit.start_datetime).toLocaleDateString()
+                  : new Date().toLocaleDateString()
+              }
+            />
+            <MetaRow
+              label="Scheduled Time"
+              value={
+                visit?.start_datetime
+                  ? `${new Date(visit.start_datetime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}${
+                      visit.end_datetime
+                        ? ` – ${new Date(visit.end_datetime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+                        : ''
+                    }`
+                  : '—'
+              }
+            />
           </View>
 
           <Text style={styles.sectionTitle}>Current Location Check</Text>
@@ -428,8 +483,29 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
   );
 }
 
+function MetaRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.metaRow}>
+      <Text style={styles.metaLabel}>{label}</Text>
+      <Text style={styles.metaValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   pad: { padding: 16, paddingBottom: 40 },
+  visitMetaCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    marginBottom: 16,
+    gap: 10,
+  },
+  metaRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  metaLabel: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+  metaValue: { fontSize: 13, color: colors.text, fontWeight: '700', flex: 1, textAlign: 'right' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   patientRow: {
     flexDirection: 'row',

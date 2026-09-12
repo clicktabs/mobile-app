@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -214,6 +215,7 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [syncHint, setSyncHint] = useState('Ready to transmit EVV');
+  const [attestModalOpen, setAttestModalOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -285,15 +287,20 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
     .join('; ');
 
   const needsGeoException = geofence.status === 'miss';
+  const tasksReady = incompleteTasks.length === 0 && !!coords && !!visit?.evv?.check_in_time && !visit?.evv?.check_out_time;
+  const canOpenAttest = tasksReady && !submitting;
   const canSubmit =
-    !!coords &&
+    canOpenAttest &&
     attested &&
     !!signature &&
-    incompleteTasks.length === 0 &&
-    (!needsGeoException || !!geoException) &&
-    !submitting &&
-    !!visit?.evv?.check_in_time &&
-    !visit?.evv?.check_out_time;
+    (!needsGeoException || !!geoException);
+
+  const distanceFromHome = useMemo(() => {
+    if (!coords || homeLat == null || homeLng == null) return null;
+    const meters = haversineMeters(coords.latitude, coords.longitude, homeLat, homeLng);
+    const miles = meters / 1609.34;
+    return { meters, miles };
+  }, [coords, homeLat, homeLng]);
 
   const initials = (patient?.name || 'PT')
     .split(/\s+/)
@@ -367,6 +374,7 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
           (res.sandata_queued ? '\nEVV transmission queued.' : ''),
         'success',
       );
+      setAttestModalOpen(false);
       navigation.goBack();
     } catch (e) {
       setSyncHint('Ready to transmit EVV');
@@ -524,71 +532,110 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
             {geofence.status === 'waiting' && 'Geofence Check: Waiting for GPS…'}
             {geofence.status === 'match' && 'Geofence Check: Matches residence'}
             {geofence.status === 'miss' &&
-              `Geofence Check: Outside (${Math.round(geofence.meters || 0)} m) — exception required`}
+              `Clock-Out (Unmatched) — ${distanceFromHome ? `${distanceFromHome.miles.toFixed(1)} miles away` : `${Math.round(geofence.meters || 0)} m`} · exception required`}
             {geofence.status === 'skipped' && 'Geofence Check: No patient coordinates on file'}
           </Text>
+
+          {coords ? (
+            <Text style={styles.coordLine}>
+              Clock-Out GPS: {coords.latitude.toFixed(4)} N, {Math.abs(coords.longitude).toFixed(4)} W
+            </Text>
+          ) : null}
 
           <View style={styles.syncRow}>
             <Ionicons name="sync" size={16} color={colors.brandPink} />
             <Text style={styles.syncText}>{syncHint}</Text>
           </View>
 
-          {needsGeoException ? (
-            <View style={styles.geoExceptionBox}>
-              <Text style={styles.geoExceptionTitle}>Proceed with clock-out with Geofence Exception?</Text>
-              {GEO_EXCEPTION_REASONS.map((r) => (
-                <Pressable key={r} style={styles.reasonChip} onPress={() => setGeoException(r)}>
-                  <Text style={[styles.reasonChipText, geoException === r && styles.reasonChipTextOn]}>
-                    {r}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-
-          {/* Step 3 */}
           <Text style={styles.sectionTitle}>Step 3: Attestation</Text>
-          <View style={styles.card}>
-            <Text style={styles.attestCopy}>
-              By signing, the patient or designated representative confirms services were rendered
-              according to the care plan for this visit.
-            </Text>
-            <Pressable style={styles.taskRow} onPress={() => setAttested((v) => !v)}>
-              <View style={[styles.checkbox, attested && styles.checkboxOn]}>
-                {attested ? <Ionicons name="checkmark" size={16} color="#fff" /> : null}
-              </View>
-              <Text style={styles.taskLabel}>Verify tasks completed according to care plan.</Text>
-            </Pressable>
-            <View style={{ paddingHorizontal: 14, paddingBottom: 4 }}>
-              <SignaturePad onChange={setSignature} height={140} />
-            </View>
-            <Text style={styles.notesLabel}>Notes (optional)</Text>
-            <TextInput
-              style={styles.notesInput}
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-              placeholder="Visit notes / exception detail"
-              placeholderTextColor={colors.textMuted}
-            />
-          </View>
+          <Text style={styles.attestHint}>
+            Patient/caregiver signature and geofence exception (if needed) are collected before
+            transmitting EVV.
+          </Text>
 
           <Pressable
-            style={[styles.startBtn, !canSubmit && styles.startBtnDisabled]}
-            disabled={!canSubmit}
-            onPress={onSubmit}
+            style={[styles.startBtn, !canOpenAttest && styles.startBtnDisabled]}
+            disabled={!canOpenAttest}
+            onPress={() => setAttestModalOpen(true)}
           >
-            {submitting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.startBtnText}>SUBMIT CLOCK-OUT & TRANSMIT EVV</Text>
-            )}
+            <Text style={styles.startBtnText}>SUBMIT CLOCK-OUT & TRANSMIT EVV</Text>
           </Pressable>
           <Pressable style={styles.cancelBtn} onPress={() => navigation.goBack()}>
             <Text style={styles.cancelBtnText}>CANCEL / RETURN</Text>
           </Pressable>
         </ScrollView>
       )}
+
+      <Modal visible={attestModalOpen} animationType="slide" transparent onRequestClose={() => setAttestModalOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Step 3: Attestation</Text>
+            <Text style={styles.attestCopy}>
+              By signing, the patient or designated representative confirms services were rendered
+              according to the care plan for this visit.
+            </Text>
+
+            <Text style={styles.sigLabel}>Patient/Caregiver Signature</Text>
+            <View style={styles.sigPadWrap}>
+              <SignaturePad onChange={setSignature} height={120} />
+            </View>
+
+            <Pressable style={styles.taskRow} onPress={() => setAttested((v) => !v)}>
+              <View style={[styles.checkbox, attested && styles.checkboxOn]}>
+                {attested ? <Ionicons name="checkmark" size={16} color="#fff" /> : null}
+              </View>
+              <Text style={styles.taskLabel}>Verify tasks completed according to care plan.</Text>
+            </Pressable>
+
+            {needsGeoException ? (
+              <View style={styles.geoExceptionBox}>
+                <Text style={styles.geoExceptionTitle}>Proceed with Geofence Exception?</Text>
+                {GEO_EXCEPTION_REASONS.map((r) => (
+                  <Pressable key={r} style={styles.reasonChip} onPress={() => setGeoException(r)}>
+                    <Text style={[styles.reasonChipText, geoException === r && styles.reasonChipTextOn]}>
+                      {r}
+                    </Text>
+                  </Pressable>
+                ))}
+                <TextInput
+                  style={styles.notesInput}
+                  value={notes}
+                  onChangeText={setNotes}
+                  multiline
+                  placeholder="Exception notes (required if outside geofence)"
+                  placeholderTextColor={colors.textMuted}
+                />
+              </View>
+            ) : (
+              <TextInput
+                style={styles.notesInput}
+                value={notes}
+                onChangeText={setNotes}
+                multiline
+                placeholder="Visit notes (optional)"
+                placeholderTextColor={colors.textMuted}
+              />
+            )}
+
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.confirmBtn, !canSubmit && styles.startBtnDisabled]}
+                disabled={!canSubmit}
+                onPress={onSubmit}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.confirmBtnText}>Confirm</Text>
+                )}
+              </Pressable>
+              <Pressable style={styles.editBtn} onPress={() => setAttestModalOpen(false)}>
+                <Text style={styles.editBtnText}>Edit Visit</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </AppShell>
   );
 }
@@ -731,6 +778,43 @@ const styles = StyleSheet.create({
   },
   geofenceOk: { color: colors.success },
   geofenceBad: { color: colors.danger },
+  coordLine: { fontSize: 12, color: colors.textMuted, marginBottom: 8 },
+  attestHint: { fontSize: 13, color: colors.textMuted, marginBottom: 12, lineHeight: 18 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 18,
+    paddingBottom: 28,
+    maxHeight: '92%',
+  },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 8 },
+  sigLabel: { fontSize: 13, fontWeight: '700', color: colors.text, marginTop: 8, marginBottom: 6 },
+  sigPadWrap: { marginBottom: 8 },
+  modalActions: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  confirmBtn: {
+    flex: 1,
+    backgroundColor: '#2563EB',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  confirmBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  editBtn: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  editBtnText: { color: colors.text, fontWeight: '700', fontSize: 14 },
   syncRow: {
     flexDirection: 'row',
     alignItems: 'center',

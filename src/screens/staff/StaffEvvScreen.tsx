@@ -1,17 +1,15 @@
 import React, { useCallback, useState } from 'react';
 import {
-  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import * as Location from 'expo-location';
 import {
   EmptyState,
   ErrorBanner,
@@ -25,30 +23,25 @@ import { ApiError } from '../../api/client';
 import { showAlert } from '../../utils/confirm';
 import type { EvvVisit } from '../../types';
 import { colors } from '../../theme/colors';
-import { getWorkOffline } from '../../utils/offline';
 
-async function getCoords() {
-  const { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== 'granted') {
-    throw new Error('Location permission is required for EVV check-in and check-out.');
-  }
-  const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-  return {
-    latitude: loc.coords.latitude,
-    longitude: loc.coords.longitude,
-    gps_accuracy: loc.coords.accuracy ?? undefined,
-  };
+function formatVisitTime(start?: string, end?: string) {
+  if (!start) return '';
+  const s = new Date(start);
+  const startStr = s.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (!end) return startStr;
+  const e = new Date(end);
+  const endStr = e.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return `${startStr} – ${endStr}`;
 }
 
-function deviceMeta() {
-  return {
-    device_id: 'click-tabs-mobile',
-    app_version: '1.0.0',
-    platform: Platform.OS,
-  };
+function formatVisitDate(dt?: string) {
+  if (!dt) return '';
+  return new Date(dt).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
 }
-
-type Method = 'gps' | 'telephony' | 'biometric';
 
 export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
   const navigation = useNavigation<any>();
@@ -57,9 +50,6 @@ export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<number | null>(null);
-  const [notes, setNotes] = useState('');
-  const [method, setMethod] = useState<Method>('gps');
   const [pendingOffline, setPendingOffline] = useState(0);
 
   const load = useCallback(async () => {
@@ -92,171 +82,22 @@ export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
     }, [load]),
   );
 
-  const openClockIn = (scheduleId: number) => {
-    navigation.navigate('MenuEvvClockIn', { scheduleId });
-  };
-
-  const checkInAlt = async (scheduleId: number) => {
-    if (!token) return;
-    setBusyId(scheduleId);
-    try {
-      const coords = await getCoords();
-      let telephony_session_id: string | undefined;
-      if (method === 'telephony') {
-        const tel = await evvApi.initiateTelephony(token, scheduleId);
-        telephony_session_id = tel.session_id;
-      }
-
-      const offline = await getWorkOffline();
-      if (offline) {
-        await evvApi.queueOfflineEvvEvent({
-          type: 'checkin',
-          patient_schedule_id: scheduleId,
-          occurred_at: new Date().toISOString(),
-          ...coords,
-          verification_method: method,
-        });
-        showAlert('Saved offline', 'Check-in queued. It will sync when you are online.', 'info');
-        setPendingOffline(await evvApi.pendingOfflineEvvCount());
-        return;
-      }
-
-      const res = await evvApi.evvCheckin(token, scheduleId, {
-        ...coords,
-        ...deviceMeta(),
-        verification_method: method,
-        telephony_session_id,
-        biometric_attestation: method === 'biometric' ? `device-attestation-${Date.now()}` : undefined,
-      });
-      showAlert('Checked in', res.check_in_time || res.message || 'Success', 'success');
-      await load();
-    } catch (e) {
-      if (!(e instanceof ApiError) || e.status === 0) {
-        try {
-          const coords = await getCoords();
-          await evvApi.queueOfflineEvvEvent({
-            type: 'checkin',
-            patient_schedule_id: scheduleId,
-            occurred_at: new Date().toISOString(),
-            ...coords,
-            verification_method: method,
-          });
-          showAlert('Saved offline', 'Network issue — check-in queued for sync.', 'info');
-          setPendingOffline(await evvApi.pendingOfflineEvvCount());
-          return;
-        } catch {
-          // fall through
-        }
-      }
-      showAlert('Check-in failed', e instanceof Error ? e.message : 'Error', 'error');
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const checkOut = async (scheduleId: number) => {
-    if (!token) return;
-    setBusyId(scheduleId);
-    try {
-      const coords = await getCoords();
-      const offline = await getWorkOffline();
-      if (offline) {
-        await evvApi.queueOfflineEvvEvent({
-          type: 'checkout',
-          patient_schedule_id: scheduleId,
-          occurred_at: new Date().toISOString(),
-          ...coords,
-          verification_method: method,
-          notes: notes || undefined,
-        });
-        showAlert('Saved offline', 'Check-out queued for sync.', 'info');
-        setNotes('');
-        setPendingOffline(await evvApi.pendingOfflineEvvCount());
-        return;
-      }
-
-      const res = await evvApi.evvCheckout(token, scheduleId, {
-        ...coords,
-        ...deviceMeta(),
-        notes: notes || undefined,
-        verification_method: method,
-      });
-      showAlert(
-        res.verification_status === 'verified' ? 'Checked out · Verified' : 'Checked out',
-        `Duration: ${res.duration_minutes ?? '—'} min` +
-          (res.verification_status ? `\nStatus: ${res.verification_status}` : ''),
-        'success',
-      );
-      setNotes('');
-      await load();
-    } catch (e) {
-      if (!(e instanceof ApiError) || e.status === 0) {
-        try {
-          const coords = await getCoords();
-          await evvApi.queueOfflineEvvEvent({
-            type: 'checkout',
-            patient_schedule_id: scheduleId,
-            occurred_at: new Date().toISOString(),
-            ...coords,
-            verification_method: method,
-            notes: notes || undefined,
-          });
-          showAlert('Saved offline', 'Network issue — check-out queued for sync.', 'info');
-          setPendingOffline(await evvApi.pendingOfflineEvvCount());
-          return;
-        } catch {
-          // fall through
-        }
-      }
-      showAlert('Check-out failed', e instanceof Error ? e.message : 'Error', 'error');
-    } finally {
-      setBusyId(null);
-    }
-  };
-
   if (loading) return <LoadingBlock />;
 
   const body = (
     <View style={styles.root}>
       <Subtitle>
-        GPS check-in/out with geofence. Verified visits go to Sandata and payroll.
+        Clock-in → document care → clock-out. GPS verified visits sync to Sandata and payroll.
         {pendingOffline > 0 ? ` · ${pendingOffline} offline event(s) pending` : ''}
       </Subtitle>
 
-      <View style={styles.methodRow}>
-        {(['gps', 'telephony', 'biometric'] as const).map((m) => {
-          const active = method === m;
-          if (active) {
-            return (
-              <Pressable key={m} onPress={() => setMethod(m)} style={styles.methodOuter}>
-                <LinearGradient
-                  colors={[...colors.brandGradient]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.methodPillActive}
-                >
-                  <Text style={styles.methodTextActive}>{m.toUpperCase()}</Text>
-                </LinearGradient>
-              </Pressable>
-            );
-          }
-          return (
-            <Pressable key={m} onPress={() => setMethod(m)} style={styles.methodPill}>
-              <Text style={styles.methodText}>{m.toUpperCase()}</Text>
-            </Pressable>
-          );
-        })}
+      <View style={styles.flowLegend}>
+        <FlowStep n={1} label="Clock-In" />
+        <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+        <FlowStep n={2} label="Shift Note" />
+        <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+        <FlowStep n={3} label="Clock-Out" />
       </View>
-
-      <Text style={styles.notesLabel}>Checkout notes (optional)</Text>
-      <TextInput
-        style={styles.notesInput}
-        value={notes}
-        onChangeText={setNotes}
-        placeholder=""
-        placeholderTextColor={colors.textMuted}
-        multiline
-      />
 
       {error ? <ErrorBanner message={error} onRetry={load} /> : null}
 
@@ -284,69 +125,64 @@ export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
               (v.patient?.name && v.patient.name.trim()) ||
               (v.patient?.address ? v.patient.address.split(',')[0] : null) ||
               `Visit #${v.id}`;
-            const status = checkedOut
-              ? `EVV: Checked out (${v.evv?.verification_status || 'pending'})`
-              : checkedIn
-                ? 'EVV: Checked in'
-                : 'EVV: Not started';
+            const phase = checkedOut ? 3 : checkedIn ? 2 : 1;
 
             return (
               <View key={v.id} style={styles.card}>
-                <Text style={styles.cardTitle}>{title}</Text>
-                {v.start_datetime ? (
-                  <Text style={styles.cardMeta}>
-                    {new Date(v.start_datetime).toLocaleString()}
-                  </Text>
-                ) : null}
-                {v.patient?.address ? (
-                  <Text style={styles.cardMeta} numberOfLines={2}>
-                    {v.patient.address}
-                  </Text>
-                ) : null}
-                <Text style={styles.cardStatus}>{status}</Text>
+                <View style={styles.cardHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>{title}</Text>
+                    {v.service_type ? (
+                      <Text style={styles.cardMeta}>{v.service_type}</Text>
+                    ) : null}
+                    {v.start_datetime ? (
+                      <Text style={styles.cardMeta}>
+                        {formatVisitDate(v.start_datetime)} · {formatVisitTime(v.start_datetime, v.end_datetime)}
+                      </Text>
+                    ) : null}
+                    {v.patient?.address ? (
+                      <Text style={styles.cardMeta} numberOfLines={2}>
+                        {v.patient.address}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <PhaseBadge phase={phase} checkedOut={checkedOut} status={v.evv?.verification_status} />
+                </View>
+
+                <Text style={styles.cardStatus}>
+                  {checkedOut
+                    ? `Completed · ${v.evv?.verification_status || 'pending verification'}`
+                    : checkedIn
+                      ? `In progress · clocked in ${new Date(v.evv!.check_in_time!).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+                      : 'Not started — clock in on arrival'}
+                </Text>
 
                 {!checkedIn ? (
-                  method === 'gps' ? (
-                    <Pressable
-                      style={styles.ctaOuter}
-                      onPress={() => openClockIn(v.id)}
-                    >
-                      <LinearGradient
-                        colors={[...colors.brandGradient]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.ctaFill}
-                      >
-                        <Text style={styles.ctaText}>Pre-Visit Clock-In</Text>
-                      </LinearGradient>
-                    </Pressable>
-                  ) : (
-                    <Pressable
-                      style={styles.ctaOuter}
-                      disabled={busyId === v.id}
-                      onPress={() => checkInAlt(v.id)}
-                    >
-                      <LinearGradient
-                        colors={[...colors.brandGradient]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.ctaFill}
-                      >
-                        <Text style={styles.ctaText}>
-                          {busyId === v.id ? 'Working…' : `Check in (${method})`}
-                        </Text>
-                      </LinearGradient>
-                    </Pressable>
-                  )
-                ) : !checkedOut ? (
-                  <Pressable style={styles.ctaOuter} onPress={() => navigation.navigate('MenuEvvClockOut', { scheduleId: v.id })}>
+                  <Pressable
+                    style={styles.ctaOuter}
+                    onPress={() => navigation.navigate('MenuEvvClockIn', { scheduleId: v.id })}
+                  >
                     <LinearGradient
                       colors={[...colors.brandGradient]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={styles.ctaFill}
                     >
-                      <Text style={styles.ctaText}>Confirm Clock-Out</Text>
+                      <Text style={styles.ctaText}>PRE-VISIT CLOCK-IN</Text>
+                    </LinearGradient>
+                  </Pressable>
+                ) : !checkedOut ? (
+                  <Pressable
+                    style={styles.ctaOuter}
+                    onPress={() => navigation.navigate('MenuEvvClockOut', { scheduleId: v.id })}
+                  >
+                    <LinearGradient
+                      colors={['#DC2626', '#B91C1C']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.ctaFill}
+                    >
+                      <Text style={styles.ctaText}>CONFIRM CLOCK-OUT</Text>
                     </LinearGradient>
                   </Pressable>
                 ) : null}
@@ -362,44 +198,76 @@ export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
   return <Screen>{body}</Screen>;
 }
 
+function FlowStep({ n, label }: { n: number; label: string }) {
+  return (
+    <View style={styles.flowStep}>
+      <View style={styles.flowNum}>
+        <Text style={styles.flowNumText}>{n}</Text>
+      </View>
+      <Text style={styles.flowLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function PhaseBadge({
+  phase,
+  checkedOut,
+  status,
+}: {
+  phase: number;
+  checkedOut: boolean;
+  status?: string;
+}) {
+  const bg = checkedOut
+    ? status === 'verified'
+      ? '#D1FAE5'
+      : '#FEF3C7'
+    : phase === 2
+      ? '#DBEAFE'
+      : '#F3F4F6';
+  const color = checkedOut
+    ? status === 'verified'
+      ? '#047857'
+      : '#B45309'
+    : phase === 2
+      ? '#1D4ED8'
+      : colors.textMuted;
+
+  const label = checkedOut ? 'Done' : phase === 2 ? 'Active' : 'Pending';
+
+  return (
+    <View style={[styles.phaseBadge, { backgroundColor: bg }]}>
+      <Text style={[styles.phaseBadgeText, { color }]}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, paddingHorizontal: 16, paddingTop: 8 },
-  methodRow: {
+  flowLegend: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
     marginBottom: 14,
-  },
-  methodOuter: { flex: 1 },
-  methodPillActive: {
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  methodPill: {
-    flex: 1,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  methodTextActive: { color: '#fff', fontWeight: '800', fontSize: 12, letterSpacing: 0.3 },
-  methodText: { color: colors.brandMagenta, fontWeight: '700', fontSize: 12, letterSpacing: 0.3 },
-  notesLabel: { fontSize: 13, color: colors.textMuted, marginBottom: 6 },
-  notesInput: {
-    minHeight: 88,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 12,
     paddingVertical: 10,
     backgroundColor: '#fff',
-    color: colors.text,
-    textAlignVertical: 'top',
-    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
+  flowStep: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  flowNum: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.brandPink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flowNumText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  flowLabel: { fontSize: 11, fontWeight: '600', color: colors.text },
   listPad: { paddingBottom: 28 },
   card: {
     backgroundColor: '#fff',
@@ -409,10 +277,17 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 12,
   },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   cardTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   cardMeta: { marginTop: 4, fontSize: 13, color: colors.textMuted },
-  cardStatus: { marginTop: 6, fontSize: 13, color: colors.textMuted },
+  cardStatus: { marginTop: 10, fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+  phaseBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  phaseBadgeText: { fontSize: 11, fontWeight: '700' },
   ctaOuter: { marginTop: 12, borderRadius: 12, overflow: 'hidden' },
   ctaFill: { paddingVertical: 14, alignItems: 'center' },
-  ctaText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  ctaText: { color: '#fff', fontWeight: '800', fontSize: 14, letterSpacing: 0.2 },
 });

@@ -28,6 +28,7 @@ import {
 import { StaffLicensesScreen } from '../screens/staff/StaffLicensesScreen';
 import { StaffPayrollScreen } from '../screens/staff/StaffPayrollScreen';
 import { StaffEvvClockInScreen } from '../screens/staff/StaffEvvClockInScreen';
+import { StaffEvvNursingNoteScreen } from '../screens/staff/StaffEvvNursingNoteScreen';
 import { StaffEvvClockOutScreen } from '../screens/staff/StaffEvvClockOutScreen';
 import {
   StaffMenuHomeScreen,
@@ -126,6 +127,7 @@ function StaffMenuNavigator() {
       <StaffMenuStack.Screen name="MenuMileage" component={StaffMenuMileageScreen} />
       <StaffMenuStack.Screen name="MenuEvv" component={StaffMenuEvvScreen} />
       <StaffMenuStack.Screen name="MenuEvvClockIn" component={StaffEvvClockInScreen} />
+      <StaffMenuStack.Screen name="MenuEvvNursingNote" component={StaffEvvNursingNoteScreen} />
       <StaffMenuStack.Screen name="MenuEvvClockOut" component={StaffEvvClockOutScreen} />
       <StaffMenuStack.Screen name="MenuSwitchAgency" component={StaffMenuSwitchAgencyScreen} />
     </StaffMenuStack.Navigator>

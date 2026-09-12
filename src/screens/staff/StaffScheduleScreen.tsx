@@ -109,12 +109,9 @@ export function StaffScheduleScreen() {
     [items],
   );
 
-  const openVisitNote = (item: ScheduleItem) => {
-    navigation.navigate('SkilledNurseVisit', {
-      scheduleId: item.id,
-      patientId: item.patient_id,
-      patientName: item.patient_name || item.title || 'Patient',
-      startTime: item.start_time,
+  const openEvvForVisit = (item: ScheduleItem) => {
+    navigation.getParent()?.navigate('Menu', {
+      screen: 'MenuEvv',
     });
   };
 
@@ -209,7 +206,7 @@ export function StaffScheduleScreen() {
                         accessibilityLabel="Complete visit"
                         hitSlop={8}
                         style={[styles.iconBtn, styles.completeBtn]}
-                        onPress={() => openVisitNote(item)}
+                        onPress={() => openEvvForVisit(item)}
                       >
                         <Ionicons name="checkmark" size={18} color="#fff" />
                       </Pressable>

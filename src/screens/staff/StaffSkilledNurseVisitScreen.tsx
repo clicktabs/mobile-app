@@ -106,7 +106,14 @@ function OptionSelect({
 
 export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
   const { token } = useAuth();
-  const { scheduleId, patientId, patientName, startTime } = route.params;
+  const { scheduleId, patientId, patientName, startTime, evvFlow = false } = route.params;
+
+  const goToEvvClockOut = () => {
+    navigation.getParent()?.navigate('Menu', {
+      screen: 'MenuEvvClockOut',
+      params: { scheduleId },
+    });
+  };
   const [sections, setSections] = useState<Record<string, SectionState>>(() => {
     const init: Record<string, SectionState> = {};
     VISIT_SECTIONS.forEach((s) => {
@@ -499,6 +506,11 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
         form_data: buildFormData(),
         note_text: buildNoteText(),
       });
+      if (evvFlow) {
+        showAlert('Note saved', 'Proceed to EVV clock-out.', 'success');
+        goToEvvClockOut();
+        return;
+      }
       showAlert('Draft saved');
     } catch (e) {
       showAlert('Save failed', e instanceof ApiError ? e.message : 'Error');
@@ -528,10 +540,15 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
           note_text: buildNoteText(),
         });
       }
+      setSignOpen(false);
+      if (evvFlow) {
+        showAlert('Note completed', 'Proceed to EVV clock-out.', 'success');
+        goToEvvClockOut();
+        return;
+      }
       await staffApi.completeVisit(token, scheduleId, {
         completion_notes: 'Completed via Skilled Nurse Visit documentation',
       });
-      setSignOpen(false);
       showAlert('Visit completed');
       navigation.goBack();
     } catch (e) {

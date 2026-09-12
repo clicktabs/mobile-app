@@ -33,6 +33,7 @@ export type StaffMenuStackParamList = {
   MenuMileage: undefined;
   MenuEvv: undefined;
   MenuEvvClockIn: { scheduleId: number };
+  MenuEvvNursingNote: { scheduleId: number; patientId?: number; patientName?: string };
   MenuEvvClockOut: { scheduleId: number };
   MenuSwitchAgency: undefined;
 };
@@ -44,6 +45,8 @@ export type StaffScheduleStackParamList = {
     patientId?: number;
     patientName?: string;
     startTime?: string;
+    /** When true, note save/complete routes to EVV clock-out instead of schedule list. */
+    evvFlow?: boolean;
   };
   PlanOfCareProfile: {
     patientId: number;
