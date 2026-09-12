@@ -61,12 +61,13 @@ export function StaffScheduleScreen() {
     if (!token) return;
     setError(null);
     try {
-      const [today, week] = await Promise.all([
-        staffApi.staffTodaySchedule(token),
-        staffApi.staffWeekSchedule(token),
-      ]);
+      // One rolling window instead of today + this calendar week. The old pair could
+      // not reach past Sunday, so the Upcoming tab was empty for anyone whose next
+      // visit was more than a few days out — on a Saturday it could only ever hold
+      // the rest of that day. Today's visits are inside this window already.
+      const res = await staffApi.staffUpcomingSchedule(token);
       const map = new Map<number, ScheduleItem>();
-      [...(today.data || []), ...(week.data || [])].forEach((v) => map.set(v.id, v));
+      (res.data || []).forEach((v) => map.set(v.id, v));
       setItems([...map.values()]);
       setUpdatedAt(new Date());
     } catch (e) {
