@@ -91,7 +91,7 @@ function StaffPatientsNavigator() {
       <StaffPatientsStack.Screen
         name="PatientDetail"
         component={StaffPatientDetailScreen}
-        options={{ headerShown: true, title: 'Patient', headerTintColor: colors.brandMagenta }}
+        options={{ headerShown: false }}
       />
     </StaffPatientsStack.Navigator>
   );
@@ -234,7 +234,11 @@ function PatientApp() {
       <PatientTabs.Screen name="Schedule" component={PatientScheduleScreen} />
       <PatientTabs.Screen name="Meds" component={PatientMedsScreen} />
       <PatientTabs.Screen name="Messages" component={PatientMessagesScreen} />
-      <PatientTabs.Screen name="Profile" component={PatientProfileScreen} />
+      <PatientTabs.Screen
+        name="Profile"
+        component={PatientProfileScreen}
+        options={{ headerShown: false, title: 'Profile' }}
+      />
     </PatientTabs.Navigator>
   );
 }

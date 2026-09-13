@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { RefreshControl, ScrollView, Text, View, StyleSheet } from 'react-native';
+import { Modal, Pressable, RefreshControl, ScrollView, Text, View, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   Button,
@@ -12,7 +12,7 @@ import {
   Subtitle,
   Title,
 } from '../../components/ui';
-import { BrandLogo } from '../../components/BrandLogo';
+import { PatientProfileCard, PatientProfileHeader } from '../../components/PatientProfileCard';
 import { useAuth } from '../../context/AuthContext';
 import * as patientApi from '../../api/patient';
 import { ApiError } from '../../api/client';
@@ -146,6 +146,9 @@ export function PatientProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [patient, setPatient] = useState<Record<string, any> | null>(null);
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [mobile, setMobile] = useState('');
@@ -158,6 +161,7 @@ export function PatientProfileScreen() {
     try {
       const res = await patientApi.patientProfile(token);
       const d = res.data || {};
+      setPatient(d);
       setEmail(String(d.email || ''));
       setPhone(String(d.phone || d.primary_phone || ''));
       setMobile(String(d.mobile_phone || ''));
@@ -180,66 +184,105 @@ export function PatientProfileScreen() {
     }, [load]),
   );
 
-  if (loading) return <LoadingBlock />;
-
   return (
-    <Screen>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.brandRow}>
-          <BrandLogo size="sm" />
-        </View>
-        <Title>Profile</Title>
-        <Field label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-        <Field label="Primary phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-        <Field label="Mobile phone" value={mobile} onChangeText={setMobile} keyboardType="phone-pad" />
-        <Field label="Emergency contact name" value={ecName} onChangeText={setEcName} />
-        <Field label="Emergency contact phone" value={ecPhone} onChangeText={setEcPhone} keyboardType="phone-pad" />
-        <Field label="Relationship" value={ecRel} onChangeText={setEcRel} />
-        <Button
-          label="Save"
-          loading={saving}
-          onPress={async () => {
-            if (!token) return;
-            setSaving(true);
-            try {
-              await patientApi.updatePatientProfile(token, {
-                email,
-                primary_phone: phone,
-                mobile_phone: mobile,
-                emergency_contact_name: ecName,
-                emergency_contact_phone: ecPhone,
-                emergency_contact_relationship: ecRel,
-              });
-              showAlert('Profile updated');
-            } catch (e) {
-              showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
-            } finally {
-              setSaving(false);
-            }
-          }}
-        />
-        <Button
-          label="Log out"
-          variant="danger"
-          loading={loggingOut}
-          onPress={async () => {
-            const ok = await confirmAction('Log out?', 'You will need to sign in again.');
-            if (!ok) return;
-            setLoggingOut(true);
-            try {
-              await logout();
-            } finally {
-              setLoggingOut(false);
-            }
-          }}
-        />
-      </ScrollView>
-    </Screen>
+    <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
+      <PatientProfileHeader
+        title={editing ? 'Edit Profile' : 'Patient Profile'}
+        showBack={editing}
+        onBack={() => setEditing(false)}
+        onMenu={editing ? undefined : () => setMenuOpen(true)}
+      />
+      {loading && !patient ? (
+        <LoadingBlock />
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 28 }}>
+          {editing ? (
+            <View style={{ padding: 16 }}>
+              <Field label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+              <Field label="Primary phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+              <Field label="Mobile phone" value={mobile} onChangeText={setMobile} keyboardType="phone-pad" />
+              <Field label="Emergency contact name" value={ecName} onChangeText={setEcName} />
+              <Field label="Emergency contact phone" value={ecPhone} onChangeText={setEcPhone} keyboardType="phone-pad" />
+              <Field label="Relationship" value={ecRel} onChangeText={setEcRel} />
+              <Button
+                label="Save"
+                loading={saving}
+                onPress={async () => {
+                  if (!token) return;
+                  setSaving(true);
+                  try {
+                    await patientApi.updatePatientProfile(token, {
+                      email,
+                      primary_phone: phone,
+                      mobile_phone: mobile,
+                      emergency_contact_name: ecName,
+                      emergency_contact_phone: ecPhone,
+                      emergency_contact_relationship: ecRel,
+                    });
+                    showAlert('Profile updated');
+                    setEditing(false);
+                    await load();
+                  } catch (e) {
+                    showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              />
+            </View>
+          ) : patient ? (
+            <PatientProfileCard patient={patient} />
+          ) : null}
+        </ScrollView>
+      )}
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <Pressable style={profileMenu.backdrop} onPress={() => setMenuOpen(false)}>
+          <View style={profileMenu.sheet}>
+            <Pressable
+              style={profileMenu.row}
+              onPress={() => {
+                setMenuOpen(false);
+                setEditing(true);
+              }}
+            >
+              <Text style={profileMenu.label}>Edit contact</Text>
+            </Pressable>
+            <Pressable
+              style={profileMenu.row}
+              onPress={async () => {
+                setMenuOpen(false);
+                const ok = await confirmAction('Log out?', 'You will need to sign in again.');
+                if (!ok) return;
+                setLoggingOut(true);
+                try {
+                  await logout();
+                } finally {
+                  setLoggingOut(false);
+                }
+              }}
+            >
+              <Text style={[profileMenu.label, { color: colors.danger }]}>
+                {loggingOut ? 'Logging out…' : 'Log out'}
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  brandRow: { marginBottom: 12 },
+const profileMenu = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 28,
+    paddingTop: 8,
+  },
+  row: { paddingHorizontal: 20, paddingVertical: 14 },
+  label: { fontSize: 16, fontWeight: '600', color: colors.ink },
 });
 
 export function PatientCareTeamScreen() {

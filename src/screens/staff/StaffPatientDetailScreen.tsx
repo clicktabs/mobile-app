@@ -1,17 +1,20 @@
 import React, { useCallback, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import {
-  Button,
-  Card,
-  ErrorBanner,
-  Field,
-  LoadingBlock,
-  Screen,
-  Subtitle,
-  Title,
-} from '../../components/ui';
+import { Ionicons } from '@expo/vector-icons';
+import { Button, ErrorBanner, Field, LoadingBlock } from '../../components/ui';
+import { AppShell } from '../../components/chrome';
+import { PatientProfileCard, PatientProfileHeader } from '../../components/PatientProfileCard';
 import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
@@ -20,6 +23,7 @@ import { showAlert } from '../../utils/confirm';
 import type { StaffPatientsStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<StaffPatientsStackParamList, 'PatientDetail'>;
+type Section = 'hub' | 'vitals' | 'notes' | 'meds' | 'allergies';
 
 function numOrUndef(v: string) {
   const t = v.trim();
@@ -28,13 +32,21 @@ function numOrUndef(v: string) {
   return Number.isFinite(n) ? n : undefined;
 }
 
+const MENU_ITEMS: { key: Section; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'vitals', label: 'Vitals', icon: 'pulse-outline' },
+  { key: 'notes', label: 'Visit notes', icon: 'document-text-outline' },
+  { key: 'meds', label: 'Medications', icon: 'medkit-outline' },
+  { key: 'allergies', label: 'Allergies', icon: 'alert-circle-outline' },
+];
+
 export function StaffPatientDetailScreen({ route, navigation }: Props) {
   const { patientId } = route.params;
   const { token, handleUnauthorized } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [patient, setPatient] = useState<Record<string, any> | null>(null);
-  const [section, setSection] = useState<'hub' | 'vitals' | 'notes' | 'meds' | 'allergies'>('hub');
+  const [section, setSection] = useState<Section>('hub');
+  const [menuOpen, setMenuOpen] = useState(false);
   const [list, setList] = useState<Record<string, any>[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -72,8 +84,9 @@ export function StaffPatientDetailScreen({ route, navigation }: Props) {
     }, [loadPatient]),
   );
 
-  const openSection = async (key: typeof section) => {
+  const openSection = async (key: Section) => {
     if (!token) return;
+    setMenuOpen(false);
     setSection(key);
     if (key === 'hub') return;
     try {
@@ -161,99 +174,151 @@ export function StaffPatientDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  if (loading) return <LoadingBlock />;
+  const sectionTitle =
+    section === 'vitals'
+      ? 'Vitals'
+      : section === 'notes'
+        ? 'Visit notes'
+        : section === 'meds'
+          ? 'Medications'
+          : section === 'allergies'
+            ? 'Allergies'
+            : 'Patient Profile';
 
   return (
-    <Screen>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView keyboardShouldPersistTaps="handled">
-          <Title>{patient?.name || 'Patient'}</Title>
-          <Subtitle>
-            MRN {String(patient?.mrn || '—')} · {String(patient?.status || '')}
-          </Subtitle>
-          {error ? <ErrorBanner message={error} onRetry={loadPatient} /> : null}
+    <AppShell>
+      <PatientProfileHeader
+        title={sectionTitle}
+        showBack
+        onBack={() => (section === 'hub' ? navigation.goBack() : setSection('hub'))}
+        onMenu={section === 'hub' ? () => setMenuOpen(true) : undefined}
+      />
+      {loading && !patient ? (
+        <LoadingBlock />
+      ) : (
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <ScrollView
+            contentContainerStyle={section === 'hub' ? styles.hubPad : styles.sectionPad}
+            keyboardShouldPersistTaps="handled"
+            style={styles.scroll}
+          >
+            {error ? <ErrorBanner message={error} onRetry={loadPatient} /> : null}
 
-          {section === 'hub' ? (
-            <>
-              <Card>
-                <Text style={{ color: colors.textMuted }}>Phone: {String(patient?.phone || '—')}</Text>
-                <Text style={{ color: colors.textMuted, marginTop: 4 }}>
-                  Allergies: {String(patient?.allergies_count ?? 0)} · Meds: {String(patient?.medications_count ?? 0)}
-                </Text>
-              </Card>
-              <Button label="Vitals" onPress={() => openSection('vitals')} />
-              <Button label="Visit notes" onPress={() => openSection('notes')} variant="secondary" />
-              <Button label="Medications" onPress={() => openSection('meds')} variant="secondary" />
-              <Button label="Allergies" onPress={() => openSection('allergies')} variant="ghost" />
-              <Button label="Back to list" onPress={() => navigation.goBack()} variant="ghost" />
-            </>
-          ) : (
-            <>
-              <Button label="← Back to patient" onPress={() => setSection('hub')} variant="ghost" />
-              {section === 'vitals' && (
-                <>
-                  <Field label="Temperature" value={temp} onChangeText={setTemp} keyboardType="decimal-pad" placeholder="e.g. 98.6" />
-                  <Field label="BP systolic" value={sys} onChangeText={setSys} keyboardType="number-pad" placeholder="e.g. 120" />
-                  <Field label="BP diastolic" value={dia} onChangeText={setDia} keyboardType="number-pad" placeholder="e.g. 80" />
-                  <Field label="Heart rate" value={hr} onChangeText={setHr} keyboardType="number-pad" placeholder="e.g. 72" />
-                  <Field label="Pain (0-10)" value={pain} onChangeText={setPain} keyboardType="number-pad" placeholder="0-10" />
-                  <Field label="Notes" value={vNotes} onChangeText={setVNotes} />
-                  <Button label="Record vitals" onPress={saveVitals} loading={saving} />
-                  {list.length === 0 ? (
-                    <Text style={{ color: colors.textMuted, marginTop: 12 }}>No vitals recorded yet.</Text>
-                  ) : (
-                    list.map((v) => (
-                      <Card key={String(v.id)}>
-                        <Text style={{ fontWeight: '600' }}>{String(v.recorded_at || '')}</Text>
-                        <Text style={{ color: colors.textMuted }}>
-                          T {String(v.temperature ?? '—')} · BP {String(v.blood_pressure_systolic ?? '—')}/
-                          {String(v.blood_pressure_diastolic ?? '—')} · HR {String(v.heart_rate ?? '—')}
-                        </Text>
-                      </Card>
-                    ))
-                  )}
-                </>
-              )}
-              {section === 'notes' && (
-                <>
-                  <Field label="Visit type" value={visitType} onChangeText={setVisitType} />
-                  <Field label="Note" value={note} onChangeText={setNote} multiline style={{ minHeight: 100 }} />
-                  <Button label="Save draft note" onPress={saveNote} loading={saving} />
-                  {list.map((n) => (
-                    <Card key={String(n.id)}>
-                      <Text style={{ fontWeight: '700' }}>{String(n.visit_type)}</Text>
-                      <Text style={{ color: colors.textMuted }}>{String(n.note || n.content || '')}</Text>
-                    </Card>
-                  ))}
-                </>
-              )}
-              {section === 'meds' &&
-                list.map((m) => (
-                  <Card key={String(m.id)}>
-                    <Text style={{ fontWeight: '700' }}>{String(m.name)}</Text>
-                    <Text style={{ color: colors.textMuted }}>
-                      {String(m.dosage || '')} · {String(m.frequency || '')} · {String(m.route || '')}
-                    </Text>
-                    <Button label="Record administration" onPress={() => administer(Number(m.id))} loading={saving} />
-                  </Card>
-                ))}
-              {section === 'allergies' &&
-                (list.length === 0 ? (
-                  <Text style={{ color: colors.textMuted }}>No active allergies</Text>
+            {section === 'hub' && patient ? <PatientProfileCard patient={patient} /> : null}
+
+            {section === 'vitals' && (
+              <>
+                <Field label="Temperature" value={temp} onChangeText={setTemp} keyboardType="decimal-pad" placeholder="e.g. 98.6" />
+                <Field label="BP systolic" value={sys} onChangeText={setSys} keyboardType="number-pad" placeholder="e.g. 120" />
+                <Field label="BP diastolic" value={dia} onChangeText={setDia} keyboardType="number-pad" placeholder="e.g. 80" />
+                <Field label="Heart rate" value={hr} onChangeText={setHr} keyboardType="number-pad" placeholder="e.g. 72" />
+                <Field label="Pain (0-10)" value={pain} onChangeText={setPain} keyboardType="number-pad" placeholder="0-10" />
+                <Field label="Notes" value={vNotes} onChangeText={setVNotes} />
+                <Button label="Record vitals" onPress={saveVitals} loading={saving} />
+                {list.length === 0 ? (
+                  <Text style={styles.empty}>No vitals recorded yet.</Text>
                 ) : (
-                  list.map((a) => (
-                    <Card key={String(a.id)}>
-                      <Text style={{ fontWeight: '700' }}>{String(a.allergen)}</Text>
-                      <Text style={{ color: colors.textMuted }}>
-                        {String(a.severity || '')} · {String(a.reaction || '')}
+                  list.map((v) => (
+                    <View key={String(v.id)} style={styles.itemCard}>
+                      <Text style={styles.itemTitle}>{String(v.recorded_at || '')}</Text>
+                      <Text style={styles.itemMeta}>
+                        T {String(v.temperature ?? '—')} · BP {String(v.blood_pressure_systolic ?? '—')}/
+                        {String(v.blood_pressure_diastolic ?? '—')} · HR {String(v.heart_rate ?? '—')}
                       </Text>
-                    </Card>
+                    </View>
                   ))
+                )}
+              </>
+            )}
+            {section === 'notes' && (
+              <>
+                <Field label="Visit type" value={visitType} onChangeText={setVisitType} />
+                <Field label="Note" value={note} onChangeText={setNote} multiline style={{ minHeight: 100 }} />
+                <Button label="Save draft note" onPress={saveNote} loading={saving} />
+                {list.map((n) => (
+                  <View key={String(n.id)} style={styles.itemCard}>
+                    <Text style={styles.itemTitle}>{String(n.visit_type)}</Text>
+                    <Text style={styles.itemMeta}>{String(n.note || n.content || '')}</Text>
+                  </View>
                 ))}
-            </>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </Screen>
+              </>
+            )}
+            {section === 'meds' &&
+              list.map((m) => (
+                <View key={String(m.id)} style={styles.itemCard}>
+                  <Text style={styles.itemTitle}>{String(m.name)}</Text>
+                  <Text style={styles.itemMeta}>
+                    {String(m.dosage || '')} · {String(m.frequency || '')} · {String(m.route || '')}
+                  </Text>
+                  <Button label="Record administration" onPress={() => administer(Number(m.id))} loading={saving} />
+                </View>
+              ))}
+            {section === 'allergies' &&
+              (list.length === 0 ? (
+                <Text style={styles.empty}>No active allergies</Text>
+              ) : (
+                list.map((a) => (
+                  <View key={String(a.id)} style={styles.itemCard}>
+                    <Text style={styles.itemTitle}>{String(a.allergen)}</Text>
+                    <Text style={styles.itemMeta}>
+                      {String(a.severity || '')} · {String(a.reaction || '')}
+                    </Text>
+                  </View>
+                ))
+              ))}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      )}
+
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
+          <View style={styles.menuSheet}>
+            {MENU_ITEMS.map((item) => (
+              <Pressable key={item.key} style={styles.menuRow} onPress={() => openSection(item.key)}>
+                <Ionicons name={item.icon} size={20} color={colors.ink} />
+                <Text style={styles.menuLabel}>{item.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
+    </AppShell>
   );
 }
+
+const styles = StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: '#FAFAFA' },
+  hubPad: { paddingBottom: 28 },
+  sectionPad: { padding: 16, paddingBottom: 32 },
+  empty: { color: colors.textMuted, marginTop: 12 },
+  itemCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 12,
+    marginTop: 10,
+  },
+  itemTitle: { fontWeight: '700', color: colors.text },
+  itemMeta: { color: colors.textMuted, marginTop: 4 },
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  menuSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 28,
+    paddingTop: 8,
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
+  menuLabel: { fontSize: 16, fontWeight: '600', color: colors.ink },
+});
