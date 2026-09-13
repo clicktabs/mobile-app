@@ -24,14 +24,13 @@ import { colors } from '../../theme/colors';
 import type { EvvVisit } from '../../types';
 import type { StaffMenuStackParamList } from '../../navigation/types';
 import { OpenStreetMapView } from '../../components/OpenStreetMapView';
+import { DEFAULT_GEOFENCE_M, formatFeet, formatGeofenceLimit } from '../../utils/geofence';
 
 const SELF_CHECKS = [
   { id: 'ppe', label: 'Personal Protective Equipment (PPE) ready' },
   { id: 'hands', label: 'Sanitized hands' },
   { id: 'careplan', label: 'Care Plan tasks reviewed' },
 ] as const;
-
-const DEFAULT_TOLERANCE_M = 152; // ~500 ft
 
 type Props = NativeStackScreenProps<StaffMenuStackParamList, 'MenuEvvClockIn'>;
 
@@ -94,7 +93,7 @@ function LocationMapPreview({
                   lat: patientLat!,
                   lng: patientLng!,
                   title: label,
-                  geofenceMeters: DEFAULT_TOLERANCE_M,
+                  geofenceMeters: DEFAULT_GEOFENCE_M,
                 },
               ]
             : []
@@ -183,7 +182,7 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
     if (!hasPatientCoords) return { status: 'skipped' as const, meters: null as number | null };
     const meters = haversineMeters(coords.latitude, coords.longitude, patientLat!, patientLng!);
     return {
-      status: meters <= DEFAULT_TOLERANCE_M ? ('match' as const) : ('miss' as const),
+      status: meters <= DEFAULT_GEOFENCE_M ? ('match' as const) : ('miss' as const),
       meters,
     };
   }, [coords, hasPatientCoords, patientLat, patientLng]);
@@ -391,7 +390,7 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
             {geofence.status === 'match' &&
               `Geofence Check: Matches (${patient?.name || 'Patient'}'s Residence)`}
             {geofence.status === 'miss' &&
-              `Geofence Check: Outside area (${Math.round(geofence.meters || 0)} m; limit ${DEFAULT_TOLERANCE_M} m)`}
+              `Geofence Check: Outside area (${formatFeet(geofence.meters || 0)}; limit ${formatGeofenceLimit()})`}
             {geofence.status === 'skipped' &&
               'Geofence Check: No patient coordinates on file — office may verify later'}
           </Text>

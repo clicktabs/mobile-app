@@ -61,11 +61,9 @@ export function StaffScheduleScreen() {
     if (!token) return;
     setError(null);
     try {
-      // One rolling window instead of today + this calendar week. The old pair could
-      // not reach past Sunday, so the Upcoming tab was empty for anyone whose next
-      // visit was more than a few days out — on a Saturday it could only ever hold
-      // the rest of that day. Today's visits are inside this window already.
-      const res = await staffApi.staffUpcomingSchedule(token);
+      // Rolling 30-day lookback / 60-day lookahead (not a calendar week, so Saturday
+      // still includes visits past Sunday). Feeds Past Due, Upcoming, and Completed.
+      const res = await staffApi.staffUpcomingSchedule(token, 60, 30);
       const map = new Map<number, ScheduleItem>();
       (res.data || []).forEach((v) => map.set(v.id, v));
       setItems([...map.values()]);
