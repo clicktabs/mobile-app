@@ -82,7 +82,6 @@ export type EvvVisit = {
     longitude?: number | null;
     photo_url?: string | null;
   };
-  geofence_tolerance_feet?: number;
   evv?: {
     id: number;
     check_in_time?: string;

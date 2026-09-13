@@ -27,7 +27,7 @@ import { colors } from '../../theme/colors';
 import type { EvvVisit } from '../../types';
 import type { StaffMenuStackParamList } from '../../navigation/types';
 import { OpenStreetMapView } from '../../components/OpenStreetMapView';
-import { geofenceMetersFromFeet, formatFeet, formatGeofenceLimit } from '../../utils/geofence';
+import { GEOFENCE_METERS, formatGeofenceMiss } from '../../utils/geofence';
 
 const CARE_TASKS = [
   { id: 'major_services', label: 'Major Services' },
@@ -199,8 +199,7 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
   const inLat = visit?.evv?.gps_checkin?.latitude ?? null;
   const inLng = visit?.evv?.gps_checkin?.longitude ?? null;
 
-  const geofenceFeet = visit?.geofence_tolerance_feet;
-  const geofenceLimitM = geofenceMetersFromFeet(geofenceFeet);
+  const geofenceLimitM = GEOFENCE_METERS;
 
   const geofence = useMemo(() => {
     if (!coords) return { status: 'waiting' as const, meters: null as number | null };
@@ -490,7 +489,7 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
             {geofence.status === 'waiting' && 'Geofence Check: Waiting for GPS…'}
             {geofence.status === 'match' && 'Geofence Check: Matches residence'}
             {geofence.status === 'miss' &&
-              `Clock-Out (Unmatched) — ${formatFeet(geofence.meters || 0)}; limit ${formatGeofenceLimit(geofenceFeet)} · exception required`}
+              `${formatGeofenceMiss(geofence.meters || 0)} Exception required to clock out.`}
             {geofence.status === 'skipped' && 'Geofence Check: No patient coordinates on file'}
           </Text>
 

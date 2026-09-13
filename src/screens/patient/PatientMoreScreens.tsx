@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Modal, Pressable, RefreshControl, ScrollView, Text, View, StyleSheet } from 'react-native';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   Button,
@@ -13,6 +13,7 @@ import {
   Title,
 } from '../../components/ui';
 import { PatientProfileCard, PatientProfileHeader } from '../../components/PatientProfileCard';
+import { SlideDownMenu } from '../../components/SlideDownMenu';
 import { useAuth } from '../../context/AuthContext';
 import * as patientApi from '../../api/patient';
 import { ApiError } from '../../api/client';
@@ -190,7 +191,7 @@ export function PatientProfileScreen() {
         title={editing ? 'Edit Profile' : 'Patient Profile'}
         showBack={editing}
         onBack={() => setEditing(false)}
-        onMenu={editing ? undefined : () => setMenuOpen(true)}
+        onMenu={editing ? undefined : () => setMenuOpen((open) => !open)}
       />
       {loading && !patient ? (
         <LoadingBlock />
@@ -235,55 +236,37 @@ export function PatientProfileScreen() {
           ) : null}
         </ScrollView>
       )}
-      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
-        <Pressable style={profileMenu.backdrop} onPress={() => setMenuOpen(false)}>
-          <View style={profileMenu.sheet}>
-            <Pressable
-              style={profileMenu.row}
-              onPress={() => {
-                setMenuOpen(false);
-                setEditing(true);
-              }}
-            >
-              <Text style={profileMenu.label}>Edit contact</Text>
-            </Pressable>
-            <Pressable
-              style={profileMenu.row}
-              onPress={async () => {
-                setMenuOpen(false);
-                const ok = await confirmAction('Log out?', 'You will need to sign in again.');
-                if (!ok) return;
-                setLoggingOut(true);
-                try {
-                  await logout();
-                } finally {
-                  setLoggingOut(false);
-                }
-              }}
-            >
-              <Text style={[profileMenu.label, { color: colors.danger }]}>
-                {loggingOut ? 'Logging out…' : 'Log out'}
-              </Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
+      <SlideDownMenu
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        items={[
+          {
+            key: 'edit',
+            label: 'Edit contact',
+            icon: 'create-outline',
+            onPress: () => setEditing(true),
+          },
+          {
+            key: 'logout',
+            label: loggingOut ? 'Logging out…' : 'Log out',
+            icon: 'log-out-outline',
+            danger: true,
+            onPress: async () => {
+              const ok = await confirmAction('Log out?', 'You will need to sign in again.');
+              if (!ok) return;
+              setLoggingOut(true);
+              try {
+                await logout();
+              } finally {
+                setLoggingOut(false);
+              }
+            },
+          },
+        ]}
+      />
     </View>
   );
 }
-
-const profileMenu = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingBottom: 28,
-    paddingTop: 8,
-  },
-  row: { paddingHorizontal: 20, paddingVertical: 14 },
-  label: { fontSize: 16, fontWeight: '600', color: colors.ink },
-});
 
 export function PatientCareTeamScreen() {
   const { token } = useAuth();

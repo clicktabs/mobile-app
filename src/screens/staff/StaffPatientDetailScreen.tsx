@@ -1,9 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   KeyboardAvoidingView,
-  Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,9 +10,10 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, ErrorBanner, Field, LoadingBlock } from '../../components/ui';
+import { ErrorBanner, LoadingBlock } from '../../components/ui';
 import { AppShell } from '../../components/chrome';
 import { PatientProfileCard, PatientProfileHeader } from '../../components/PatientProfileCard';
+import { SlideDownMenu } from '../../components/SlideDownMenu';
 import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
@@ -23,42 +22,46 @@ import { showAlert } from '../../utils/confirm';
 import type { StaffPatientsStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<StaffPatientsStackParamList, 'PatientDetail'>;
-type Section = 'hub' | 'vitals' | 'notes' | 'meds' | 'allergies';
-
-function numOrUndef(v: string) {
-  const t = v.trim();
-  if (!t) return undefined;
-  const n = Number(t);
-  return Number.isFinite(n) ? n : undefined;
-}
+type Section = 'hub' | 'meds' | 'allergies' | 'infections' | 'vitals' | 'comm';
 
 const MENU_ITEMS: { key: Section; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'vitals', label: 'Vitals', icon: 'pulse-outline' },
-  { key: 'notes', label: 'Visit notes', icon: 'document-text-outline' },
   { key: 'meds', label: 'Medications', icon: 'medkit-outline' },
   { key: 'allergies', label: 'Allergies', icon: 'alert-circle-outline' },
+  { key: 'infections', label: 'Infections', icon: 'bug-outline' },
+  { key: 'vitals', label: 'Vitals', icon: 'pulse-outline' },
+  { key: 'comm', label: 'Communication notes', icon: 'chatbubble-ellipses-outline' },
 ];
+
+function dash(v: unknown) {
+  const s = String(v ?? '').trim();
+  return s || '—';
+}
+
+function pretty(v: unknown) {
+  const s = String(v ?? '').replace(/_/g, ' ').trim();
+  if (!s) return '—';
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function Row({ label, value }: { label: string; value: unknown }) {
+  return (
+    <View style={styles.kvRow}>
+      <Text style={styles.kvLabel}>{label}</Text>
+      <Text style={styles.kvValue}>{dash(value)}</Text>
+    </View>
+  );
+}
 
 export function StaffPatientDetailScreen({ route, navigation }: Props) {
   const { patientId } = route.params;
   const { token, handleUnauthorized } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [sectionLoading, setSectionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [patient, setPatient] = useState<Record<string, any> | null>(null);
   const [section, setSection] = useState<Section>('hub');
   const [menuOpen, setMenuOpen] = useState(false);
   const [list, setList] = useState<Record<string, any>[]>([]);
-  const [saving, setSaving] = useState(false);
-
-  const [temp, setTemp] = useState('');
-  const [sys, setSys] = useState('');
-  const [dia, setDia] = useState('');
-  const [hr, setHr] = useState('');
-  const [pain, setPain] = useState('');
-  const [vNotes, setVNotes] = useState('');
-
-  const [visitType, setVisitType] = useState('skilled_nursing');
-  const [note, setNote] = useState('');
 
   const loadPatient = useCallback(async () => {
     if (!token) return;
@@ -89,109 +92,32 @@ export function StaffPatientDetailScreen({ route, navigation }: Props) {
     setMenuOpen(false);
     setSection(key);
     if (key === 'hub') return;
+    setSectionLoading(true);
+    setList([]);
     try {
-      if (key === 'vitals') {
-        const res = await staffApi.getPatientVitals(token, patientId);
-        setList(res.data || []);
-      } else if (key === 'notes') {
-        const res = await staffApi.getVisitNotes(token, patientId);
-        setList(res.data || []);
-      } else if (key === 'meds') {
-        const res = await staffApi.getMedicationSchedule(token, patientId);
-        setList(res.data || []);
-      } else if (key === 'allergies') {
-        const res = await staffApi.getPatientAllergies(token, patientId);
-        setList(res.data || []);
-      }
+      let res: { data?: Record<string, any>[] };
+      if (key === 'vitals') res = await staffApi.getPatientVitals(token, patientId, 50);
+      else if (key === 'meds') res = await staffApi.getMedicationSchedule(token, patientId);
+      else if (key === 'allergies') res = await staffApi.getPatientAllergies(token, patientId);
+      else if (key === 'infections') res = await staffApi.getPatientInfections(token, patientId);
+      else res = await staffApi.getCommNotes(token, patientId);
+      setList(res.data || []);
     } catch (e) {
       showAlert('Error', e instanceof ApiError ? e.message : 'Failed to load');
-    }
-  };
-
-  const saveVitals = async () => {
-    if (!token) return;
-    const payload = {
-      temperature: numOrUndef(temp),
-      blood_pressure_systolic: numOrUndef(sys),
-      blood_pressure_diastolic: numOrUndef(dia),
-      heart_rate: numOrUndef(hr),
-      pain_level: numOrUndef(pain),
-      notes: vNotes.trim() || undefined,
-    };
-    const hasValue = Object.values(payload).some((v) => v !== undefined);
-    if (!hasValue) {
-      showAlert('Missing values', 'Enter at least one vital sign before recording.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await staffApi.recordVitals(token, patientId, payload);
-      showAlert('Vitals recorded', 'Saved to the patient chart.');
-      setTemp('');
-      setSys('');
-      setDia('');
-      setHr('');
-      setPain('');
-      setVNotes('');
-      await openSection('vitals');
-    } catch (e) {
-      showAlert('Failed', e instanceof ApiError ? e.message : 'Could not record vitals');
     } finally {
-      setSaving(false);
+      setSectionLoading(false);
     }
   };
 
-  const saveNote = async () => {
-    if (!token) return;
-    if (!visitType.trim() || !note.trim()) {
-      showAlert('Validation', 'Visit type and note are required');
-      return;
-    }
-    setSaving(true);
-    try {
-      await staffApi.createVisitNote(token, patientId, { visit_type: visitType, note });
-      showAlert('Saved', 'Visit note saved as draft');
-      setNote('');
-      await openSection('notes');
-    } catch (e) {
-      showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const administer = async (medicationId: number) => {
-    if (!token) return;
-    setSaving(true);
-    try {
-      await staffApi.administerMedication(token, patientId, { medication_id: medicationId });
-      showAlert('Recorded', 'Medication administration recorded');
-    } catch (e) {
-      showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const sectionTitle =
-    section === 'vitals'
-      ? 'Vitals'
-      : section === 'notes'
-        ? 'Visit notes'
-        : section === 'meds'
-          ? 'Medications'
-          : section === 'allergies'
-            ? 'Allergies'
-            : 'Patient Profile';
+  const sectionTitle = MENU_ITEMS.find((i) => i.key === section)?.label || 'Patient Profile';
 
   return (
     <AppShell>
       <PatientProfileHeader
-        title={sectionTitle}
+        title={section === 'hub' ? 'Patient Profile' : sectionTitle}
         showBack
         onBack={() => (section === 'hub' ? navigation.goBack() : setSection('hub'))}
-        onMenu={section === 'hub' ? () => setMenuOpen(true) : undefined}
+        onMenu={() => setMenuOpen((open) => !open)}
       />
       {loading && !patient ? (
         <LoadingBlock />
@@ -206,83 +132,144 @@ export function StaffPatientDetailScreen({ route, navigation }: Props) {
 
             {section === 'hub' && patient ? <PatientProfileCard patient={patient} /> : null}
 
-            {section === 'vitals' && (
-              <>
-                <Field label="Temperature" value={temp} onChangeText={setTemp} keyboardType="decimal-pad" placeholder="e.g. 98.6" />
-                <Field label="BP systolic" value={sys} onChangeText={setSys} keyboardType="number-pad" placeholder="e.g. 120" />
-                <Field label="BP diastolic" value={dia} onChangeText={setDia} keyboardType="number-pad" placeholder="e.g. 80" />
-                <Field label="Heart rate" value={hr} onChangeText={setHr} keyboardType="number-pad" placeholder="e.g. 72" />
-                <Field label="Pain (0-10)" value={pain} onChangeText={setPain} keyboardType="number-pad" placeholder="0-10" />
-                <Field label="Notes" value={vNotes} onChangeText={setVNotes} />
-                <Button label="Record vitals" onPress={saveVitals} loading={saving} />
-                {list.length === 0 ? (
-                  <Text style={styles.empty}>No vitals recorded yet.</Text>
-                ) : (
-                  list.map((v) => (
-                    <View key={String(v.id)} style={styles.itemCard}>
-                      <Text style={styles.itemTitle}>{String(v.recorded_at || '')}</Text>
-                      <Text style={styles.itemMeta}>
-                        T {String(v.temperature ?? '—')} · BP {String(v.blood_pressure_systolic ?? '—')}/
-                        {String(v.blood_pressure_diastolic ?? '—')} · HR {String(v.heart_rate ?? '—')}
-                      </Text>
-                    </View>
-                  ))
+            {section !== 'hub' && sectionLoading ? <LoadingBlock /> : null}
+
+            {section === 'meds' && !sectionLoading && (
+              <ChartList
+                empty="No medications on file for this patient."
+                items={list}
+                renderItem={(m) => (
+                  <>
+                    <Text style={styles.itemTitle}>{dash(m.name)}</Text>
+                    <Text style={styles.statusChip}>{pretty(m.status)}</Text>
+                    <Row label="Dosage" value={m.dosage} />
+                    <Row label="Frequency" value={pretty(m.frequency)} />
+                    <Row label="Route" value={m.route} />
+                    <Row label="Indication" value={m.indication} />
+                    <Row label="Prescriber" value={m.prescriber} />
+                    <Row label="Start" value={m.start_date} />
+                    <Row label="End" value={m.end_date || 'Ongoing'} />
+                  </>
                 )}
-              </>
+              />
             )}
-            {section === 'notes' && (
-              <>
-                <Field label="Visit type" value={visitType} onChangeText={setVisitType} />
-                <Field label="Note" value={note} onChangeText={setNote} multiline style={{ minHeight: 100 }} />
-                <Button label="Save draft note" onPress={saveNote} loading={saving} />
-                {list.map((n) => (
-                  <View key={String(n.id)} style={styles.itemCard}>
-                    <Text style={styles.itemTitle}>{String(n.visit_type)}</Text>
-                    <Text style={styles.itemMeta}>{String(n.note || n.content || '')}</Text>
-                  </View>
-                ))}
-              </>
+
+            {section === 'allergies' && !sectionLoading && (
+              <ChartList
+                empty="No allergies on file for this patient."
+                items={list}
+                renderItem={(a) => (
+                  <>
+                    <Text style={styles.itemTitle}>{dash(a.allergen)}</Text>
+                    <Text style={styles.statusChip}>{pretty(a.status)} · {pretty(a.severity)}</Text>
+                    <Row label="Type" value={pretty(a.type)} />
+                    <Row label="Reaction" value={a.reaction} />
+                    <Row label="Onset" value={a.onset_date} />
+                    <Row label="Notes" value={a.notes} />
+                  </>
+                )}
+              />
             )}
-            {section === 'meds' &&
-              list.map((m) => (
-                <View key={String(m.id)} style={styles.itemCard}>
-                  <Text style={styles.itemTitle}>{String(m.name)}</Text>
-                  <Text style={styles.itemMeta}>
-                    {String(m.dosage || '')} · {String(m.frequency || '')} · {String(m.route || '')}
-                  </Text>
-                  <Button label="Record administration" onPress={() => administer(Number(m.id))} loading={saving} />
-                </View>
-              ))}
-            {section === 'allergies' &&
-              (list.length === 0 ? (
-                <Text style={styles.empty}>No active allergies</Text>
-              ) : (
-                list.map((a) => (
-                  <View key={String(a.id)} style={styles.itemCard}>
-                    <Text style={styles.itemTitle}>{String(a.allergen)}</Text>
-                    <Text style={styles.itemMeta}>
-                      {String(a.severity || '')} · {String(a.reaction || '')}
-                    </Text>
-                  </View>
-                ))
-              ))}
+
+            {section === 'infections' && !sectionLoading && (
+              <ChartList
+                empty="No infections on file for this patient."
+                items={list}
+                renderItem={(inf) => (
+                  <>
+                    <Text style={styles.itemTitle}>{dash(inf.infection_type)}</Text>
+                    <Text style={styles.statusChip}>{pretty(inf.status)}</Text>
+                    <Row label="Organism" value={inf.organism} />
+                    <Row label="Site" value={inf.site} />
+                    <Row label="Identified" value={inf.date_identified} />
+                    <Row label="Resolved" value={inf.date_resolved} />
+                    <Row label="Severity" value={pretty(inf.severity)} />
+                    <Row label="Notes" value={inf.notes} />
+                  </>
+                )}
+              />
+            )}
+
+            {section === 'vitals' && !sectionLoading && (
+              <ChartList
+                empty="No vital signs recorded yet."
+                items={list}
+                renderItem={(v) => (
+                  <>
+                    <Text style={styles.itemTitle}>{dash(v.date || v.recorded_at)}</Text>
+                    <Text style={styles.itemMeta}>{dash(v.time)} · {dash(v.recorded_by)}</Text>
+                    <Row
+                      label="Blood pressure"
+                      value={
+                        v.blood_pressure_systolic || v.blood_pressure_diastolic
+                          ? `${v.blood_pressure_systolic ?? '—'}/${v.blood_pressure_diastolic ?? '—'}`
+                          : null
+                      }
+                    />
+                    <Row label="Heart rate" value={v.heart_rate} />
+                    <Row label="Temperature" value={v.temperature ? `${v.temperature}°F` : null} />
+                    <Row label="Respiratory rate" value={v.respiratory_rate} />
+                    <Row label="O2 saturation" value={v.oxygen_saturation ? `${v.oxygen_saturation}%` : null} />
+                    <Row label="Pain scale" value={v.pain_level} />
+                    <Row label="Status" value={pretty(v.status)} />
+                  </>
+                )}
+              />
+            )}
+
+            {section === 'comm' && !sectionLoading && (
+              <ChartList
+                empty="No communication notes on file for this patient."
+                items={list}
+                renderItem={(n) => (
+                  <>
+                    <Text style={styles.itemTitle}>{dash(n.type)}</Text>
+                    <Text style={styles.statusChip}>{pretty(n.status)}</Text>
+                    <Text style={styles.noteBody}>{dash(n.note)}</Text>
+                    <Row label="Date" value={n.created_at} />
+                    <Row label="User" value={n.created_by} />
+                  </>
+                )}
+              />
+            )}
           </ScrollView>
         </KeyboardAvoidingView>
       )}
 
-      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
-        <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
-          <View style={styles.menuSheet}>
-            {MENU_ITEMS.map((item) => (
-              <Pressable key={item.key} style={styles.menuRow} onPress={() => openSection(item.key)}>
-                <Ionicons name={item.icon} size={20} color={colors.ink} />
-                <Text style={styles.menuLabel}>{item.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
+      <SlideDownMenu
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        items={MENU_ITEMS.map((item) => ({
+          key: item.key,
+          label: item.label,
+          icon: item.icon,
+          onPress: () => openSection(item.key),
+        }))}
+      />
     </AppShell>
+  );
+}
+
+function ChartList({
+  items,
+  empty,
+  renderItem,
+}: {
+  items: Record<string, any>[];
+  empty: string;
+  renderItem: (item: Record<string, any>) => React.ReactNode;
+}) {
+  if (items.length === 0) {
+    return <Text style={styles.empty}>{empty}</Text>;
+  }
+  return (
+    <>
+      {items.map((item, idx) => (
+        <View key={String(item.id ?? idx)} style={styles.itemCard}>
+          {renderItem(item)}
+        </View>
+      ))}
+    </>
   );
 }
 
@@ -290,35 +277,20 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: '#FAFAFA' },
   hubPad: { paddingBottom: 28 },
   sectionPad: { padding: 16, paddingBottom: 32 },
-  empty: { color: colors.textMuted, marginTop: 12 },
+  empty: { color: colors.textMuted, marginTop: 16, textAlign: 'center' },
   itemCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 12,
+    padding: 14,
     marginTop: 10,
   },
-  itemTitle: { fontWeight: '700', color: colors.text },
-  itemMeta: { color: colors.textMuted, marginTop: 4 },
-  menuBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'flex-end',
-  },
-  menuSheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingBottom: 28,
-    paddingTop: 8,
-  },
-  menuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  menuLabel: { fontSize: 16, fontWeight: '600', color: colors.ink },
+  itemTitle: { fontWeight: '800', color: colors.text, fontSize: 16 },
+  itemMeta: { color: colors.textMuted, marginTop: 4, marginBottom: 6 },
+  statusChip: { color: colors.textMuted, marginTop: 4, marginBottom: 8, fontWeight: '600' },
+  noteBody: { color: colors.text, marginTop: 8, marginBottom: 8, lineHeight: 20 },
+  kvRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 3 },
+  kvLabel: { color: colors.textMuted, fontSize: 13, width: 120 },
+  kvValue: { flex: 1, textAlign: 'right', color: colors.text, fontSize: 13, fontWeight: '500' },
 });

@@ -208,6 +208,13 @@ export function getPatientAllergies(token: string, patientId: number) {
   );
 }
 
+export function getPatientInfections(token: string, patientId: number) {
+  return apiRequest<ApiEnvelope<Record<string, unknown>[]>>(
+    `mobile/staff/patients/${patientId}/infections`,
+    { token },
+  );
+}
+
 export function getCommNotes(token: string, patientId: number) {
   return apiRequest<ApiEnvelope<Record<string, unknown>[]>>(
     `mobile/staff/patients/${patientId}/comm-notes`,

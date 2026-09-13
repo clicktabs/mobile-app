@@ -24,7 +24,7 @@ import { colors } from '../../theme/colors';
 import type { EvvVisit } from '../../types';
 import type { StaffMenuStackParamList } from '../../navigation/types';
 import { OpenStreetMapView } from '../../components/OpenStreetMapView';
-import { geofenceMetersFromFeet, formatFeet, formatGeofenceLimit } from '../../utils/geofence';
+import { GEOFENCE_METERS, formatGeofenceMiss } from '../../utils/geofence';
 
 const SELF_CHECKS = [
   { id: 'ppe', label: 'Personal Protective Equipment (PPE) ready' },
@@ -169,8 +169,7 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
   const patientLng = patient?.longitude ?? null;
   const hasPatientCoords =
     patientLat != null && patientLng != null && Number.isFinite(patientLat) && Number.isFinite(patientLng);
-  const geofenceFeet = visit?.geofence_tolerance_feet;
-  const geofenceLimitM = geofenceMetersFromFeet(geofenceFeet);
+  const geofenceLimitM = GEOFENCE_METERS;
 
   const geofence = useMemo(() => {
     if (!coords) return { status: 'waiting' as const, meters: null as number | null };
@@ -385,8 +384,7 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
             {geofence.status === 'waiting' && 'Geofence Check: Waiting for GPS…'}
             {geofence.status === 'match' &&
               `Geofence Check: Matches (${patient?.name || 'Patient'}'s Residence)`}
-            {geofence.status === 'miss' &&
-              `Geofence Check: Outside area (${formatFeet(geofence.meters || 0)}; limit ${formatGeofenceLimit(geofenceFeet)})`}
+            {geofence.status === 'miss' && formatGeofenceMiss(geofence.meters || 0)}
             {geofence.status === 'skipped' &&
               'Geofence Check: No patient coordinates on file — office may verify later'}
           </Text>

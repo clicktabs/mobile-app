@@ -108,6 +108,10 @@ function initials(name?: string) {
     .join('');
 }
 
+export function patientProfileHeaderOffset(insets: { top: number }) {
+  return Math.max(insets.top, 8) + 44 + 12;
+}
+
 export function PatientProfileHeader({
   title = 'Patient Profile',
   showBack,
