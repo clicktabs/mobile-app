@@ -45,10 +45,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 18,
     paddingHorizontal: 22,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 8 },
+    boxShadow: '0px 8px 20px rgba(0, 0, 0, 0.12)',
     elevation: 4,
   },
   tagline: {

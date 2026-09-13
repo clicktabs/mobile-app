@@ -89,6 +89,20 @@ export function staffWeekSchedule(
   );
 }
 
+/**
+ * A rolling window rather than a calendar week, so the schedule screen can see past
+ * Sunday. Defaults on the server are 7 days back and 30 ahead; the look-back exists
+ * because the same list feeds the Past Due and Completed tabs.
+ */
+export function staffUpcomingSchedule(token: string, days?: number, days_back?: number) {
+  return apiRequest<
+    ApiEnvelope<ScheduleItem[]> & {
+      count?: number;
+      window?: { from: string; to: string; days: number; days_back: number };
+    }
+  >('mobile/staff/schedule/upcoming', { token, query: { days, days_back } });
+}
+
 export function completeVisit(
   token: string,
   scheduleId: number,

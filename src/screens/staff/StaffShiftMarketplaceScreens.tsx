@@ -619,10 +619,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 3 },
+        boxShadow: '0px 3px 8px rgba(0, 0, 0, 0.06)',
       },
       android: { elevation: 2 },
       default: {},
