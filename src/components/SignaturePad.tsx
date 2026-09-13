@@ -16,6 +16,9 @@ export function SignaturePad({ onChange, height = 160 }: Props) {
   const [strokes, setStrokes] = useState<string[][]>([]);
   const [current, setCurrent] = useState<string[]>([]);
   const sizeRef = useRef({ w: 1, h: 1 });
+  const strokesRef = useRef<string[][]>([]);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   const rebuild = (nextStrokes: string[][], nextCurrent: string[] = []) => {
     const all = [...nextStrokes];
@@ -24,7 +27,7 @@ export function SignaturePad({ onChange, height = 160 }: Props) {
       .filter((s) => s.length > 1)
       .map((s) => `M ${s.join(' L ')}`)
       .join(' ');
-    onChange(path || null);
+    onChangeRef.current(path || null);
   };
 
   const pan = useRef(
@@ -41,19 +44,21 @@ export function SignaturePad({ onChange, height = 160 }: Props) {
         const pt = `${locationX.toFixed(1)},${locationY.toFixed(1)}`;
         setCurrent((prev) => {
           const next = [...prev, pt];
-          rebuild(strokes, next);
+          rebuild(strokesRef.current, next);
           return next;
         });
       },
       onPanResponderRelease: () => {
         setCurrent((prev) => {
-          if (prev.length > 1) {
-            const next = [...strokes, prev];
+          const stroke = prev.length === 1 ? [prev[0], prev[0]] : prev;
+          if (stroke.length > 1) {
+            const next = [...strokesRef.current, stroke];
+            strokesRef.current = next;
             setStrokes(next);
             rebuild(next, []);
             return [];
           }
-          rebuild(strokes, []);
+          rebuild(strokesRef.current, []);
           return [];
         });
       },
@@ -68,9 +73,10 @@ export function SignaturePad({ onChange, height = 160 }: Props) {
   };
 
   const clear = () => {
+    strokesRef.current = [];
     setStrokes([]);
     setCurrent([]);
-    onChange(null);
+    onChangeRef.current(null);
   };
 
   const hasInk = strokes.length > 0 || current.length > 1;
@@ -90,7 +96,7 @@ export function SignaturePad({ onChange, height = 160 }: Props) {
         onLayout={onLayout}
         {...pan.panHandlers}
       >
-        {!hasInk ? <Text style={styles.placeholder}>TAP TO SIGN</Text> : null}
+        {!hasInk ? <Text style={styles.placeholder}>DRAW TO SIGN</Text> : null}
         <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
           {strokes.map((s, i) => (
             <Polyline

@@ -25,6 +25,30 @@ export function formatMiles(meters: number): string {
   return `${miles.toFixed(1)} miles`;
 }
 
+export function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export function isWithinGeofence(
+  lat: number,
+  lng: number,
+  targets: Array<{ latitude: number; longitude: number } | null | undefined>,
+): { match: boolean; meters: number } {
+  const distances = targets
+    .filter((t): t is { latitude: number; longitude: number } => {
+      return !!t && Number.isFinite(t.latitude) && Number.isFinite(t.longitude);
+    })
+    .map((t) => haversineMeters(lat, lng, t.latitude, t.longitude));
+  const meters = distances.length ? Math.min(...distances) : Number.POSITIVE_INFINITY;
+  return { match: meters <= GEOFENCE_METERS, meters };
+}
+
 export function formatGeofenceMiss(meters: number): string {
   const miles = meters / METERS_PER_MILE;
   if (miles >= 0.2) {

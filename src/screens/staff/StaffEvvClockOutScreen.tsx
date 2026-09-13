@@ -27,7 +27,7 @@ import { colors } from '../../theme/colors';
 import type { EvvVisit } from '../../types';
 import type { StaffMenuStackParamList } from '../../navigation/types';
 import { OpenStreetMapView } from '../../components/OpenStreetMapView';
-import { GEOFENCE_METERS, formatGeofenceMiss } from '../../utils/geofence';
+import { GEOFENCE_METERS, formatGeofenceMiss, isWithinGeofence } from '../../utils/geofence';
 
 const CARE_TASKS = [
   { id: 'major_services', label: 'Major Services' },
@@ -203,13 +203,18 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
 
   const geofence = useMemo(() => {
     if (!coords) return { status: 'waiting' as const, meters: null as number | null };
-    if (homeLat == null || homeLng == null) return { status: 'skipped' as const, meters: null as number | null };
-    const meters = haversineMeters(coords.latitude, coords.longitude, homeLat, homeLng);
+    const near = isWithinGeofence(coords.latitude, coords.longitude, [
+      homeLat != null && homeLng != null ? { latitude: homeLat, longitude: homeLng } : null,
+      inLat != null && inLng != null ? { latitude: inLat, longitude: inLng } : null,
+    ]);
+    if (!Number.isFinite(near.meters)) {
+      return { status: 'skipped' as const, meters: null as number | null };
+    }
     return {
-      status: meters <= geofenceLimitM ? ('match' as const) : ('miss' as const),
-      meters,
+      status: near.match ? ('match' as const) : ('miss' as const),
+      meters: near.meters,
     };
-  }, [coords, homeLat, homeLng, geofenceLimitM]);
+  }, [coords, homeLat, homeLng, inLat, inLng]);
 
   const incompleteTasks = tasks.filter((t) => !t.completed && !t.exception_reason);
   const exceptionsText = tasks
