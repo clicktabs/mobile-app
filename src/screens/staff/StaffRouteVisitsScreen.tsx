@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as Location from 'expo-location';
 import { AppHeader, AppShell } from '../../components/chrome';
 import { OpenStreetMapView, type MapPin } from '../../components/OpenStreetMapView';
 import { ErrorBanner, LoadingBlock } from '../../components/ui';
@@ -12,6 +11,7 @@ import type { ScheduleItem } from '../../types';
 import type { StaffHomeStackParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 import { showAlert } from '../../utils/confirm';
+import { getGpsFix } from '../../utils/location';
 
 type Props = NativeStackScreenProps<StaffHomeStackParamList, 'RouteVisits'>;
 
@@ -91,12 +91,11 @@ export function StaffMenuRouteVisitsScreen({ navigation }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        setUser({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+      try {
+        const loc = await getGpsFix();
+        setUser({ lat: loc.latitude, lng: loc.longitude });
+      } catch {
+        // Map still loads without the user pin if GPS is unavailable.
       }
 
       const [today, week] = await Promise.all([

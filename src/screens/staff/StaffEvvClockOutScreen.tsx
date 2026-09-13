@@ -12,7 +12,6 @@ import {
   View,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader, AppShell } from '../../components/chrome';
 import { ErrorBanner } from '../../components/ui';
@@ -23,11 +22,12 @@ import { ApiError } from '../../api/client';
 import { showAlert } from '../../utils/confirm';
 import { getWorkOffline } from '../../utils/offline';
 import { safeGoBack } from '../../utils/navigation';
+import { getGpsFix, formatLocationError } from '../../utils/location';
 import { colors } from '../../theme/colors';
 import type { EvvVisit } from '../../types';
 import type { StaffMenuStackParamList } from '../../navigation/types';
 import { OpenStreetMapView } from '../../components/OpenStreetMapView';
-import { DEFAULT_GEOFENCE_M, formatFeet, formatGeofenceLimit } from '../../utils/geofence';
+import { geofenceMetersFromFeet, formatFeet, formatGeofenceLimit } from '../../utils/geofence';
 
 const CARE_TASKS = [
   { id: 'major_services', label: 'Major Services' },
@@ -90,12 +90,14 @@ function ClockOutMap({
   inLng,
   homeLat,
   homeLng,
+  geofenceMeters,
 }: {
   out: { latitude: number; longitude: number };
   inLat?: number | null;
   inLng?: number | null;
   homeLat?: number | null;
   homeLng?: number | null;
+  geofenceMeters: number;
 }) {
   const pins: { id: string; lat: number; lng: number; title: string; geofenceMeters?: number }[] = [];
   if (homeLat != null && homeLng != null && Number.isFinite(homeLat) && Number.isFinite(homeLng)) {
@@ -104,7 +106,7 @@ function ClockOutMap({
       lat: homeLat,
       lng: homeLng,
       title: 'Patient home',
-      geofenceMeters: DEFAULT_GEOFENCE_M,
+      geofenceMeters,
     });
   }
   if (inLat != null && inLng != null && Number.isFinite(inLat) && Number.isFinite(inLng)) {
@@ -179,19 +181,10 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
   const refreshLocation = useCallback(async () => {
     setLocError(null);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLocError('Location permission is required for EVV clock-out.');
-        return;
-      }
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      setCoords({
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-        gps_accuracy: loc.coords.accuracy ?? undefined,
-      });
+      const loc = await getGpsFix();
+      setCoords(loc);
     } catch (e) {
-      setLocError(e instanceof Error ? e.message : 'Unable to read GPS');
+      setLocError(formatLocationError(e));
     }
   }, []);
 
@@ -206,15 +199,18 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
   const inLat = visit?.evv?.gps_checkin?.latitude ?? null;
   const inLng = visit?.evv?.gps_checkin?.longitude ?? null;
 
+  const geofenceFeet = visit?.geofence_tolerance_feet;
+  const geofenceLimitM = geofenceMetersFromFeet(geofenceFeet);
+
   const geofence = useMemo(() => {
     if (!coords) return { status: 'waiting' as const, meters: null as number | null };
     if (homeLat == null || homeLng == null) return { status: 'skipped' as const, meters: null as number | null };
     const meters = haversineMeters(coords.latitude, coords.longitude, homeLat, homeLng);
     return {
-      status: meters <= DEFAULT_GEOFENCE_M ? ('match' as const) : ('miss' as const),
+      status: meters <= geofenceLimitM ? ('match' as const) : ('miss' as const),
       meters,
     };
-  }, [coords, homeLat, homeLng]);
+  }, [coords, homeLat, homeLng, geofenceLimitM]);
 
   const incompleteTasks = tasks.filter((t) => !t.completed && !t.exception_reason);
   const exceptionsText = tasks
@@ -467,6 +463,7 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
                 inLng={inLng}
                 homeLat={homeLat}
                 homeLng={homeLng}
+                geofenceMeters={geofenceLimitM}
               />
             ) : (
               <View style={[styles.map, styles.mapPlaceholder]}>
@@ -493,7 +490,7 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
             {geofence.status === 'waiting' && 'Geofence Check: Waiting for GPS…'}
             {geofence.status === 'match' && 'Geofence Check: Matches residence'}
             {geofence.status === 'miss' &&
-              `Clock-Out (Unmatched) — ${formatFeet(geofence.meters || 0)}; limit ${formatGeofenceLimit()} · exception required`}
+              `Clock-Out (Unmatched) — ${formatFeet(geofence.meters || 0)}; limit ${formatGeofenceLimit(geofenceFeet)} · exception required`}
             {geofence.status === 'skipped' && 'Geofence Check: No patient coordinates on file'}
           </Text>
 

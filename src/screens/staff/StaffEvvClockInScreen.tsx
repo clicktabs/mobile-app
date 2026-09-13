@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader, AppShell } from '../../components/chrome';
 import { ErrorBanner } from '../../components/ui';
@@ -20,11 +19,12 @@ import { ApiError } from '../../api/client';
 import { showAlert } from '../../utils/confirm';
 import { getWorkOffline } from '../../utils/offline';
 import { safeGoBack } from '../../utils/navigation';
+import { getGpsFix, formatLocationError } from '../../utils/location';
 import { colors } from '../../theme/colors';
 import type { EvvVisit } from '../../types';
 import type { StaffMenuStackParamList } from '../../navigation/types';
 import { OpenStreetMapView } from '../../components/OpenStreetMapView';
-import { DEFAULT_GEOFENCE_M, formatFeet, formatGeofenceLimit } from '../../utils/geofence';
+import { geofenceMetersFromFeet, formatFeet, formatGeofenceLimit } from '../../utils/geofence';
 
 const SELF_CHECKS = [
   { id: 'ppe', label: 'Personal Protective Equipment (PPE) ready' },
@@ -72,11 +72,13 @@ function LocationMapPreview({
   patientLat,
   patientLng,
   label,
+  geofenceMeters,
 }: {
   coords: { latitude: number; longitude: number };
   patientLat?: number | null;
   patientLng?: number | null;
   label: string;
+  geofenceMeters: number;
 }) {
   const hasPatient =
     patientLat != null && patientLng != null && Number.isFinite(patientLat) && Number.isFinite(patientLng);
@@ -93,7 +95,7 @@ function LocationMapPreview({
                   lat: patientLat!,
                   lng: patientLng!,
                   title: label,
-                  geofenceMeters: DEFAULT_GEOFENCE_M,
+                  geofenceMeters,
                 },
               ]
             : []
@@ -150,19 +152,10 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
   const refreshLocation = useCallback(async () => {
     setLocError(null);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLocError('Location permission is required for EVV clock-in.');
-        return;
-      }
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      setCoords({
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-        gps_accuracy: loc.coords.accuracy ?? undefined,
-      });
+      const loc = await getGpsFix();
+      setCoords(loc);
     } catch (e) {
-      setLocError(e instanceof Error ? e.message : 'Unable to read GPS');
+      setLocError(formatLocationError(e));
     }
   }, []);
 
@@ -176,16 +169,18 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
   const patientLng = patient?.longitude ?? null;
   const hasPatientCoords =
     patientLat != null && patientLng != null && Number.isFinite(patientLat) && Number.isFinite(patientLng);
+  const geofenceFeet = visit?.geofence_tolerance_feet;
+  const geofenceLimitM = geofenceMetersFromFeet(geofenceFeet);
 
   const geofence = useMemo(() => {
     if (!coords) return { status: 'waiting' as const, meters: null as number | null };
     if (!hasPatientCoords) return { status: 'skipped' as const, meters: null as number | null };
     const meters = haversineMeters(coords.latitude, coords.longitude, patientLat!, patientLng!);
     return {
-      status: meters <= DEFAULT_GEOFENCE_M ? ('match' as const) : ('miss' as const),
+      status: meters <= geofenceLimitM ? ('match' as const) : ('miss' as const),
       meters,
     };
-  }, [coords, hasPatientCoords, patientLat, patientLng]);
+  }, [coords, hasPatientCoords, patientLat, patientLng, geofenceLimitM]);
 
   const allChecked = SELF_CHECKS.every((c) => checks[c.id]);
   const canStart =
@@ -361,6 +356,7 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
                 patientLat={patientLat}
                 patientLng={patientLng}
                 label={mapLabel}
+                geofenceMeters={geofenceLimitM}
               />
             ) : (
               <View style={[styles.map, styles.mapPlaceholder]}>
@@ -390,7 +386,7 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
             {geofence.status === 'match' &&
               `Geofence Check: Matches (${patient?.name || 'Patient'}'s Residence)`}
             {geofence.status === 'miss' &&
-              `Geofence Check: Outside area (${formatFeet(geofence.meters || 0)}; limit ${formatGeofenceLimit()})`}
+              `Geofence Check: Outside area (${formatFeet(geofence.meters || 0)}; limit ${formatGeofenceLimit(geofenceFeet)})`}
             {geofence.status === 'skipped' &&
               'Geofence Check: No patient coordinates on file — office may verify later'}
           </Text>
