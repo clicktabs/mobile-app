@@ -86,6 +86,7 @@ export type EvvVisit = {
     id: number;
     check_in_time?: string;
     check_out_time?: string;
+    is_open_session?: boolean;
     verification_status?: string;
     sandata_sync_status?: string;
     duration_minutes?: number;

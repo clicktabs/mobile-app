@@ -31,7 +31,7 @@ export type StaffMenuStackParamList = {
   MenuTime: undefined;
   MenuPay: undefined;
   MenuMileage: undefined;
-  MenuEvv: undefined;
+  MenuEvv: { scheduleId?: number } | undefined;
   MenuEvvClockIn: { scheduleId: number };
   MenuEvvNursingNote: { scheduleId: number; patientId?: number; patientName?: string };
   MenuEvvClockOut: { scheduleId: number };

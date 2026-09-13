@@ -22,6 +22,7 @@ import {
   setWorkOffline,
 } from '../../utils/offline';
 import { storageDelete, storageGet, storageSet } from '../../utils/storage';
+import { safeGoBack } from '../../utils/navigation';
 import { colors } from '../../theme/colors';
 import type { StaffHomeStackParamList, StaffMenuStackParamList } from '../../navigation/types';
 import { StaffEvvScreen } from './StaffEvvScreen';
@@ -184,7 +185,7 @@ export function StaffMenuHomeScreen({ navigation }: MenuProps) {
           <MenuRow
             icon="navigate-outline"
             label="EVV"
-            onPress={() => navigation.navigate('MenuEvv')}
+            onPress={() => navigation.navigate('MenuEvv', { scheduleId: 0 })}
           />
         </View>
 
@@ -623,11 +624,24 @@ export function StaffMenuMileageScreen({
 
 export function StaffMenuEvvScreen({
   navigation,
+  route,
 }: NativeStackScreenProps<StaffMenuStackParamList, 'MenuEvv'>) {
   return (
     <AppShell>
-      <AppHeader title="EVV" actions={[{ icon: 'arrow-back', onPress: () => navigation.goBack() }]} />
-      <StaffEvvScreen embedded />
+      <AppHeader
+        title="EVV"
+        onBackPress={() => {
+          if (route.params?.scheduleId) {
+            navigation.getParent()?.navigate('Schedule', { screen: 'ScheduleList' });
+            return;
+          }
+          safeGoBack(navigation, { tab: 'Menu', screen: 'MenuHome' });
+        }}
+      />
+      <StaffEvvScreen
+        embedded
+        focusScheduleId={route.params?.scheduleId ? Number(route.params.scheduleId) : undefined}
+      />
     </AppShell>
   );
 }

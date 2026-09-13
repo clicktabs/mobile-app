@@ -99,8 +99,10 @@ export function StaffLicensesScreen() {
         notes: notes || null,
       });
       const next = res.data;
-      setItems((prev) => prev.map((x) => (x.code === next.code ? next : x)));
-      setEditing(next);
+      if (next) {
+        setItems((prev) => prev.map((x) => (x.code === next.code ? next : x)));
+        setEditing(next);
+      }
       showAlert('Submitted', res.message || 'Waiting for admin verification.', 'success');
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
@@ -140,8 +142,10 @@ export function StaffLicensesScreen() {
         notes: notes || null,
       });
       const next = res.data;
-      setItems((prev) => prev.map((x) => (x.code === next.code ? next : x)));
-      setEditing(next);
+      if (next) {
+        setItems((prev) => prev.map((x) => (x.code === next.code ? next : x)));
+        setEditing(next);
+      }
       showAlert('Document attached', res.message || 'Waiting for admin verification.', 'success');
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {

@@ -43,6 +43,7 @@ import { VoiceInputButton } from '../../components/VoiceInputButton';
 import type { StaffScheduleStackParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 import { showAlert } from '../../utils/confirm';
+import { safeGoBack } from '../../utils/navigation';
 
 type Props = NativeStackScreenProps<StaffScheduleStackParamList, 'SkilledNurseVisit'>;
 
@@ -507,8 +508,7 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
         note_text: buildNoteText(),
       });
       if (evvFlow) {
-        showAlert('Note saved', 'Proceed to EVV clock-out.', 'success');
-        goToEvvClockOut();
+        showAlert('Note saved', 'Draft saved. Clock-out when this visit is finished.');
         return;
       }
       showAlert('Draft saved');
@@ -562,7 +562,7 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
     <AppShell>
       <AppHeader
         title="Skilled Nurse Visit"
-        actions={[{ icon: 'arrow-back', onPress: () => navigation.goBack() }]}
+        actions={[{ icon: 'arrow-back', onPress: () => safeGoBack(navigation, { tab: 'Schedule', screen: 'ScheduleList' }) }]}
       />
       <View style={styles.contextBar}>
         <Text style={styles.subtitle}>{subtitle}</Text>

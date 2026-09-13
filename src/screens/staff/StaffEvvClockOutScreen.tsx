@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Linking,
   Modal,
   Platform,
   Pressable,
@@ -23,12 +22,13 @@ import * as evvApi from '../../api/evv';
 import { ApiError } from '../../api/client';
 import { showAlert } from '../../utils/confirm';
 import { getWorkOffline } from '../../utils/offline';
+import { safeGoBack } from '../../utils/navigation';
 import { colors } from '../../theme/colors';
 import type { EvvVisit } from '../../types';
 import type { StaffMenuStackParamList } from '../../navigation/types';
+import { OpenStreetMapView } from '../../components/OpenStreetMapView';
 
 const DEFAULT_TOLERANCE_M = 152;
-const USE_WEBVIEW_MAP = Platform.OS === 'ios' || Platform.OS === 'android';
 
 const CARE_TASKS = [
   { id: 'major_services', label: 'Major Services' },
@@ -54,6 +54,10 @@ const TASK_EXCEPTION_REASONS = [
 ];
 
 type Props = NativeStackScreenProps<StaffMenuStackParamList, 'MenuEvvClockOut'>;
+
+function goToMySchedule(navigation: Props['navigation']) {
+  navigation.getParent()?.navigate('Schedule', { screen: 'ScheduleList' });
+}
 
 type TaskState = {
   id: string;
@@ -81,54 +85,6 @@ function deviceMeta() {
   };
 }
 
-function staticMapUri(lat: number, lng: number) {
-  return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=600x320&markers=${lat},${lng},red-pushpin`;
-}
-
-function mapHtml(opts: {
-  outLat: number;
-  outLng: number;
-  inLat?: number | null;
-  inLng?: number | null;
-  homeLat?: number | null;
-  homeLng?: number | null;
-}) {
-  const { outLat, outLng, inLat, inLng, homeLat, homeLng } = opts;
-  const pts = [
-    [outLat, outLng],
-    inLat != null && inLng != null ? [inLat, inLng] : null,
-    homeLat != null && homeLng != null ? [homeLat, homeLng] : null,
-  ].filter(Boolean) as number[][];
-  const centerLat = pts.reduce((s, p) => s + p[0], 0) / pts.length;
-  const centerLng = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-
-  return `<!DOCTYPE html><html><head>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<style>html,body,#map{margin:0;height:100%;width:100%;background:#e8eef5}
-.pin{background:#fff;border-radius:8px;padding:3px 7px;font:600 10px -apple-system,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.18);white-space:nowrap}
-.pin-in{border:2px solid #2563eb;color:#047857}.pin-out{border:2px solid #dc2626;color:#b91c1c}
-</style></head><body><div id="map"></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-var map=L.map('map',{zoomControl:false,attributionControl:false}).setView([${centerLat},${centerLng}],15);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-${
-  homeLat != null && homeLng != null
-    ? `L.circle([${homeLat},${homeLng}],{radius:${DEFAULT_TOLERANCE_M},color:'#38BEB9',fillColor:'#38BEB9',fillOpacity:0.12,weight:2}).addTo(map);`
-    : ''
-}
-${
-  inLat != null && inLng != null
-    ? `L.marker([${inLat},${inLng}],{icon:L.divIcon({className:'',html:'<div class="pin pin-in">Clock-In (Matched)</div>',iconSize:[140,24],iconAnchor:[70,30]})}).addTo(map);
-L.circleMarker([${inLat},${inLng}],{radius:8,color:'#fff',weight:2,fillColor:'#2563eb',fillOpacity:1}).addTo(map);`
-    : ''
-}
-L.marker([${outLat},${outLng}],{icon:L.divIcon({className:'',html:'<div class="pin pin-out">Clock-Out</div>',iconSize:[100,24],iconAnchor:[50,30]})}).addTo(map);
-L.circleMarker([${outLat},${outLng}],{radius:8,color:'#fff',weight:2,fillColor:'#dc2626',fillOpacity:1}).addTo(map);
-</script></body></html>`;
-}
-
 function ClockOutMap({
   out,
   inLat,
@@ -142,51 +98,32 @@ function ClockOutMap({
   homeLat?: number | null;
   homeLng?: number | null;
 }) {
-  if (USE_WEBVIEW_MAP) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { WebView } = require('react-native-webview');
-    return (
-      <WebView
-        originWhitelist={['*']}
-        style={styles.map}
-        javaScriptEnabled
-        domStorageEnabled
-        scrollEnabled={false}
-        source={{
-          html: mapHtml({
-            outLat: out.latitude,
-            outLng: out.longitude,
-            inLat,
-            inLng,
-            homeLat,
-            homeLng,
-          }),
-        }}
-      />
-    );
+  const pins: { id: string; lat: number; lng: number; title: string; geofenceMeters?: number }[] = [];
+  if (homeLat != null && homeLng != null && Number.isFinite(homeLat) && Number.isFinite(homeLng)) {
+    pins.push({
+      id: 'home',
+      lat: homeLat,
+      lng: homeLng,
+      title: 'Patient home',
+      geofenceMeters: DEFAULT_TOLERANCE_M,
+    });
+  }
+  if (inLat != null && inLng != null && Number.isFinite(inLat) && Number.isFinite(inLng)) {
+    pins.push({
+      id: 'clock-in',
+      lat: inLat,
+      lng: inLng,
+      title: 'Clock-In',
+    });
   }
 
   return (
-    <Pressable
-      style={styles.map}
-      onPress={() =>
-        Linking.openURL(
-          `https://www.openstreetmap.org/?mlat=${out.latitude}&mlon=${out.longitude}#map=15/${out.latitude}/${out.longitude}`,
-        ).catch(() => undefined)
-      }
-    >
-      <Image
-        source={{ uri: staticMapUri(out.latitude, out.longitude) }}
-        style={styles.mapImage}
-        resizeMode="cover"
+    <View style={styles.map}>
+      <OpenStreetMapView
+        user={{ lat: out.latitude, lng: out.longitude }}
+        pins={pins}
       />
-      <View style={styles.mapOverlay}>
-        <Text style={styles.mapOverlayText}>Clock-Out GPS</Text>
-        <Text style={styles.mapOverlaySub}>
-          {out.latitude.toFixed(4)}, {out.longitude.toFixed(4)}
-        </Text>
-      </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -309,24 +246,32 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
     .map((p) => p[0]?.toUpperCase() || '')
     .join('');
 
-  const toggleTask = (id: string) => {
+  const toggleTaskCompleted = (id: string) => {
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              completed: !t.completed,
-              exception_reason: !t.completed ? null : t.exception_reason,
-              open: t.completed ? true : false,
-            }
-          : t,
-      ),
+      prev.map((t) => {
+        if (t.id !== id) return t;
+        const nextCompleted = !t.completed;
+        return {
+          ...t,
+          completed: nextCompleted,
+          exception_reason: nextCompleted ? null : t.exception_reason,
+          open: nextCompleted ? false : true,
+        };
+      }),
+    );
+  };
+
+  const toggleTaskOpen = (id: string) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id && !t.completed ? { ...t, open: !t.open } : t)),
     );
   };
 
   const setTaskException = (id: string, reason: string) => {
     setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, exception_reason: reason, completed: false, open: false } : t)),
+      prev.map((t) =>
+        t.id === id ? { ...t, exception_reason: reason, completed: false, open: true } : t,
+      ),
     );
   };
 
@@ -346,7 +291,7 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
           notes: notes || undefined,
         });
         showAlert('Saved offline', 'Clock-out queued. It will sync when online.', 'info');
-        navigation.goBack();
+        goToMySchedule(navigation);
         return;
       }
 
@@ -375,9 +320,14 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
         'success',
       );
       setAttestModalOpen(false);
-      navigation.goBack();
+      goToMySchedule(navigation);
     } catch (e) {
       setSyncHint('Ready to transmit EVV');
+      if (e instanceof ApiError && e.status === 409 && /already checked out/i.test(e.message)) {
+        showAlert('Already checked out', 'This visit is already closed.', 'info');
+        goToMySchedule(navigation);
+        return;
+      }
       if (e instanceof ApiError && (e.payload as any)?.requires_geofence_exception) {
         showAlert('Geofence exception required', e.message, 'error');
         return;
@@ -393,7 +343,7 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
             notes: notes || undefined,
           });
           showAlert('Saved offline', 'Network issue — clock-out queued for sync.', 'info');
-          navigation.goBack();
+          goToMySchedule(navigation);
           return;
         } catch {
           // fall through
@@ -418,7 +368,7 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
               load();
             },
           },
-          { icon: 'close', onPress: () => navigation.goBack() },
+          { icon: 'close', onPress: () => safeGoBack(navigation, { tab: 'Schedule', screen: 'ScheduleList' }) },
         ]}
       />
 
@@ -452,21 +402,33 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
           <View style={styles.card}>
             {tasks.map((t) => (
               <View key={t.id}>
-                <Pressable style={styles.taskRow} onPress={() => toggleTask(t.id)}>
-                  <View style={[styles.checkbox, t.completed && styles.checkboxOn]}>
-                    {t.completed ? <Ionicons name="checkmark" size={16} color="#fff" /> : null}
-                  </View>
-                  <Text style={[styles.taskLabel, t.completed && styles.taskDone]}>{t.label}</Text>
-                  <Ionicons
-                    name={t.open ? 'chevron-up' : 'chevron-down'}
-                    size={18}
-                    color={colors.textMuted}
-                    onPress={() =>
-                      setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, open: !x.open } : x)))
-                    }
-                  />
-                </Pressable>
-                {!t.completed && (t.open || !t.exception_reason) ? (
+                <View style={styles.taskRow}>
+                  <Pressable
+                    style={styles.checkboxHit}
+                    onPress={() => toggleTaskCompleted(t.id)}
+                    hitSlop={8}
+                  >
+                    <View style={[styles.checkbox, t.completed && styles.checkboxOn]}>
+                      {t.completed ? <Ionicons name="checkmark" size={16} color="#fff" /> : null}
+                    </View>
+                  </Pressable>
+                  <Pressable
+                    style={styles.taskLabelPress}
+                    onPress={() => toggleTaskCompleted(t.id)}
+                  >
+                    <Text style={[styles.taskLabel, t.completed && styles.taskDone]}>{t.label}</Text>
+                  </Pressable>
+                  {!t.completed ? (
+                    <Pressable onPress={() => toggleTaskOpen(t.id)} hitSlop={8}>
+                      <Ionicons
+                        name={t.open ? 'chevron-up' : 'chevron-down'}
+                        size={18}
+                        color={colors.textMuted}
+                      />
+                    </Pressable>
+                  ) : null}
+                </View>
+                {!t.completed && t.open ? (
                   <View style={styles.reasonWrap}>
                     <Text style={styles.reasonHint}>Exception reason required</Text>
                     {TASK_EXCEPTION_REASONS.map((r) => (
@@ -560,7 +522,10 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
           >
             <Text style={styles.startBtnText}>SUBMIT CLOCK-OUT & TRANSMIT EVV</Text>
           </Pressable>
-          <Pressable style={styles.cancelBtn} onPress={() => navigation.goBack()}>
+          <Pressable
+            style={styles.cancelBtn}
+            onPress={() => safeGoBack(navigation, { tab: 'Schedule', screen: 'ScheduleList' })}
+          >
             <Text style={styles.cancelBtnText}>CANCEL / RETURN</Text>
           </Pressable>
         </ScrollView>
@@ -694,6 +659,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
+  checkboxHit: { padding: 2 },
+  taskLabelPress: { flex: 1 },
   checkbox: {
     width: 24,
     height: 24,
@@ -742,7 +709,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: '#fff',
   },
-  map: { height: 200, width: '100%', backgroundColor: '#EEF2F7' },
+  map: { height: 240, width: '100%', backgroundColor: '#EEF2F7', overflow: 'hidden' },
   mapImage: { ...StyleSheet.absoluteFill, width: '100%', height: '100%' },
   mapOverlay: {
     position: 'absolute',

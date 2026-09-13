@@ -61,13 +61,11 @@ export function StaffScheduleScreen() {
     if (!token) return;
     setError(null);
     try {
-      const [today, week] = await Promise.all([
-        staffApi.staffTodaySchedule(token),
-        staffApi.staffWeekSchedule(token),
-      ]);
-      const map = new Map<number, ScheduleItem>();
-      [...(today.data || []), ...(week.data || [])].forEach((v) => map.set(v.id, v));
-      setItems([...map.values()]);
+      const res = await staffApi.staffWeekSchedule(token, {
+        days_past: 30,
+        days_ahead: 60,
+      });
+      setItems(res.data || []);
       setUpdatedAt(new Date());
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
@@ -112,6 +110,7 @@ export function StaffScheduleScreen() {
   const openEvvForVisit = (item: ScheduleItem) => {
     navigation.getParent()?.navigate('Menu', {
       screen: 'MenuEvv',
+      params: { scheduleId: item.id },
     });
   };
 

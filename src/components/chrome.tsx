@@ -11,10 +11,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useNavigationState } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import { BrandMark } from './BrandLogo';
+import { canNavigateBack, safeGoBack } from '../utils/navigation';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return <View style={styles.shell}>{children}</View>;
@@ -24,20 +25,30 @@ export function AppHeader({
   title,
   actions,
   showLogo = true,
+  showBack,
   onLogoPress,
+  onBackPress,
 }: {
   title: string;
   actions?: { icon: keyof typeof Ionicons.glyphMap; label?: string; onPress: () => void }[];
   /** White CT mark next to the title (default on) */
   showLogo?: boolean;
+  /** Left back control. Default: show whenever any parent navigator has history. */
+  showBack?: boolean;
   /** Defaults to navigating to the Home tab */
   onLogoPress?: () => void;
+  onBackPress?: () => void;
 }) {
   const navigation = useNavigation<any>();
+  useNavigationState((s) => `${s?.key ?? ''}:${s?.index ?? 0}:${s?.routes?.length ?? 0}`);
   const insets = useSafeAreaInsets();
   // Equal padding above/below the logo row (status bar inset sits above that).
   const barPad = 12;
   const topPad = Math.max(insets.top, 0) + barPad;
+  const backVisible = showBack ?? (Boolean(onBackPress) || canNavigateBack(navigation));
+  const rightActions = (actions || []).filter(
+    (a) => !(backVisible && (a.icon === 'arrow-back' || a.icon === 'close')),
+  );
   const goHome = () => {
     if (onLogoPress) {
       onLogoPress();
@@ -45,13 +56,45 @@ export function AppHeader({
     }
     navigation.navigate('Home');
   };
+  const goBack = () => {
+    if (onBackPress) {
+      onBackPress();
+      return;
+    }
+    safeGoBack(navigation);
+  };
 
   return (
     <LinearGradient colors={[...colors.brandGradient]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
       <View style={{ paddingTop: topPad, paddingBottom: barPad }}>
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
-            {showLogo ? (
+            {backVisible ? (
+              <Pressable
+                onPress={goBack}
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+                hitSlop={8}
+                style={({ pressed }) => [
+                  styles.headerAction,
+                  styles.headerActionRound,
+                  pressed && styles.headerActionPressed,
+                ]}
+              >
+                <Ionicons name="chevron-back" size={22} color="#fff" />
+              </Pressable>
+            ) : showLogo ? (
+              <Pressable
+                onPress={goHome}
+                accessibilityRole="link"
+                accessibilityLabel="Go to Home"
+                hitSlop={8}
+                style={({ pressed }) => [styles.logoBadge, pressed && { opacity: 0.85 }]}
+              >
+                <BrandMark size={22} tone="black" />
+              </Pressable>
+            ) : null}
+            {backVisible && showLogo ? (
               <Pressable
                 onPress={goHome}
                 accessibilityRole="link"
@@ -66,9 +109,9 @@ export function AppHeader({
               {title}
             </Text>
           </View>
-          {actions && actions.length > 0 ? (
+          {rightActions.length > 0 ? (
             <View style={styles.headerActions}>
-              {actions.map((a, i) => (
+              {rightActions.map((a, i) => (
                 <Pressable
                   key={`${a.icon}-${i}`}
                   onPress={a.onPress}

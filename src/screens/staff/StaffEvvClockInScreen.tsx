@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -20,9 +19,11 @@ import * as evvApi from '../../api/evv';
 import { ApiError } from '../../api/client';
 import { showAlert } from '../../utils/confirm';
 import { getWorkOffline } from '../../utils/offline';
+import { safeGoBack } from '../../utils/navigation';
 import { colors } from '../../theme/colors';
 import type { EvvVisit } from '../../types';
 import type { StaffMenuStackParamList } from '../../navigation/types';
+import { OpenStreetMapView } from '../../components/OpenStreetMapView';
 
 const SELF_CHECKS = [
   { id: 'ppe', label: 'Personal Protective Equipment (PPE) ready' },
@@ -31,7 +32,6 @@ const SELF_CHECKS = [
 ] as const;
 
 const DEFAULT_TOLERANCE_M = 152; // ~500 ft
-const USE_WEBVIEW_MAP = Platform.OS === 'ios' || Platform.OS === 'android';
 
 type Props = NativeStackScreenProps<StaffMenuStackParamList, 'MenuEvvClockIn'>;
 
@@ -68,53 +68,6 @@ function goToVisitDocumentation(
   });
 }
 
-function staticMapUri(lat: number, lng: number) {
-  return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=16&size=600x320&markers=${lat},${lng},red-pushpin`;
-}
-
-function mapHtml(opts: {
-  caregiverLat: number;
-  caregiverLng: number;
-  patientLat?: number | null;
-  patientLng?: number | null;
-  label: string;
-}) {
-  const { caregiverLat, caregiverLng, patientLat, patientLng, label } = opts;
-  const hasPatient = patientLat != null && patientLng != null;
-  const centerLat = hasPatient ? (caregiverLat + patientLat!) / 2 : caregiverLat;
-  const centerLng = hasPatient ? (caregiverLng + patientLng!) / 2 : caregiverLng;
-  const safeLabel = label.replace(/</g, '').replace(/>/g, '').replace(/"/g, "'");
-
-  return `<!DOCTYPE html><html><head>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<style>
-  html,body,#map{margin:0;height:100%;width:100%;background:#e8eef5}
-  .pin{background:#fff;border:2px solid #2563eb;border-radius:10px;padding:4px 8px;
-       font:600 11px -apple-system,sans-serif;color:#059669;box-shadow:0 2px 8px rgba(0,0,0,.2);
-       white-space:nowrap}
-</style></head><body>
-<div id="map"></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-  var map = L.map('map',{zoomControl:false,attributionControl:false}).setView([${centerLat},${centerLng}], 16);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-  var you = L.circleMarker([${caregiverLat},${caregiverLng}],{radius:9,color:'#fff',weight:2,fillColor:'#FF4D8D',fillOpacity:1}).addTo(map);
-  you.bindPopup('You');
-  ${
-    hasPatient
-      ? `
-  L.circle([${patientLat},${patientLng}],{radius:${DEFAULT_TOLERANCE_M},color:'#38BEB9',fillColor:'#38BEB9',fillOpacity:0.12,weight:2}).addTo(map);
-  var home = L.marker([${patientLat},${patientLng}]).addTo(map);
-  home.bindPopup(${JSON.stringify(safeLabel)});
-  var icon = L.divIcon({className:'',html:'<div class="pin">${safeLabel}</div>',iconSize:[160,28],iconAnchor:[80,36]});
-  L.marker([${patientLat},${patientLng}],{icon:icon}).addTo(map);
-  `
-      : ''
-  }
-</script></body></html>`;
-}
-
 function LocationMapPreview({
   coords,
   patientLat,
@@ -126,48 +79,28 @@ function LocationMapPreview({
   patientLng?: number | null;
   label: string;
 }) {
-  if (USE_WEBVIEW_MAP) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { WebView } = require('react-native-webview');
-    return (
-      <WebView
-        originWhitelist={['*']}
-        style={styles.map}
-        javaScriptEnabled
-        domStorageEnabled
-        scrollEnabled={false}
-        source={{
-          html: mapHtml({
-            caregiverLat: coords.latitude,
-            caregiverLng: coords.longitude,
-            patientLat,
-            patientLng,
-            label,
-          }),
-        }}
-      />
-    );
-  }
-
-  const openMaps = () => {
-    const url = `https://www.openstreetmap.org/?mlat=${coords.latitude}&mlon=${coords.longitude}#map=16/${coords.latitude}/${coords.longitude}`;
-    Linking.openURL(url).catch(() => undefined);
-  };
+  const hasPatient =
+    patientLat != null && patientLng != null && Number.isFinite(patientLat) && Number.isFinite(patientLng);
 
   return (
-    <Pressable style={styles.map} onPress={openMaps}>
-      <Image
-        source={{ uri: staticMapUri(coords.latitude, coords.longitude) }}
-        style={styles.mapImage}
-        resizeMode="cover"
+    <View style={styles.map}>
+      <OpenStreetMapView
+        user={{ lat: coords.latitude, lng: coords.longitude }}
+        pins={
+          hasPatient
+            ? [
+                {
+                  id: 'home',
+                  lat: patientLat!,
+                  lng: patientLng!,
+                  title: label,
+                  geofenceMeters: DEFAULT_TOLERANCE_M,
+                },
+              ]
+            : []
+        }
       />
-      <View style={styles.mapOverlay}>
-        <Text style={styles.mapOverlayText}>{label}</Text>
-        <Text style={styles.mapOverlaySub}>
-          {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)} · tap to open map
-        </Text>
-      </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -187,13 +120,23 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
     careplan: false,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [activeElsewhereId, setActiveElsewhereId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
     setError(null);
+    setActiveElsewhereId(null);
     try {
-      const res = await evvApi.getEvvVisit(token, scheduleId);
-      setVisit(res.visit);
+      const [visitRes, listRes] = await Promise.all([
+        evvApi.getEvvVisit(token, scheduleId),
+        evvApi.getEvvVisits(token, { days_past: 30, days_ahead: 60, schedule_id: scheduleId }),
+      ]);
+      setVisit(visitRes.visit);
+      const activeId = listRes.active_schedule_id ?? null;
+      if (activeId != null && Number(activeId) !== Number(scheduleId)) {
+        setActiveElsewhereId(Number(activeId));
+        setError('You are already clocked in on another visit. Clock out there before starting this one.');
+      }
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         await handleUnauthorized();
@@ -251,7 +194,8 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
     allChecked &&
     (geofence.status === 'match' || geofence.status === 'skipped') &&
     !submitting &&
-    !visit?.evv?.check_in_time;
+    !visit?.evv?.is_open_session &&
+    !activeElsewhereId;
 
   const initials = (patient?.name || 'PT')
     .split(/\s+/)
@@ -324,6 +268,15 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
           // fall through
         }
       }
+      if (e instanceof ApiError && e.status === 409) {
+        const payload = e.payload as { active_schedule_id?: number; message?: string } | undefined;
+        const msg = e.message || 'You are already clocked in on another visit.';
+        showAlert('Clock-in blocked', msg, 'error');
+        if (payload?.active_schedule_id) {
+          navigation.replace('MenuEvvClockOut', { scheduleId: Number(payload.active_schedule_id) });
+        }
+        return;
+      }
       const msg =
         e instanceof ApiError ? e.message : e instanceof Error ? e.message : 'Clock-in failed';
       showAlert('Clock-in failed', msg, 'error');
@@ -345,7 +298,7 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
               load();
             },
           },
-          { icon: 'close', onPress: () => navigation.goBack() },
+          { icon: 'close', onPress: () => safeGoBack(navigation, { tab: 'Menu', screen: 'MenuEvv' }) },
         ]}
       />
 
@@ -462,6 +415,15 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
             })}
           </View>
 
+          {activeElsewhereId ? (
+            <Pressable
+              style={styles.startBtn}
+              onPress={() => navigation.replace('MenuEvvClockOut', { scheduleId: activeElsewhereId })}
+            >
+              <Text style={styles.startBtnText}>GO TO ACTIVE VISIT CLOCK-OUT</Text>
+            </Pressable>
+          ) : null}
+
           <Pressable
             style={[styles.startBtn, !canStart && styles.startBtnDisabled]}
             disabled={!canStart}
@@ -474,7 +436,7 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
             )}
           </Pressable>
 
-          <Pressable style={styles.cancelBtn} onPress={() => navigation.goBack()}>
+          <Pressable style={styles.cancelBtn} onPress={() => safeGoBack(navigation, { tab: 'Menu', screen: 'MenuEvv' })}>
             <Text style={styles.cancelBtnText}>CANCEL / RETURN</Text>
           </Pressable>
         </ScrollView>
@@ -549,7 +511,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: '#fff',
   },
-  map: { height: 200, width: '100%', backgroundColor: '#EEF2F7' },
+  map: { height: 240, width: '100%', backgroundColor: '#EEF2F7', overflow: 'hidden' },
   mapImage: { ...StyleSheet.absoluteFill, width: '100%', height: '100%' },
   mapOverlay: {
     position: 'absolute',

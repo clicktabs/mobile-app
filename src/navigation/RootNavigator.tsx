@@ -137,6 +137,7 @@ function StaffMenuNavigator() {
 function StaffApp() {
   return (
     <StaffTabs.Navigator
+      backBehavior="history"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.brandMagenta,
@@ -206,6 +207,7 @@ function PatientHomeNavigator() {
 function PatientApp() {
   return (
     <PatientTabs.Navigator
+      backBehavior="history"
       screenOptions={({ route }) => ({
         headerShown: route.name === 'Home' ? false : true,
         headerTintColor: colors.brandMagenta,

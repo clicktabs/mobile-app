@@ -72,10 +72,20 @@ export function staffTodaySchedule(token: string) {
   });
 }
 
-export function staffWeekSchedule(token: string, start_date?: string) {
+export function staffWeekSchedule(
+  token: string,
+  opts?: { start_date?: string; days_past?: number; days_ahead?: number },
+) {
   return apiRequest<ApiEnvelope<ScheduleItem[]> & { count?: number; week?: { start: string; end: string } }>(
     'mobile/staff/schedule/week',
-    { token, query: { start_date } },
+    {
+      token,
+      query: {
+        start_date: opts?.start_date,
+        days_past: opts?.days_past,
+        days_ahead: opts?.days_ahead,
+      },
+    },
   );
 }
 

@@ -5,6 +5,7 @@ import { storageGet, storageSet } from '../utils/storage';
 type EvvVisitsResponse = {
   success: boolean;
   visits: EvvVisit[];
+  active_schedule_id?: number | null;
   message?: string;
 };
 
@@ -21,10 +22,19 @@ type OfflineEvvEvent = {
 
 const OFFLINE_KEY = 'ct_evv_offline_queue';
 
-export function getEvvVisits(token: string, from?: string, to?: string) {
+export function getEvvVisits(
+  token: string,
+  opts?: { from?: string; to?: string; days_past?: number; days_ahead?: number; schedule_id?: number },
+) {
   return apiRequest<EvvVisitsResponse>('mobile/evv/visits', {
     token,
-    query: { from, to },
+    query: {
+      from: opts?.from,
+      to: opts?.to,
+      days_past: opts?.days_past,
+      days_ahead: opts?.days_ahead,
+      schedule_id: opts?.schedule_id,
+    },
   });
 }
 

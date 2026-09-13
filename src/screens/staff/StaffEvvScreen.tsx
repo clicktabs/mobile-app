@@ -43,7 +43,28 @@ function formatVisitDate(dt?: string) {
   });
 }
 
-export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
+function sameId(a?: number | string | null, b?: number | string | null) {
+  if (a == null || b == null) return false;
+  const left = Number(a);
+  const right = Number(b);
+  return Number.isFinite(left) && Number.isFinite(right) && left === right;
+}
+
+function visitTitle(v: EvvVisit) {
+  return (
+    (v.patient?.name && v.patient.name.trim()) ||
+    (v.patient?.address ? v.patient.address.split(',')[0] : null) ||
+    `Visit #${v.id}`
+  );
+}
+
+export function StaffEvvScreen({
+  embedded = false,
+  focusScheduleId,
+}: {
+  embedded?: boolean;
+  focusScheduleId?: number;
+}) {
   const navigation = useNavigation<any>();
   const { token, handleUnauthorized } = useAuth();
   const [visits, setVisits] = useState<EvvVisit[]>([]);
@@ -51,6 +72,7 @@ export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingOffline, setPendingOffline] = useState(0);
+  const [activeScheduleId, setActiveScheduleId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -60,8 +82,13 @@ export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
       if (flushed > 0) {
         showAlert('Offline EVV synced', `${flushed} event(s) uploaded.`, 'success');
       }
-      const res = await evvApi.getEvvVisits(token);
+      const res = await evvApi.getEvvVisits(token, {
+        days_past: 30,
+        days_ahead: 60,
+        schedule_id: focusScheduleId,
+      });
       setVisits(res.visits || []);
+      setActiveScheduleId(res.active_schedule_id ?? null);
       setPendingOffline(await evvApi.pendingOfflineEvvCount());
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
@@ -73,7 +100,7 @@ export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [token, handleUnauthorized]);
+  }, [token, handleUnauthorized, focusScheduleId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -83,6 +110,17 @@ export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
   );
 
   if (loading) return <LoadingBlock />;
+
+  const activeVisit = visits.find((v) => sameId(v.id, activeScheduleId)) ?? null;
+  const focusedOnActive = !!focusScheduleId && sameId(focusScheduleId, activeScheduleId);
+  const listVisits = focusScheduleId
+    ? visits.filter((v) => sameId(v.id, focusScheduleId))
+    : visits;
+
+  const openActiveSchedule = () => {
+    if (!activeScheduleId) return;
+    navigation.navigate('MenuEvv', { scheduleId: activeScheduleId });
+  };
 
   const body = (
     <View style={styles.root}>
@@ -101,6 +139,30 @@ export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
 
       {error ? <ErrorBanner message={error} onRetry={load} /> : null}
 
+      {activeVisit && !focusedOnActive ? (
+        <Pressable style={styles.activeLink} onPress={openActiveSchedule}>
+          <View style={styles.activeLinkIcon}>
+            <Ionicons name="time" size={18} color="#1D4ED8" />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={styles.activeLinkKicker}>Currently clocked in</Text>
+            <Text style={styles.activeLinkTitle} numberOfLines={1}>
+              {visitTitle(activeVisit)}
+            </Text>
+            {activeVisit.start_datetime ? (
+              <Text style={styles.activeLinkMeta} numberOfLines={1}>
+                {formatVisitDate(activeVisit.start_datetime)}
+                {formatVisitTime(activeVisit.start_datetime, activeVisit.end_datetime)
+                  ? ` · ${formatVisitTime(activeVisit.start_datetime, activeVisit.end_datetime)}`
+                  : ''}
+              </Text>
+            ) : null}
+            <Text style={styles.activeLinkCta}>Open this schedule to clock out</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#1D4ED8" />
+        </Pressable>
+      ) : null}
+
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={styles.listPad}
@@ -115,17 +177,23 @@ export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
           />
         }
       >
-        {visits.length === 0 ? (
-          <EmptyState message="No EVV visits in range" />
+        {listVisits.length === 0 ? (
+          <EmptyState
+            message={
+              focusScheduleId
+                ? 'This schedule is not ready for EVV clock-in.'
+                : 'No EVV visits in range'
+            }
+          />
         ) : (
-          visits.map((v) => {
-            const checkedIn = !!v.evv?.check_in_time;
-            const checkedOut = !!v.evv?.check_out_time;
-            const title =
-              (v.patient?.name && v.patient.name.trim()) ||
-              (v.patient?.address ? v.patient.address.split(',')[0] : null) ||
-              `Visit #${v.id}`;
-            const phase = checkedOut ? 3 : checkedIn ? 2 : 1;
+          listVisits.map((v) => {
+            const scheduleDone = (v.status || '').toLowerCase() === 'completed';
+            const lastSessionClosed = !!v.evv?.check_out_time && !v.evv?.is_open_session;
+            const isActiveSession = sameId(v.id, activeScheduleId) && !!v.evv?.is_open_session;
+            const blockedByOther = !!activeScheduleId && !sameId(v.id, activeScheduleId);
+            const canClockIn = !isActiveSession && !scheduleDone;
+            const title = visitTitle(v);
+            const phase = scheduleDone ? 3 : isActiveSession ? 2 : 1;
 
             return (
               <View key={v.id} style={styles.card}>
@@ -146,32 +214,26 @@ export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
                       </Text>
                     ) : null}
                   </View>
-                  <PhaseBadge phase={phase} checkedOut={checkedOut} status={v.evv?.verification_status} />
+                  <PhaseBadge
+                    phase={phase}
+                    checkedOut={scheduleDone}
+                    status={v.evv?.verification_status}
+                  />
                 </View>
 
                 <Text style={styles.cardStatus}>
-                  {checkedOut
-                    ? `Completed · ${v.evv?.verification_status || 'pending verification'}`
-                    : checkedIn
+                  {scheduleDone
+                    ? `Schedule completed · ${v.evv?.verification_status || 'pending verification'}`
+                    : isActiveSession
                       ? `In progress · clocked in ${new Date(v.evv!.check_in_time!).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
-                      : 'Not started — clock in on arrival'}
+                      : blockedByOther
+                        ? 'Clock out of your active visit before starting here'
+                        : lastSessionClosed
+                          ? 'Last session clocked out — clock in again for this schedule'
+                          : 'Not started — clock in on arrival'}
                 </Text>
 
-                {!checkedIn ? (
-                  <Pressable
-                    style={styles.ctaOuter}
-                    onPress={() => navigation.navigate('MenuEvvClockIn', { scheduleId: v.id })}
-                  >
-                    <LinearGradient
-                      colors={[...colors.brandGradient]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.ctaFill}
-                    >
-                      <Text style={styles.ctaText}>PRE-VISIT CLOCK-IN</Text>
-                    </LinearGradient>
-                  </Pressable>
-                ) : !checkedOut ? (
+                {isActiveSession ? (
                   <Pressable
                     style={styles.ctaOuter}
                     onPress={() => navigation.navigate('MenuEvvClockOut', { scheduleId: v.id })}
@@ -183,6 +245,21 @@ export function StaffEvvScreen({ embedded = false }: { embedded?: boolean }) {
                       style={styles.ctaFill}
                     >
                       <Text style={styles.ctaText}>CONFIRM CLOCK-OUT</Text>
+                    </LinearGradient>
+                  </Pressable>
+                ) : canClockIn ? (
+                  <Pressable
+                    style={[styles.ctaOuter, blockedByOther && styles.ctaDisabled]}
+                    disabled={blockedByOther}
+                    onPress={() => navigation.navigate('MenuEvvClockIn', { scheduleId: v.id })}
+                  >
+                    <LinearGradient
+                      colors={[...colors.brandGradient]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.ctaFill, blockedByOther && { opacity: 0.45 }]}
+                    >
+                      <Text style={styles.ctaText}>PRE-VISIT CLOCK-IN</Text>
                     </LinearGradient>
                   </Pressable>
                 ) : null}
@@ -268,7 +345,53 @@ const styles = StyleSheet.create({
   },
   flowNumText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   flowLabel: { fontSize: 11, fontWeight: '600', color: colors.text },
+  activeLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#93C5FD',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  activeLinkIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeLinkKicker: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1D4ED8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  activeLinkTitle: {
+    marginTop: 2,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E3A8A',
+  },
+  activeLinkMeta: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#1E40AF',
+  },
+  activeLinkCta: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.brandMagenta,
+    textDecorationLine: 'underline',
+  },
   listPad: { paddingBottom: 28 },
+  ctaDisabled: { opacity: 0.7 },
   card: {
     backgroundColor: '#fff',
     borderRadius: 14,
