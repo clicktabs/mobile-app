@@ -27,7 +27,7 @@ import { colors } from '../../theme/colors';
 import type { EvvVisit } from '../../types';
 import type { StaffMenuStackParamList } from '../../navigation/types';
 import { OpenStreetMapView } from '../../components/OpenStreetMapView';
-import { GEOFENCE_METERS, formatGeofenceMiss, isWithinGeofence } from '../../utils/geofence';
+import { formatGeofenceMiss, geofenceMatchMeters, haversineMeters, isWithinGeofence } from '../../utils/geofence';
 
 const CARE_TASKS = [
   { id: 'major_services', label: 'Major Services' },
@@ -65,16 +65,6 @@ type TaskState = {
   exception_reason: string | null;
   open: boolean;
 };
-
-function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 function deviceMeta() {
   return {
@@ -199,14 +189,19 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
   const inLat = visit?.evv?.gps_checkin?.latitude ?? null;
   const inLng = visit?.evv?.gps_checkin?.longitude ?? null;
 
-  const geofenceLimitM = GEOFENCE_METERS;
+  const geofenceLimitM = geofenceMatchMeters(coords?.gps_accuracy);
 
   const geofence = useMemo(() => {
     if (!coords) return { status: 'waiting' as const, meters: null as number | null };
-    const near = isWithinGeofence(coords.latitude, coords.longitude, [
-      homeLat != null && homeLng != null ? { latitude: homeLat, longitude: homeLng } : null,
-      inLat != null && inLng != null ? { latitude: inLat, longitude: inLng } : null,
-    ]);
+    const near = isWithinGeofence(
+      coords.latitude,
+      coords.longitude,
+      [
+        homeLat != null && homeLng != null ? { latitude: homeLat, longitude: homeLng } : null,
+        inLat != null && inLng != null ? { latitude: inLat, longitude: inLng } : null,
+      ],
+      geofenceLimitM,
+    );
     if (!Number.isFinite(near.meters)) {
       return { status: 'skipped' as const, meters: null as number | null };
     }
@@ -214,7 +209,7 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
       status: near.match ? ('match' as const) : ('miss' as const),
       meters: near.meters,
     };
-  }, [coords, homeLat, homeLng, inLat, inLng]);
+  }, [coords, homeLat, homeLng, inLat, inLng, geofenceLimitM]);
 
   const incompleteTasks = tasks.filter((t) => !t.completed && !t.exception_reason);
   const exceptionsText = tasks

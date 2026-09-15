@@ -24,7 +24,7 @@ import { colors } from '../../theme/colors';
 import type { EvvVisit } from '../../types';
 import type { StaffMenuStackParamList } from '../../navigation/types';
 import { OpenStreetMapView } from '../../components/OpenStreetMapView';
-import { GEOFENCE_METERS, formatGeofenceMiss } from '../../utils/geofence';
+import { formatGeofenceMiss, geofenceMatchMeters, isWithinGeofence } from '../../utils/geofence';
 
 const SELF_CHECKS = [
   { id: 'ppe', label: 'Personal Protective Equipment (PPE) ready' },
@@ -33,16 +33,6 @@ const SELF_CHECKS = [
 ] as const;
 
 type Props = NativeStackScreenProps<StaffMenuStackParamList, 'MenuEvvClockIn'>;
-
-function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 function deviceMeta() {
   return {
@@ -169,15 +159,20 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
   const patientLng = patient?.longitude ?? null;
   const hasPatientCoords =
     patientLat != null && patientLng != null && Number.isFinite(patientLat) && Number.isFinite(patientLng);
-  const geofenceLimitM = GEOFENCE_METERS;
+  const geofenceLimitM = geofenceMatchMeters(coords?.gps_accuracy);
 
   const geofence = useMemo(() => {
     if (!coords) return { status: 'waiting' as const, meters: null as number | null };
     if (!hasPatientCoords) return { status: 'skipped' as const, meters: null as number | null };
-    const meters = haversineMeters(coords.latitude, coords.longitude, patientLat!, patientLng!);
+    const near = isWithinGeofence(
+      coords.latitude,
+      coords.longitude,
+      [{ latitude: patientLat!, longitude: patientLng! }],
+      geofenceLimitM,
+    );
     return {
-      status: meters <= geofenceLimitM ? ('match' as const) : ('miss' as const),
-      meters,
+      status: near.match ? ('match' as const) : ('miss' as const),
+      meters: near.meters,
     };
   }, [coords, hasPatientCoords, patientLat, patientLng, geofenceLimitM]);
 

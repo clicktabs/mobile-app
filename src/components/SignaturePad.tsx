@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { LayoutChangeEvent, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path, Polyline } from 'react-native-svg';
 import { colors } from '../theme/colors';
@@ -17,18 +17,19 @@ export function SignaturePad({ onChange, height = 160 }: Props) {
   const [current, setCurrent] = useState<string[]>([]);
   const sizeRef = useRef({ w: 1, h: 1 });
   const strokesRef = useRef<string[][]>([]);
+  const currentRef = useRef<string[]>([]);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  const rebuild = (nextStrokes: string[][], nextCurrent: string[] = []) => {
-    const all = [...nextStrokes];
-    if (nextCurrent.length > 1) all.push(nextCurrent);
+  useEffect(() => {
+    const all = [...strokes];
+    if (current.length > 1) all.push(current);
     const path = all
       .filter((s) => s.length > 1)
       .map((s) => `M ${s.join(' L ')}`)
       .join(' ');
     onChangeRef.current(path || null);
-  };
+  }, [strokes, current]);
 
   const pan = useRef(
     PanResponder.create({
@@ -37,30 +38,26 @@ export function SignaturePad({ onChange, height = 160 }: Props) {
       onPanResponderGrant: (e) => {
         const { locationX, locationY } = e.nativeEvent;
         const pt = `${locationX.toFixed(1)},${locationY.toFixed(1)}`;
+        currentRef.current = [pt];
         setCurrent([pt]);
       },
       onPanResponderMove: (e) => {
         const { locationX, locationY } = e.nativeEvent;
         const pt = `${locationX.toFixed(1)},${locationY.toFixed(1)}`;
-        setCurrent((prev) => {
-          const next = [...prev, pt];
-          rebuild(strokesRef.current, next);
-          return next;
-        });
+        const next = [...currentRef.current, pt];
+        currentRef.current = next;
+        setCurrent(next);
       },
       onPanResponderRelease: () => {
-        setCurrent((prev) => {
-          const stroke = prev.length === 1 ? [prev[0], prev[0]] : prev;
-          if (stroke.length > 1) {
-            const next = [...strokesRef.current, stroke];
-            strokesRef.current = next;
-            setStrokes(next);
-            rebuild(next, []);
-            return [];
-          }
-          rebuild(strokesRef.current, []);
-          return [];
-        });
+        const prev = currentRef.current;
+        const stroke = prev.length === 1 ? [prev[0], prev[0]] : prev;
+        currentRef.current = [];
+        setCurrent([]);
+        if (stroke.length > 1) {
+          const next = [...strokesRef.current, stroke];
+          strokesRef.current = next;
+          setStrokes(next);
+        }
       },
     }),
   ).current;
@@ -74,9 +71,9 @@ export function SignaturePad({ onChange, height = 160 }: Props) {
 
   const clear = () => {
     strokesRef.current = [];
+    currentRef.current = [];
     setStrokes([]);
     setCurrent([]);
-    onChangeRef.current(null);
   };
 
   const hasInk = strokes.length > 0 || current.length > 1;

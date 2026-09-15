@@ -65,29 +65,40 @@ export async function getGpsFix(): Promise<GpsFix> {
   }
 
   const attempts: { accuracy: Location.LocationAccuracy; waitMs: number }[] = [
-    { accuracy: Location.Accuracy.Balanced, waitMs: 0 },
-    { accuracy: Location.Accuracy.Balanced, waitMs: 1200 },
+    { accuracy: Location.Accuracy.High, waitMs: 0 },
+    { accuracy: Location.Accuracy.High, waitMs: 1500 },
+    { accuracy: Location.Accuracy.Balanced, waitMs: 800 },
     { accuracy: Location.Accuracy.Low, waitMs: 400 },
-    { accuracy: Location.Accuracy.High, waitMs: 800 },
   ];
 
   let lastError: unknown;
+  let best: GpsFix | null = null;
   for (const attempt of attempts) {
     if (attempt.waitMs) await sleep(attempt.waitMs);
     try {
       const loc = await Location.getCurrentPositionAsync({ accuracy: attempt.accuracy });
       if (Number.isFinite(loc.coords.latitude) && Number.isFinite(loc.coords.longitude)) {
-        return toFix(loc);
+        const fix = toFix(loc);
+        if (!best || (fix.gps_accuracy ?? 999) < (best.gps_accuracy ?? 999)) {
+          best = fix;
+        }
+        // Good enough lock — don't wait for later coarse fallbacks.
+        if ((fix.gps_accuracy ?? 999) <= 50) {
+          return fix;
+        }
       }
     } catch (e) {
       lastError = e;
     }
   }
+  if (best) {
+    return best;
+  }
 
   try {
     const last = await Location.getLastKnownPositionAsync({
-      maxAge: 10 * 60 * 1000,
-      requiredAccuracy: 250,
+      maxAge: 2 * 60 * 1000,
+      requiredAccuracy: 80,
     });
     if (last && Number.isFinite(last.coords.latitude) && Number.isFinite(last.coords.longitude)) {
       return toFix(last);
