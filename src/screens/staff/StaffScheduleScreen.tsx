@@ -33,8 +33,20 @@ function isCompleted(item: ScheduleItem) {
   return (item.status || '').toLowerCase() === 'completed' && !isDocNeeded(item);
 }
 
+/** Clocked in and not yet clocked out. */
+function isInProgress(item: ScheduleItem) {
+  return (item.status || '').toLowerCase() === 'in_progress';
+}
+
 function isPastDue(item: ScheduleItem) {
   if (!item.start_time || isCompleted(item)) return false;
+
+  // A visit being worked on right now is not one that was missed. This filed every
+  // clocked-in visit under "Past Due" the moment its start time passed — which used
+  // to be hidden, because the status stayed 'scheduled' for the whole visit and
+  // nothing could tell the two apart.
+  if (isInProgress(item)) return false;
+
   return new Date(item.start_time.replace(' ', 'T')).getTime() < Date.now();
 }
 
@@ -192,6 +204,7 @@ export function StaffScheduleScreen() {
               filtered.map((item) => {
                 const docNeeded = isDocNeeded(item);
                 const completed = isCompleted(item);
+                const inProgress = isInProgress(item);
                 return (
                   <View key={item.id} style={styles.row}>
                     <View style={styles.rowMain}>
@@ -212,7 +225,7 @@ export function StaffScheduleScreen() {
                           </Pressable>
                         ) : (
                           <Text style={styles.meta} numberOfLines={1}>
-                            {item.status || 'scheduled'}
+                            {inProgress ? 'In progress' : item.status || 'scheduled'}
                           </Text>
                         )}
                       </View>
@@ -241,6 +254,21 @@ export function StaffScheduleScreen() {
                         >
                           <Ionicons name="document-text-outline" size={16} color="#854D0E" />
                           <Text style={styles.docActionBtnText}>Document</Text>
+                        </Pressable>
+                      ) : inProgress ? (
+                        /*
+                          A visit under way looks different from one not started. Blue
+                          is what "active" means on the EVV screen — the Currently
+                          clocked in banner and the Active badge are both #1D4ED8 — so
+                          the two screens agree rather than each inventing a colour.
+                        */
+                        <Pressable
+                          accessibilityLabel="Continue visit"
+                          style={styles.inProgressActionBtn}
+                          onPress={() => openEvvForVisit(item)}
+                        >
+                          <Ionicons name="time-outline" size={16} color="#1D4ED8" />
+                          <Text style={styles.inProgressActionBtnText}>In Visit</Text>
                         </Pressable>
                       ) : !completed ? (
                         <Pressable
@@ -326,6 +354,18 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.2,
   },
+  inProgressActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#DBEAFE',
+    borderColor: '#93C5FD',
+    borderWidth: 1.2,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  inProgressActionBtnText: { color: '#1D4ED8', fontSize: 12, fontWeight: '800' },
   docActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',

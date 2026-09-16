@@ -215,7 +215,10 @@ export function StaffEvvScreen({
             const phase = scheduleDone ? 3 : isActiveSession ? 2 : 1;
 
             return (
-              <View key={v.id} style={styles.card}>
+              <View
+                key={v.id}
+                style={[styles.card, isActiveSession && styles.cardActive]}
+              >
                 <View style={styles.cardHeader}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cardTitle}>{title}</Text>
@@ -265,12 +268,21 @@ export function StaffEvvScreen({
                     the form to get out of the house.
                   */
                   <>
+                    {/*
+                      Blue, not the brand pink used before clock-in.
+
+                      The card's biggest element should not look identical either side
+                      of clocking in — the state has changed and the colour is what
+                      carries that at a glance, ahead of any label. Blue because this
+                      screen already uses it for an active session: the "Currently
+                      clocked in" banner and the Active phase badge are both #1D4ED8.
+                    */}
                     <Pressable
                       style={styles.ctaOuter}
                       onPress={() => openDocumentation(v)}
                     >
                       <LinearGradient
-                        colors={[...colors.brandGradient]}
+                        colors={['#2563EB', '#1D4ED8']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={styles.ctaFill}
@@ -438,6 +450,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: 14,
     marginBottom: 12,
+  },
+  /** A visit in progress reads as one at a glance, not only from its label. */
+  cardActive: {
+    borderColor: '#93C5FD',
+    borderLeftWidth: 4,
+    borderLeftColor: '#1D4ED8',
+    backgroundColor: '#F8FAFF',
   },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   cardTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
