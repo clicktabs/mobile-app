@@ -48,6 +48,13 @@ export type StaffScheduleStackParamList = {
     /** When true, note save/complete routes to EVV clock-out instead of schedule list. */
     evvFlow?: boolean;
   };
+  /** The Home Health Aide equivalent of SkilledNurseVisit. */
+  HhaVisitNote: {
+    scheduleId: number;
+    patientId?: number;
+    patientName?: string;
+    startTime?: string;
+  };
   PlanOfCareProfile: {
     patientId: number;
     patientName?: string;

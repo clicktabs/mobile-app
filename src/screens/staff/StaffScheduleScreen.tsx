@@ -22,6 +22,7 @@ import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
 import type { ScheduleItem } from '../../types';
 import { colors } from '../../theme/colors';
+import { documentationRouteFor } from '../../utils/visitDocumentation';
 
 type TabKey = 'past' | 'upcoming' | 'completed';
 
@@ -132,13 +133,16 @@ export function StaffScheduleScreen() {
   };
 
   const openDocumentation = (item: ScheduleItem) => {
-    navigation.navigate('SkilledNurseVisit', {
+    // An aide's visit gets the aide's form, not the skilled-nursing assessment.
+    const screen = documentationRouteFor(item.task_type);
+
+    navigation.navigate(screen, {
       scheduleId: item.id,
       patientId: item.patient_id,
       patientName: item.patient_name,
       startTime: item.start_time,
-      evvFlow: false,
-    });
+      ...(screen === 'SkilledNurseVisit' ? { evvFlow: false } : {}),
+    } as never);
   };
 
   return (

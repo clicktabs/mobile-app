@@ -76,6 +76,7 @@ export type EvvVisit = {
   start_datetime?: string;
   end_datetime?: string;
   service_type?: string;
+  task_type?: string;
   patient?: {
     id: number;
     name?: string;

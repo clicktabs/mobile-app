@@ -220,6 +220,47 @@ export function saveNursingNote(
   });
 }
 
+export type HhaNotePayload = {
+  patient_id: number;
+  schedule_id?: number;
+  status: 'draft' | 'completed';
+  visit_date?: string;
+  visit_start_time?: string;
+  visit_end_time?: string;
+  total_hours?: number;
+  /** Keyed by the task keys in src/data/hhaTasks.ts. */
+  tasks: Record<string, 'completed' | 'refused' | 'na'>;
+  comments: Record<string, string>;
+  signature_pin?: string;
+};
+
+export type HhaNote = {
+  id: number;
+  status: 'draft' | 'completed';
+  visit_date?: string;
+  visit_start_time?: string;
+  visit_end_time?: string;
+  total_hours?: number | string | null;
+  tasks: Record<string, 'completed' | 'refused' | 'na'>;
+  comments: Record<string, string>;
+};
+
+/** The aide's shift note. Writes the same record the web HHA form writes. */
+export function saveHhaNote(token: string, body: HhaNotePayload) {
+  return apiRequest<ApiEnvelope<{ id: number; status: string; task_count: number }>>(
+    'mobile/staff/hha-notes',
+    { method: 'POST', token, body },
+  );
+}
+
+/** The latest note for a schedule, so a draft can be picked back up. */
+export function getHhaNote(token: string, scheduleId: number) {
+  return apiRequest<{ success: boolean; note: HhaNote | null }>(
+    `mobile/staff/hha-notes/schedule/${scheduleId}`,
+    { token },
+  );
+}
+
 export function verifySignaturePin(token: string, pin: string) {
   return apiRequest<ApiEnvelope<{ verified: boolean }>>('mobile/staff/verify-pin', {
     method: 'POST',

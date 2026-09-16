@@ -23,6 +23,7 @@ import { ApiError } from '../../api/client';
 import { showAlert } from '../../utils/confirm';
 import type { EvvVisit } from '../../types';
 import { colors } from '../../theme/colors';
+import { documentationRouteFor } from '../../utils/visitDocumentation';
 
 function formatVisitTime(start?: string, end?: string) {
   if (!start) return '';
@@ -130,7 +131,7 @@ export function StaffEvvScreen({
    */
   const openDocumentation = (v: EvvVisit) => {
     navigation.navigate('Schedule', {
-      screen: 'SkilledNurseVisit',
+      screen: documentationRouteFor(v.task_type),
       params: {
         scheduleId: v.id,
         patientId: v.patient?.id,

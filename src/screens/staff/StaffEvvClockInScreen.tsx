@@ -25,6 +25,7 @@ import type { EvvVisit } from '../../types';
 import type { StaffMenuStackParamList } from '../../navigation/types';
 import { OpenStreetMapView } from '../../components/OpenStreetMapView';
 import { formatGeofenceMiss, geofenceMatchMeters, isWithinGeofence } from '../../utils/geofence';
+import { documentationRouteFor } from '../../utils/visitDocumentation';
 
 const SELF_CHECKS = [
   { id: 'ppe', label: 'Personal Protective Equipment (PPE) ready' },
@@ -50,10 +51,15 @@ function goToVisitDocumentation(
     patientName?: string;
     startTime?: string;
   },
+  taskType?: string | null,
 ) {
+  // An aide gets the aide's form. This named SkilledNurseVisit outright, so every
+  // discipline was handed the skilled-nursing assessment on clock-in.
+  const screen = documentationRouteFor(taskType);
+
   navigation.getParent()?.navigate('Schedule', {
-    screen: 'SkilledNurseVisit',
-    params: { ...params, evvFlow: true },
+    screen,
+    params: { ...params, ...(screen === 'SkilledNurseVisit' ? { evvFlow: true } : {}) },
   });
 }
 
@@ -218,7 +224,7 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
           patientId: patient?.id,
           patientName: patient?.name,
           startTime: visit?.start_datetime,
-        });
+        }, visit?.task_type);
         return;
       }
 
@@ -233,7 +239,7 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
         patientId: patient?.id,
         patientName: patient?.name,
         startTime: visit?.start_datetime,
-      });
+      }, visit?.task_type);
     } catch (e) {
       if (!(e instanceof ApiError) || e.status === 0) {
         try {
@@ -250,7 +256,7 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
             patientId: patient?.id,
             patientName: patient?.name,
             startTime: visit?.start_datetime,
-          });
+          }, visit?.task_type);
           return;
         } catch {
           // fall through
