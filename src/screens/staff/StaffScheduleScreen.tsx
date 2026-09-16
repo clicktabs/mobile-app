@@ -25,13 +25,17 @@ import { colors } from '../../theme/colors';
 
 type TabKey = 'past' | 'upcoming' | 'completed';
 
-function isPastDue(item: ScheduleItem) {
-  if (!item.start_time || item.status === 'completed') return false;
-  return new Date(item.start_time).getTime() < Date.now();
+function isDocNeeded(item: ScheduleItem) {
+  return item.status === 'document_needed' || !!item.needs_documentation;
 }
 
 function isCompleted(item: ScheduleItem) {
-  return (item.status || '').toLowerCase() === 'completed';
+  return (item.status || '').toLowerCase() === 'completed' && !isDocNeeded(item);
+}
+
+function isPastDue(item: ScheduleItem) {
+  if (!item.start_time || isCompleted(item)) return false;
+  return new Date(item.start_time.replace(' ', 'T')).getTime() < Date.now();
 }
 
 function formatWhen(start?: string) {
@@ -115,6 +119,16 @@ export function StaffScheduleScreen() {
     });
   };
 
+  const openDocumentation = (item: ScheduleItem) => {
+    navigation.navigate('SkilledNurseVisit', {
+      scheduleId: item.id,
+      patientId: item.patient_id,
+      patientName: item.patient_name,
+      startTime: item.start_time,
+      evvFlow: false,
+    });
+  };
+
   return (
     <AppShell>
       <AppHeader
@@ -175,49 +189,77 @@ export function StaffScheduleScreen() {
                 }
               />
             ) : (
-              filtered.map((item) => (
-                <View key={item.id} style={styles.row}>
-                  <View style={styles.rowMain}>
-                    <Text style={styles.name} numberOfLines={1}>
-                      {item.patient_name || item.title}
-                    </Text>
-                    <Text style={styles.meta} numberOfLines={1}>
-                      {formatWhen(item.start_time)} · {item.status || 'scheduled'}
-                    </Text>
-                  </View>
-                  <View style={styles.rowActions}>
-                    {item.patient_id ? (
-                      <Pressable
-                        accessibilityLabel="Open patient"
-                        hitSlop={8}
-                        style={styles.iconBtn}
-                        onPress={() =>
-                          navigation.navigate('Patients', {
-                            screen: 'PatientDetail',
-                            params: { patientId: item.patient_id },
-                          })
-                        }
-                      >
-                        <Ionicons name="person-outline" size={20} color={colors.brandMagenta} />
-                      </Pressable>
-                    ) : null}
-                    {!isCompleted(item) ? (
-                      <Pressable
-                        accessibilityLabel="Complete visit"
-                        hitSlop={8}
-                        style={[styles.iconBtn, styles.completeBtn]}
-                        onPress={() => openEvvForVisit(item)}
-                      >
-                        <Ionicons name="checkmark" size={18} color="#fff" />
-                      </Pressable>
-                    ) : (
-                      <View style={[styles.iconBtn, styles.doneChip]}>
-                        <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+              filtered.map((item) => {
+                const docNeeded = isDocNeeded(item);
+                const completed = isCompleted(item);
+                return (
+                  <View key={item.id} style={styles.row}>
+                    <View style={styles.rowMain}>
+                      <Text style={styles.name} numberOfLines={1}>
+                        {item.patient_name || item.title}
+                      </Text>
+                      <View style={styles.metaRow}>
+                        <Text style={styles.meta} numberOfLines={1}>
+                          {formatWhen(item.start_time)} ·{' '}
+                        </Text>
+                        {docNeeded ? (
+                          <Pressable
+                            style={styles.docNeededBadge}
+                            onPress={() => openDocumentation(item)}
+                          >
+                            <Ionicons name="alert-circle" size={13} color="#854D0E" />
+                            <Text style={styles.docNeededBadgeText}>Document Needed</Text>
+                          </Pressable>
+                        ) : (
+                          <Text style={styles.meta} numberOfLines={1}>
+                            {item.status || 'scheduled'}
+                          </Text>
+                        )}
                       </View>
-                    )}
+                    </View>
+                    <View style={styles.rowActions}>
+                      {item.patient_id ? (
+                        <Pressable
+                          accessibilityLabel="Open patient"
+                          hitSlop={8}
+                          style={styles.iconBtn}
+                          onPress={() =>
+                            navigation.navigate('Patients', {
+                              screen: 'PatientDetail',
+                              params: { patientId: item.patient_id },
+                            })
+                          }
+                        >
+                          <Ionicons name="person-outline" size={20} color={colors.brandMagenta} />
+                        </Pressable>
+                      ) : null}
+                      {docNeeded ? (
+                        <Pressable
+                          accessibilityLabel="Complete documentation"
+                          style={styles.docActionBtn}
+                          onPress={() => openDocumentation(item)}
+                        >
+                          <Ionicons name="document-text-outline" size={16} color="#854D0E" />
+                          <Text style={styles.docActionBtnText}>Document</Text>
+                        </Pressable>
+                      ) : !completed ? (
+                        <Pressable
+                          accessibilityLabel="Complete visit"
+                          hitSlop={8}
+                          style={[styles.iconBtn, styles.completeBtn]}
+                          onPress={() => openEvvForVisit(item)}
+                        >
+                          <Ionicons name="checkmark" size={18} color="#fff" />
+                        </Pressable>
+                      ) : (
+                        <View style={[styles.iconBtn, styles.doneChip]}>
+                          <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+                        </View>
+                      )}
+                    </View>
                   </View>
-                </View>
-              ))
+                );
+              })
             )}
           </ScrollView>
         )}
@@ -259,5 +301,45 @@ const styles = StyleSheet.create({
   },
   doneChip: {
     backgroundColor: '#ECFDF5',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginTop: 2,
+    gap: 4,
+  },
+  docNeededBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF9C3',
+    borderColor: '#FACC15',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  docNeededBadgeText: {
+    color: '#854D0E',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  docActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FEF08A',
+    borderColor: '#EAB308',
+    borderWidth: 1.2,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  docActionBtnText: {
+    color: '#854D0E',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });

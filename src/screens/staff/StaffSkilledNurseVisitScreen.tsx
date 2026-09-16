@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
@@ -12,7 +13,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { AppHeader, AppShell } from '../../components/chrome';
-import { Button, Field } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import type { WoundButtonState } from '../../api/staff';
@@ -110,11 +110,23 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
   const { scheduleId, patientId, patientName, startTime, evvFlow = false } = route.params;
 
   const goToEvvClockOut = () => {
-    navigation.getParent()?.navigate('Menu', {
-      screen: 'MenuEvvClockOut',
-      params: { scheduleId },
-    });
+    const parent = navigation.getParent();
+    if (parent) {
+      parent.navigate('Menu', {
+        screen: 'MenuEvvClockOut',
+        params: { scheduleId },
+      });
+    } else {
+      (navigation as any).navigate('Menu', {
+        screen: 'MenuEvvClockOut',
+        params: { scheduleId },
+      });
+    }
   };
+
+  const [signOpen, setSignOpen] = useState(false);
+  const [signaturePin, setSignaturePin] = useState('');
+  const signedAt = useMemo(() => new Date().toLocaleString(), [signOpen]);
   const [sections, setSections] = useState<Record<string, SectionState>>(() => {
     const init: Record<string, SectionState> = {};
     VISIT_SECTIONS.forEach((s) => {
@@ -132,9 +144,6 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
   const [medicalNecessity, setMedicalNecessity] = useState('');
   const [visitNarrative, setVisitNarrative] = useState('');
   const [saving, setSaving] = useState(false);
-  const [signOpen, setSignOpen] = useState(false);
-  const [signaturePin, setSignaturePin] = useState('');
-  const signedAt = useMemo(() => new Date().toLocaleString(), [signOpen]);
 
   useFocusEffect(
     useCallback(() => {
@@ -493,10 +502,10 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
     return form;
   };
 
-  const saveDraft = async () => {
+  const persistDraft = async () => {
     if (!token || !patientId) {
       showAlert('Missing patient', 'This visit has no patient linked.');
-      return;
+      return false;
     }
     setSaving(true);
     try {
@@ -507,16 +516,19 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
         form_data: buildFormData(),
         note_text: buildNoteText(),
       });
-      if (evvFlow) {
-        showAlert('Note saved', 'Draft saved. Clock-out when this visit is finished.');
-        return;
-      }
-      showAlert('Draft saved');
+      return true;
     } catch (e) {
       showAlert('Save failed', e instanceof ApiError ? e.message : 'Error');
+      return false;
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveDraftAndClockOut = async () => {
+    const ok = await persistDraft();
+    if (!ok) return;
+    goToEvvClockOut();
   };
 
   const completeAndSign = async () => {
@@ -524,35 +536,37 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
       showAlert('Signature required', 'Enter your electronic signature PIN/password.');
       return;
     }
-    if (!token) return;
+    if (!token || !patientId) return;
     setSaving(true);
     try {
-      if (patientId) {
-        await staffApi.saveNursingNote(token, {
-          patient_id: patientId,
-          schedule_id: scheduleId,
-          status: 'completed',
-          form_data: {
-            ...buildFormData(),
-            electronic_signature_at: signedAt,
-            electronic_signature_verified: true,
-          },
-          note_text: buildNoteText(),
-        });
-      }
-      setSignOpen(false);
-      if (evvFlow) {
-        showAlert('Note completed', 'Proceed to EVV clock-out.', 'success');
-        goToEvvClockOut();
-        return;
-      }
-      await staffApi.completeVisit(token, scheduleId, {
-        completion_notes: 'Completed via Skilled Nurse Visit documentation',
+      await staffApi.saveNursingNote(token, {
+        patient_id: patientId,
+        schedule_id: scheduleId,
+        status: 'completed',
+        form_data: {
+          ...buildFormData(),
+          electronic_signature_pin: signaturePin.trim(),
+          electronic_signature_at: signedAt,
+          electronic_signature_verified: true,
+        },
+        note_text: buildNoteText(),
       });
-      showAlert('Visit completed');
-      navigation.goBack();
+
+      if (scheduleId) {
+        try {
+          await staffApi.completeVisit(token, scheduleId, {
+            completion_notes: 'Completed via Skilled Nurse Visit documentation',
+          });
+        } catch {
+          /* non-blocking */
+        }
+      }
+
+      setSignOpen(false);
+      showAlert('Documentation signed', 'Proceeding to clock-out.', 'success');
+      goToEvvClockOut();
     } catch (e) {
-      showAlert('Complete failed', e instanceof ApiError ? e.message : 'Error');
+      showAlert('Save failed', e instanceof ApiError ? e.message : 'Error');
     } finally {
       setSaving(false);
     }
@@ -893,11 +907,11 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
 
       <View style={styles.footer}>
         <Pressable
-          onPress={saveDraft}
+          onPress={saveDraftAndClockOut}
           disabled={saving}
           style={({ pressed }) => [styles.footerBtn, styles.saveBtn, pressed && { opacity: 0.85 }]}
         >
-          <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save Note'}</Text>
+          <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
         </Pressable>
         <Pressable
           onPress={() => setSignOpen(true)}
@@ -908,7 +922,7 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
             pressed && { opacity: 0.85 },
           ]}
         >
-          <Text style={styles.completeBtnText}>Complete Note</Text>
+          <Text style={styles.completeBtnText}>{saving ? 'Saving…' : 'Save and Clock Out'}</Text>
         </Pressable>
       </View>
 
@@ -916,24 +930,41 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Ionicons name="document-text-outline" size={18} color="#fff" />
+              <Ionicons name="document-text-outline" size={20} color="#fff" />
               <Text style={styles.modalHeaderText}>Electronic Signature</Text>
             </View>
             <View style={styles.modalBody}>
-              <Field
-                label="Electronic signature authentication"
+              <Text style={styles.fieldLabel}>Electronic signature authentication</Text>
+              <TextInput
                 value={signaturePin}
                 onChangeText={setSignaturePin}
                 secureTextEntry
                 placeholder="Enter PIN or password"
+                placeholderTextColor={colors.textMuted}
+                style={styles.pinInput}
               />
               <Text style={styles.helper}>Required for electronic signature authentication</Text>
               <Text style={styles.signDateLabel}>Signature date & time</Text>
               <Text style={styles.signDate}>{signedAt}</Text>
               <View style={styles.modalActions}>
-                <Button label="Cancel" variant="ghost" onPress={() => setSignOpen(false)} />
-                <Button label="Save Draft" variant="secondary" loading={saving} onPress={saveDraft} />
-                <Button label="Complete & Sign" loading={saving} onPress={completeAndSign} />
+                <Pressable
+                  style={[styles.modalBtn, styles.cancelModalBtn]}
+                  onPress={() => setSignOpen(false)}
+                  disabled={saving}
+                >
+                  <Text style={styles.cancelModalBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalBtn, styles.completeModalBtn]}
+                  onPress={completeAndSign}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.completeModalBtnText}>Complete & Sign</Text>
+                  )}
+                </Pressable>
               </View>
             </View>
           </View>
@@ -1221,29 +1252,95 @@ const styles = StyleSheet.create({
   completeBtnText: { color: '#0D9488', fontWeight: '800', fontSize: 15 },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalCard: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     overflow: 'hidden',
     maxHeight: '85%',
   },
   modalHeader: {
     backgroundColor: '#1E3A8A',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
-  modalHeaderText: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  modalBody: { padding: 16, paddingBottom: 28 },
-  helper: { color: colors.textMuted, fontSize: 12, marginTop: -8, marginBottom: 14 },
-  signDateLabel: { fontWeight: '700', color: colors.textMuted, fontSize: 12, marginBottom: 4 },
-  signDate: { color: colors.ink, marginBottom: 16, fontSize: 15 },
-  modalActions: { gap: 8 },
+  modalHeaderText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  modalBody: {
+    padding: 18,
+    paddingBottom: 32,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 8,
+  },
+  pinInput: {
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: colors.text,
+    backgroundColor: '#F8FAFC',
+    marginBottom: 6,
+  },
+  helper: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginBottom: 16,
+  },
+  signDateLabel: {
+    fontWeight: '700',
+    color: colors.textMuted,
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  signDate: {
+    color: colors.ink,
+    marginBottom: 20,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelModalBtn: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  cancelModalBtnText: {
+    color: '#475569',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  completeModalBtn: {
+    backgroundColor: '#0D9488',
+  },
+  completeModalBtnText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 15,
+  },
 });
 

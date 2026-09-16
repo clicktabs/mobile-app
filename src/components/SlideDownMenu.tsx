@@ -154,7 +154,7 @@ export function SlideDownMenu({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   dim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
   sheet: {

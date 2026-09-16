@@ -52,6 +52,9 @@ export type ScheduleItem = {
   priority?: string;
   special_instructions?: string;
   staff_name?: string;
+  documentation_completed?: boolean;
+  needs_documentation?: boolean;
+  has_clock_out?: boolean;
 };
 
 export type PatientListItem = {
