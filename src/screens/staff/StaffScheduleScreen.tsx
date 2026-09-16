@@ -39,6 +39,35 @@ function isInProgress(item: ScheduleItem) {
   return (item.status || '').toLowerCase() === 'in_progress';
 }
 
+/**
+ * Flagged by the server because the visit's window passed with nobody in attendance.
+ *
+ * Distinct from past due, which only means the start time has gone by. A missed visit
+ * has been determined, needs a reason recorded, and should not read as one more late
+ * row in the same list.
+ */
+function isMissed(item: ScheduleItem) {
+  return (item.status || '').toLowerCase() === 'missed_visit';
+}
+
+/**
+ * Started, and nobody has clocked in yet.
+ *
+ * Derived on the server so the app and the web dashboard agree on when a visit counts
+ * as late. Unlike a missed visit it is not stored — it clears itself the moment
+ * somebody clocks in.
+ */
+function isLate(item: ScheduleItem) {
+  return !!item.is_late && !isMissed(item);
+}
+
+/** "Late 20m" up to an hour, then "Late 1h 20m" — minutes alone stop meaning much. */
+function formatLate(minutes?: number) {
+  const m = Math.max(0, minutes ?? 0);
+
+  return m >= 60 ? `Late ${Math.floor(m / 60)}h ${m % 60}m` : `Late ${m}m`;
+}
+
 function isPastDue(item: ScheduleItem) {
   if (!item.start_time || isCompleted(item)) return false;
 
@@ -209,8 +238,10 @@ export function StaffScheduleScreen() {
                 const docNeeded = isDocNeeded(item);
                 const completed = isCompleted(item);
                 const inProgress = isInProgress(item);
+                const missed = isMissed(item);
+                const late = isLate(item);
                 return (
-                  <View key={item.id} style={styles.row}>
+                  <View key={item.id} style={[styles.row, late && styles.rowLate, missed && styles.rowMissed]}>
                     <View style={styles.rowMain}>
                       <Text style={styles.name} numberOfLines={1}>
                         {item.patient_name || item.title}
@@ -219,7 +250,17 @@ export function StaffScheduleScreen() {
                         <Text style={styles.meta} numberOfLines={1}>
                           {formatWhen(item.start_time)} ·{' '}
                         </Text>
-                        {docNeeded ? (
+                        {missed ? (
+                          <View style={styles.missedBadge}>
+                            <Ionicons name="close-circle" size={13} color="#fff" />
+                            <Text style={styles.missedBadgeText}>Missed Visit</Text>
+                          </View>
+                        ) : late ? (
+                          <View style={styles.lateBadge}>
+                            <Ionicons name="time" size={13} color="#854D0E" />
+                            <Text style={styles.lateBadgeText}>{formatLate(item.minutes_late)}</Text>
+                          </View>
+                        ) : docNeeded ? (
                           <Pressable
                             style={styles.docNeededBadge}
                             onPress={() => openDocumentation(item)}
@@ -250,7 +291,29 @@ export function StaffScheduleScreen() {
                           <Ionicons name="person-outline" size={20} color={colors.brandMagenta} />
                         </Pressable>
                       ) : null}
-                      {docNeeded ? (
+                      {missed ? (
+                        /*
+                          A second action, not a replacement for the row's own.
+                          Tapping the row still opens EVV, because the commonest
+                          correction to a missed flag is "I was there, I just forgot
+                          to clock in" — and clocking in clears the flag. Documenting
+                          a genuine miss is the deliberate choice, so it gets its own
+                          button rather than taking over the obvious one.
+                        */
+                        <Pressable
+                          accessibilityLabel="Document missed visit"
+                          style={styles.missedActionBtn}
+                          onPress={() =>
+                            navigation.navigate('MissedVisitNote', {
+                              scheduleId: item.id,
+                              patientName: item.patient_name,
+                            })
+                          }
+                        >
+                          <Ionicons name="create-outline" size={16} color="#fff" />
+                          <Text style={styles.missedActionBtnText}>Document</Text>
+                        </Pressable>
+                      ) : docNeeded ? (
                         <Pressable
                           accessibilityLabel="Complete documentation"
                           style={styles.docActionBtn}
@@ -303,6 +366,50 @@ export function StaffScheduleScreen() {
 
 const styles = StyleSheet.create({
   empty: { flexGrow: 1, justifyContent: 'center' },
+  /** A determined miss, not just a late start. */
+  /** Started with nobody there yet — a warning, not a determination. */
+  rowLate: {
+    backgroundColor: '#FFFBEB',
+    borderLeftWidth: 4,
+    borderLeftColor: '#EAB308',
+  },
+  lateBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF08A',
+    borderColor: '#EAB308',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  lateBadgeText: { color: '#854D0E', fontSize: 11, fontWeight: '800' },
+  rowMissed: {
+    backgroundColor: '#FFF5F5',
+    borderLeftWidth: 4,
+    borderLeftColor: '#C53030',
+  },
+  missedActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#C53030',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  missedActionBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  missedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#C53030',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  missedBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   row: {
     marginHorizontal: 12,
     marginBottom: 8,

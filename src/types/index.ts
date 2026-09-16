@@ -54,6 +54,8 @@ export type ScheduleItem = {
   staff_name?: string;
   documentation_completed?: boolean;
   needs_documentation?: boolean;
+  is_late?: boolean;
+  minutes_late?: number;
   has_clock_out?: boolean;
 };
 

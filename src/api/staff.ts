@@ -261,6 +261,55 @@ export function getHhaNote(token: string, scheduleId: number) {
   );
 }
 
+export type MissedVisitNote = {
+  id: number;
+  status: 'missed' | 'pending' | 'rescheduled' | 'resolved' | string;
+  reason: string | null;
+  comments: string | null;
+  visit_date: string | null;
+  /** False while the record still carries only the automatic flag. */
+  documented: boolean;
+};
+
+export type MissedVisitContext = {
+  success: boolean;
+  visit: {
+    schedule_id: number;
+    patient_id: number;
+    patient_name: string;
+    scheduled_at: string | null;
+    task: string | null;
+  };
+  note: MissedVisitNote | null;
+  reasons: string[];
+};
+
+/** The flagged record for a schedule, plus the reason list to choose from. */
+export function getMissedVisitNote(token: string, scheduleId: number) {
+  return apiRequest<MissedVisitContext>(
+    `mobile/staff/missed-visits/schedule/${scheduleId}`,
+    { token },
+  );
+}
+
+/** Record why the visit did not happen. Signed, like any note about care. */
+export function saveMissedVisitNote(
+  token: string,
+  scheduleId: number,
+  body: {
+    reason: string;
+    comments: string;
+    physician_notified: boolean;
+    will_reschedule: boolean;
+    signature_pin: string;
+  },
+) {
+  return apiRequest<ApiEnvelope<{ id: number; status: string }>>(
+    `mobile/staff/missed-visits/schedule/${scheduleId}`,
+    { method: 'POST', token, body },
+  );
+}
+
 export function verifySignaturePin(token: string, pin: string) {
   return apiRequest<ApiEnvelope<{ verified: boolean }>>('mobile/staff/verify-pin', {
     method: 'POST',
