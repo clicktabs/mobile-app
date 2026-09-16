@@ -269,6 +269,39 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
     );
   };
 
+  /**
+   * What clock-out asserts about this visit.
+   *
+   * Built once so the queued copy and the transmitted copy cannot differ. They used
+   * to: the offline branch sent coordinates and a note and nothing else, which meant
+   * going offline silently dropped the signature, the attestation and the task list
+   * that the online endpoint refuses to proceed without.
+   */
+  const buildCheckoutPayload = () => ({
+    ...coords!,
+    ...deviceMeta(),
+    notes: notes || undefined,
+    verification_method: 'gps',
+    services_rendered: tasks.map((t) => ({
+      id: t.id,
+      label: t.label,
+      completed: t.completed,
+      exception_reason: t.exception_reason,
+    })),
+    patient_signature: signature || undefined,
+    attestation_verified: attested,
+    geofence_exception_reason: geoException || undefined,
+    location_type: (needsGeoException ? 'community' : 'home') as 'community' | 'home',
+  });
+
+  const queueCheckout = () =>
+    evvApi.queueOfflineEvvEvent({
+      type: 'checkout',
+      patient_schedule_id: scheduleId,
+      occurred_at: new Date().toISOString(),
+      ...buildCheckoutPayload(),
+    });
+
   const onSubmit = async () => {
     if (!token || !coords || !canSubmit) return;
     setSubmitting(true);
@@ -276,35 +309,13 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
     try {
       const offline = await getWorkOffline();
       if (offline) {
-        await evvApi.queueOfflineEvvEvent({
-          type: 'checkout',
-          patient_schedule_id: scheduleId,
-          occurred_at: new Date().toISOString(),
-          ...coords,
-          verification_method: 'gps',
-          notes: notes || undefined,
-        });
+        await queueCheckout();
         showAlert('Saved offline', 'Clock-out queued. It will sync when online.', 'info');
         goToMySchedule(navigation);
         return;
       }
 
-      const res = await evvApi.evvCheckout(token, scheduleId, {
-        ...coords,
-        ...deviceMeta(),
-        notes: notes || undefined,
-        verification_method: 'gps',
-        services_rendered: tasks.map((t) => ({
-          id: t.id,
-          label: t.label,
-          completed: t.completed,
-          exception_reason: t.exception_reason,
-        })),
-        patient_signature: signature || undefined,
-        attestation_verified: true,
-        geofence_exception_reason: geoException || undefined,
-        location_type: needsGeoException ? 'community' : 'home',
-      });
+      const res = await evvApi.evvCheckout(token, scheduleId, buildCheckoutPayload());
 
       setSyncHint(res.sandata_queued ? 'Queued for Sandata EVV' : 'Clock-out saved');
       showAlert(
@@ -328,14 +339,7 @@ export function StaffEvvClockOutScreen({ navigation, route }: Props) {
       }
       if (!(e instanceof ApiError) || e.status === 0) {
         try {
-          await evvApi.queueOfflineEvvEvent({
-            type: 'checkout',
-            patient_schedule_id: scheduleId,
-            occurred_at: new Date().toISOString(),
-            ...coords,
-            verification_method: 'gps',
-            notes: notes || undefined,
-          });
+          await queueCheckout();
           showAlert('Saved offline', 'Network issue — clock-out queued for sync.', 'info');
           goToMySchedule(navigation);
           return;

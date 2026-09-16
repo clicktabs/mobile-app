@@ -109,7 +109,20 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
   const { token } = useAuth();
   const { scheduleId, patientId, patientName, startTime, evvFlow = false } = route.params;
 
-  const goToEvvClockOut = () => {
+  /**
+   * Where the caregiver goes once the note is saved.
+   *
+   * Only the EVV flow arrives here mid-visit with a clock-out still owed. Opened
+   * from the schedule list there is no open session at all, and being pushed into
+   * clock-out just produced "No active check-in for this visit" — which is what
+   * evvFlow was added to prevent, and was then never read.
+   */
+  const leaveDocumentation = () => {
+    if (!evvFlow) {
+      safeGoBack(navigation, { tab: 'Schedule', screen: 'ScheduleList' });
+      return;
+    }
+
     const parent = navigation.getParent();
     if (parent) {
       parent.navigate('Menu', {
@@ -526,10 +539,10 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
     }
   };
 
-  const saveDraftAndClockOut = async () => {
+  const saveDraftAndLeave = async () => {
     const ok = await persistDraft();
     if (!ok) return;
-    goToEvvClockOut();
+    leaveDocumentation();
   };
 
   const completeAndSign = async () => {
@@ -557,7 +570,13 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
         note_text: buildNoteText(),
       });
 
-      if (scheduleId) {
+      // Outside the EVV flow, signing the note IS the end of the visit, so it closes
+      // the schedule. Inside it, the visit is still open — the caregiver has not
+      // clocked out yet — and clock-out closes the schedule itself. Calling this here
+      // marked the shift completed while the session was still running, which is why
+      // a card could read "Done · Schedule completed" above a CONFIRM CLOCK-OUT
+      // button, and why the real clock-in time was being wiped on the way past.
+      if (scheduleId && !evvFlow) {
         try {
           await staffApi.completeVisit(token, scheduleId, {
             completion_notes: 'Completed via Skilled Nurse Visit documentation',
@@ -569,8 +588,12 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
 
       setSignOpen(false);
       setSignError(null);
-      showAlert('Documentation signed', 'Proceeding to clock-out.', 'success');
-      goToEvvClockOut();
+      showAlert(
+        'Documentation signed',
+        evvFlow ? 'Proceeding to clock-out.' : 'Visit documentation saved.',
+        'success',
+      );
+      leaveDocumentation();
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : 'Invalid signature PIN';
       setSignError(msg);
@@ -915,7 +938,7 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
 
       <View style={styles.footer}>
         <Pressable
-          onPress={saveDraftAndClockOut}
+          onPress={saveDraftAndLeave}
           disabled={saving}
           style={({ pressed }) => [styles.footerBtn, styles.saveBtn, pressed && { opacity: 0.85 }]}
         >
@@ -933,7 +956,9 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
             pressed && { opacity: 0.85 },
           ]}
         >
-          <Text style={styles.completeBtnText}>{saving ? 'Saving…' : 'Save and Clock Out'}</Text>
+          <Text style={styles.completeBtnText}>
+            {saving ? 'Saving…' : evvFlow ? 'Save and Clock Out' : 'Complete & Sign'}
+          </Text>
         </Pressable>
       </View>
 

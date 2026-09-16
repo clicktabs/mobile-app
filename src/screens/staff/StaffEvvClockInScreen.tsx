@@ -199,19 +199,28 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
         ? 'Outside geofence'
         : 'Your location';
 
+  /** Built once so the queued copy and the transmitted copy cannot drift apart. */
+  const buildCheckinPayload = () => ({
+    ...coords!,
+    ...deviceMeta(),
+    verification_method: 'gps',
+  });
+
+  const queueCheckin = () =>
+    evvApi.queueOfflineEvvEvent({
+      type: 'checkin',
+      patient_schedule_id: scheduleId,
+      occurred_at: new Date().toISOString(),
+      ...buildCheckinPayload(),
+    });
+
   const onStart = async () => {
     if (!token || !coords || !canStart) return;
     setSubmitting(true);
     try {
       const offline = await getWorkOffline();
       if (offline) {
-        await evvApi.queueOfflineEvvEvent({
-          type: 'checkin',
-          patient_schedule_id: scheduleId,
-          occurred_at: new Date().toISOString(),
-          ...coords,
-          verification_method: 'gps',
-        });
+        await queueCheckin();
         showAlert('Saved offline', 'Clock-in queued. It will sync when you are online.', 'info');
         goToVisitDocumentation(navigation, {
           scheduleId,
@@ -222,11 +231,7 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
         return;
       }
 
-      const res = await evvApi.evvCheckin(token, scheduleId, {
-        ...coords,
-        ...deviceMeta(),
-        verification_method: 'gps',
-      });
+      const res = await evvApi.evvCheckin(token, scheduleId, buildCheckinPayload());
       showAlert('Visit started', res.check_in_time || res.message || 'Clock-in transmitted.', 'success');
       goToVisitDocumentation(navigation, {
         scheduleId,
@@ -237,13 +242,7 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
     } catch (e) {
       if (!(e instanceof ApiError) || e.status === 0) {
         try {
-          await evvApi.queueOfflineEvvEvent({
-            type: 'checkin',
-            patient_schedule_id: scheduleId,
-            occurred_at: new Date().toISOString(),
-            ...coords,
-            verification_method: 'gps',
-          });
+          await queueCheckin();
           showAlert('Saved offline', 'Network issue — clock-in queued for sync.', 'info');
           goToVisitDocumentation(navigation, {
             scheduleId,
