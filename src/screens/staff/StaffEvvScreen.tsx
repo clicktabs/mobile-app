@@ -20,7 +20,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import * as evvApi from '../../api/evv';
 import { ApiError } from '../../api/client';
-import { confirmAction, showAlert } from '../../utils/confirm';
+import { showAlert } from '../../utils/confirm';
 import type { EvvVisit } from '../../types';
 import { colors } from '../../theme/colors';
 
@@ -72,25 +72,15 @@ export function StaffEvvScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingOffline, setPendingOffline] = useState(0);
-  const [rejectedOffline, setRejectedOffline] = useState<evvApi.RejectedEvvEvent[]>([]);
   const [activeScheduleId, setActiveScheduleId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
     setError(null);
     try {
-      const flush = await evvApi.flushQueueEvvSafe(token);
-      if (flush.accepted > 0 && flush.rejected === 0) {
-        showAlert('Offline EVV synced', `${flush.accepted} event(s) uploaded.`, 'success');
-      } else if (flush.rejected > 0) {
-        // The server refusing a visit is not a sync success, and saying so would
-        // be the last anyone heard of that visit.
-        showAlert(
-          'Offline EVV needs attention',
-          `${flush.accepted} uploaded · ${flush.rejected} refused by the server.` +
-            '\nRefused visits are held on this device — report them to the office.',
-          'error',
-        );
+      const flushed = await evvApi.flushQueueEvvSafe(token);
+      if (flushed > 0) {
+        showAlert('Offline EVV synced', `${flushed} event(s) uploaded.`, 'success');
       }
       const res = await evvApi.getEvvVisits(token, {
         days_past: 30,
@@ -100,7 +90,6 @@ export function StaffEvvScreen({
       setVisits(res.visits || []);
       setActiveScheduleId(res.active_schedule_id ?? null);
       setPendingOffline(await evvApi.pendingOfflineEvvCount());
-      setRejectedOffline(await evvApi.rejectedOfflineEvvEvents());
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         await handleUnauthorized();
@@ -149,53 +138,6 @@ export function StaffEvvScreen({
       </View>
 
       {error ? <ErrorBanner message={error} onRetry={load} /> : null}
-
-      {rejectedOffline.length > 0 ? (
-        <View style={styles.rejectedCard}>
-          <View style={styles.rejectedHead}>
-            <Ionicons name="warning" size={18} color="#B45309" />
-            <Text style={styles.rejectedTitle}>
-              {rejectedOffline.length} offline event(s) the server would not accept
-            </Text>
-          </View>
-          <Text style={styles.rejectedBody}>
-            These visits are still on this device and are not recorded in EVV. The office
-            has to enter them by hand.
-          </Text>
-          {rejectedOffline.slice(0, 4).map((r, i) => (
-            <Text key={`${r.event.client_event_id}-${i}`} style={styles.rejectedItem}>
-              • {r.event.type === 'checkin' ? 'Clock-in' : 'Clock-out'} · visit #
-              {r.event.patient_schedule_id} ·{' '}
-              {new Date(r.event.occurred_at).toLocaleString([], {
-                month: 'short',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit',
-              })}
-              {' — '}
-              {r.reason}
-            </Text>
-          ))}
-          {rejectedOffline.length > 4 ? (
-            <Text style={styles.rejectedItem}>• and {rejectedOffline.length - 4} more</Text>
-          ) : null}
-          <Pressable
-            style={styles.rejectedBtn}
-            onPress={async () => {
-              const ok = await confirmAction(
-                'Clear refused events?',
-                'Only do this once the office has recorded these visits. They cannot be recovered afterwards.',
-                { confirmLabel: 'Clear', destructive: true },
-              );
-              if (!ok) return;
-              await evvApi.clearRejectedOfflineEvvEvents();
-              setRejectedOffline([]);
-            }}
-          >
-            <Text style={styles.rejectedBtnText}>REPORTED TO OFFICE — CLEAR</Text>
-          </Pressable>
-        </View>
-      ) : null}
 
       {activeVisit && !focusedOnActive ? (
         <Pressable style={styles.activeLink} onPress={openActiveSchedule}>
@@ -448,26 +390,6 @@ const styles = StyleSheet.create({
     color: colors.brandMagenta,
     textDecorationLine: 'underline',
   },
-  rejectedCard: {
-    backgroundColor: '#FFFBEB',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FCD34D',
-    padding: 12,
-    marginBottom: 12,
-  },
-  rejectedHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rejectedTitle: { flex: 1, fontSize: 14, fontWeight: '800', color: '#92400E' },
-  rejectedBody: { marginTop: 6, fontSize: 12, color: '#92400E' },
-  rejectedItem: { marginTop: 6, fontSize: 12, color: '#78350F' },
-  rejectedBtn: {
-    marginTop: 10,
-    backgroundColor: '#FDE68A',
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  rejectedBtnText: { fontSize: 12, fontWeight: '800', color: '#78350F' },
   listPad: { paddingBottom: 28 },
   ctaDisabled: { opacity: 0.7 },
   card: {
