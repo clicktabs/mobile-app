@@ -257,14 +257,24 @@ export type DrugSearchResult = {
  * reached. The screen shows a DrugBank badge, and it must not show it over RxNorm
  * data.
  */
-export function searchMedicationCatalog(token: string, query: string, limit = 15) {
+export function searchMedicationCatalog(
+  token: string,
+  query: string,
+  limit = 15,
+  /**
+   * 'ingredient' collapses to one row per drug, dropping strength and form — what
+   * an allergy list wants, since a patient is allergic to the drug and not to the
+   * 500mg tablet. 'product' keeps the detail a medication order needs.
+   */
+  mode: 'product' | 'ingredient' = 'product',
+) {
   return apiRequest<{
     success: boolean;
     source: 'drugbank' | 'rxnorm' | 'none';
     medications: DrugSearchResult[];
   }>('mobile/staff/medications/search', {
     token,
-    query: { q: query, limit },
+    query: { q: query, limit, mode },
   });
 }
 

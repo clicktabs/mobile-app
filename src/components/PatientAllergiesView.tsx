@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -95,6 +95,9 @@ export function PatientAllergiesView({
   });
   const [exposureRoute, setExposureRoute] = useState('Oral');
   const [allergenType, setAllergenType] = useState('Medication');
+  const [allergenResults, setAllergenResults] = useState<staffApi.DrugSearchResult[]>([]);
+  const [allergenSource, setAllergenSource] = useState<'drugbank' | 'rxnorm' | null>(null);
+  const [searchingAllergens, setSearchingAllergens] = useState(false);
   const [allergyNotes, setAllergyNotes] = useState('');
 
   // Reaction picker modal
@@ -157,6 +160,60 @@ export function PatientAllergiesView({
     }
     return `Cross-reactivity warning: Review medication and dietary history for related compounds.`;
   }, [allergenName]);
+
+  /**
+   * Live allergen lookup against DrugBank.
+   *
+   * Only for medication allergens. DrugBank is a drug database — searching it for
+   * peanuts or latex returns nothing, and an empty result there would read as "that
+   * allergen is not real" rather than "this source does not cover foods". Those stay
+   * with the preset chips below, which is where they belong.
+   */
+  useEffect(() => {
+    const query = allergenName.trim();
+
+    if (allergenType !== 'Medication' || query.length < 2) {
+      setAllergenResults([]);
+      setAllergenSource(null);
+      setSearchingAllergens(false);
+      return;
+    }
+
+    let cancelled = false;
+    setSearchingAllergens(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await staffApi.searchMedicationCatalog(token, query, 12, 'ingredient');
+        if (cancelled) return;
+        setAllergenResults(res.medications || []);
+        setAllergenSource(res.source === 'none' ? null : res.source);
+      } catch {
+        if (!cancelled) {
+          // A failed lookup must never block recording an allergy.
+          setAllergenResults([]);
+          setAllergenSource(null);
+        }
+      } finally {
+        if (!cancelled) setSearchingAllergens(false);
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [allergenName, allergenType, token]);
+
+  const handleSelectAllergenResult = (d: staffApi.DrugSearchResult) => {
+    setAllergenName(d.name);
+    setAllergenType('Medication');
+    if (d.route) setExposureRoute(d.route);
+    // The reaction and severity are the clinician's to record — no drug database
+    // knows how this patient reacted.
+    setAllergenResults([]);
+    setWarningsChecked(false);
+  };
 
   const handleSelectSuggestion = (s: typeof COMMON_ALLERGEN_SUGGESTIONS[0]) => {
     setAllergenName(s.name);
@@ -648,6 +705,38 @@ export function PatientAllergiesView({
                     />
                     <Ionicons name="search" size={18} color="#64748B" style={{ marginRight: 8 }} />
                   </View>
+
+                  {/* Live results — medications only; foods and environmental
+                      allergens come from the chips below. */}
+                  {allergenType === 'Medication' && allergenName.trim().length >= 2 ? (
+                    searchingAllergens && allergenResults.length === 0 ? (
+                      <Text style={styles.allergenSearchNote}>Searching DrugBank®…</Text>
+                    ) : allergenResults.length > 0 ? (
+                      <View style={styles.allergenResultList}>
+                        {allergenResults.map((d, i) => (
+                          <Pressable
+                            key={`${d.name}-${d.dosage}-${i}`}
+                            onPress={() => handleSelectAllergenResult(d)}
+                            style={styles.allergenResultItem}
+                          >
+                            <Text style={styles.allergenResultName}>{d.name}</Text>
+                            {d.route ? (
+                              <Text style={styles.allergenResultMeta}>{d.route}</Text>
+                            ) : null}
+                          </Pressable>
+                        ))}
+                        <Text style={styles.allergenSearchNote}>
+                          {allergenSource === 'drugbank'
+                            ? 'Results from DrugBank®'
+                            : 'DrugBank® unavailable — results from RxNorm (NIH)'}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.allergenSearchNote}>
+                        No medication match. You can record the allergen as typed.
+                      </Text>
+                    )
+                  ) : null}
 
                   {/* Preset Suggestions Pills */}
                   <ScrollView
@@ -1483,6 +1572,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 4,
   },
+  allergenResultList: { marginTop: 8, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, overflow: 'hidden' },
+  allergenResultItem: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  allergenResultName: { fontSize: 14, fontWeight: '600', color: '#1E293B' },
+  allergenResultMeta: { marginTop: 2, fontSize: 11, color: '#64748B' },
+  allergenSearchNote: { marginTop: 6, paddingHorizontal: 4, fontSize: 11, color: '#64748B', fontStyle: 'italic' },
   suggestionChip: {
     paddingHorizontal: 10,
     paddingVertical: 4,
