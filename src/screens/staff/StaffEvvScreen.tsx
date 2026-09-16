@@ -122,6 +122,25 @@ export function StaffEvvScreen({
     navigation.navigate('MenuEvv', { scheduleId: activeScheduleId });
   };
 
+  /**
+   * Step 2 of the flow this screen advertises, which had no entry point.
+   *
+   * The documentation form lives in the Schedule stack, so this crosses tabs;
+   * evvFlow tells it the visit is still open and a clock-out is owed.
+   */
+  const openDocumentation = (v: EvvVisit) => {
+    navigation.navigate('Schedule', {
+      screen: 'SkilledNurseVisit',
+      params: {
+        scheduleId: v.id,
+        patientId: v.patient?.id,
+        patientName: v.patient?.name,
+        startTime: v.start_datetime,
+        evvFlow: true,
+      },
+    });
+  };
+
   const body = (
     <View style={styles.root}>
       <Subtitle>
@@ -157,7 +176,7 @@ export function StaffEvvScreen({
                   : ''}
               </Text>
             ) : null}
-            <Text style={styles.activeLinkCta}>Open this schedule to clock out</Text>
+            <Text style={styles.activeLinkCta}>Open this schedule to document and clock out</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#1D4ED8" />
         </Pressable>
@@ -234,19 +253,39 @@ export function StaffEvvScreen({
                 </Text>
 
                 {isActiveSession ? (
-                  <Pressable
-                    style={styles.ctaOuter}
-                    onPress={() => navigation.navigate('MenuEvvClockOut', { scheduleId: v.id })}
-                  >
-                    <LinearGradient
-                      colors={['#DC2626', '#B91C1C']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.ctaFill}
+                  /*
+                    A visit in progress owes its documentation before its clock-out.
+                    This card used to offer clock-out alone, so tapping an in-progress
+                    shift jumped straight from step 1 to step 3 of the flow drawn at
+                    the top of this very screen — there was no route to step 2 from
+                    here at all.
+
+                    Clock-out stays reachable underneath rather than being gated: a
+                    caregiver who already wrote the note must not be sent back through
+                    the form to get out of the house.
+                  */
+                  <>
+                    <Pressable
+                      style={styles.ctaOuter}
+                      onPress={() => openDocumentation(v)}
                     >
-                      <Text style={styles.ctaText}>CONFIRM CLOCK-OUT</Text>
-                    </LinearGradient>
-                  </Pressable>
+                      <LinearGradient
+                        colors={[...colors.brandGradient]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.ctaFill}
+                      >
+                        <Text style={styles.ctaText}>DOCUMENT VISIT</Text>
+                      </LinearGradient>
+                    </Pressable>
+
+                    <Pressable
+                      style={styles.ctaSecondary}
+                      onPress={() => navigation.navigate('MenuEvvClockOut', { scheduleId: v.id })}
+                    >
+                      <Text style={styles.ctaSecondaryText}>CONFIRM CLOCK-OUT</Text>
+                    </Pressable>
+                  </>
                 ) : canClockIn ? (
                   <Pressable
                     style={[styles.ctaOuter, blockedByOther && styles.ctaDisabled]}
@@ -410,6 +449,15 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   phaseBadgeText: { fontSize: 11, fontWeight: '700' },
+  ctaSecondary: {
+    marginTop: 8,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#DC2626',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  ctaSecondaryText: { color: '#DC2626', fontWeight: '800', fontSize: 13, letterSpacing: 0.2 },
   ctaOuter: { marginTop: 12, borderRadius: 12, overflow: 'hidden' },
   ctaFill: { paddingVertical: 14, alignItems: 'center' },
   ctaText: { color: '#fff', fontWeight: '800', fontSize: 14, letterSpacing: 0.2 },
