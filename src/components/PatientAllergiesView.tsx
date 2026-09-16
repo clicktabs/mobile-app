@@ -633,12 +633,12 @@ export function PatientAllergiesView({
               {step === 1 ? (
                 /* STEP 1: FORM FIELDS */
                 <View style={styles.step1Form}>
-                  {/* Search Allergen (Lexicomp® synced) */}
-                  <Text style={styles.fieldLabel}>Search Allergen (Lexicomp® synced)</Text>
+                  {/* Search Allergen (DrugBank® synced) */}
+                  <Text style={styles.fieldLabel}>Search Allergen (DrugBank® synced)</Text>
                   <View style={styles.searchBox}>
                     <TextInput
                       style={styles.searchInput}
-                      placeholder="Search Allergen (Lexicomp® synced)"
+                      placeholder="Search Allergen (DrugBank® synced)"
                       placeholderTextColor="#94A3B8"
                       value={allergenName}
                       onChangeText={(val) => {
@@ -778,7 +778,7 @@ export function PatientAllergiesView({
 
                     <Text style={styles.checkStatusHelperText}>
                       {checkingWarnings
-                        ? 'Querying Lexicomp® and UpToDate® APIs...'
+                        ? 'Querying DrugBank® and UpToDate® APIs...'
                         : warningsChecked
                           ? '1 potential interaction & 1 cross-reactivity warning detected.'
                           : 'Wait for check...'}
@@ -869,7 +869,7 @@ export function PatientAllergiesView({
                   <View style={styles.verifiedFooter}>
                     <Ionicons name="checkmark-circle" size={18} color="#15803D" />
                     <Text style={styles.verifiedFooterText}>
-                      Lexicomp® and UpToDate® Verified.
+                      DrugBank® and UpToDate® Verified.
                     </Text>
                   </View>
                 </View>
@@ -1072,7 +1072,7 @@ export function PatientAllergiesView({
                 <View style={styles.verifiedFooterModal}>
                   <Ionicons name="shield-checkmark" size={16} color="#15803D" />
                   <Text style={styles.verifiedFooterModalText}>
-                    Lexicomp® Synced & Clinically Audited
+                    DrugBank® Synced & Clinically Audited
                   </Text>
                 </View>
               </ScrollView>

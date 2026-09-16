@@ -235,6 +235,79 @@ export function getMedicationSchedule(token: string, patientId: number) {
   );
 }
 
+export type DrugSearchResult = {
+  name: string;
+  dosage: string;
+  route: string;
+  form: string;
+  full_name: string;
+  generic: boolean;
+  otc: boolean;
+  drugbank_id?: string | null;
+  rxcui?: string | null;
+  frequency: string;
+  instructions: string;
+  source: 'drugbank' | 'rxnorm';
+};
+
+/**
+ * Drug-name lookup for the medication form.
+ *
+ * `source` says who answered — DrugBank, or RxNorm when DrugBank could not be
+ * reached. The screen shows a DrugBank badge, and it must not show it over RxNorm
+ * data.
+ */
+export function searchMedicationCatalog(token: string, query: string, limit = 15) {
+  return apiRequest<{
+    success: boolean;
+    source: 'drugbank' | 'rxnorm' | 'none';
+    medications: DrugSearchResult[];
+  }>('mobile/staff/medications/search', {
+    token,
+    query: { q: query, limit },
+  });
+}
+
+export type DrugInteraction = {
+  subject: string;
+  affected: string;
+  severity: 'major' | 'moderate' | 'minor' | string;
+  description: string;
+  extended_description: string;
+  management: string;
+  evidence_level: string;
+};
+
+export type InteractionCheckResult = {
+  success: boolean;
+  /**
+   * Whether the check actually ran. False means DrugBank could not be reached or a
+   * drug could not be resolved — which is NOT the same as finding nothing, and must
+   * never be displayed as a clean result.
+   */
+  checked: boolean;
+  reason?: string;
+  message?: string;
+  source?: string;
+  medication?: string;
+  checked_against?: string[];
+  /** Drugs on file that could not be resolved, so were not part of the check. */
+  not_checked?: string[];
+  interactions: DrugInteraction[];
+  highest_severity?: string | null;
+};
+
+export function checkMedicationInteractions(
+  token: string,
+  patientId: number,
+  medicationName: string,
+) {
+  return apiRequest<InteractionCheckResult>(
+    `mobile/staff/patients/${patientId}/medications/check-interactions`,
+    { method: 'POST', token, body: { medication_name: medicationName } },
+  );
+}
+
 export function addPatientMedication(
   token: string,
   patientId: number,

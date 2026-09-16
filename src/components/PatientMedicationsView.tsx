@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -40,17 +40,6 @@ type Props = {
   loading?: boolean;
 };
 
-const COMMON_DRUG_PRESETS = [
-  { name: 'Ibuprofen', dosage: '400mg', frequency: '3 times daily', instructions: 'Take with food', route: 'Oral' },
-  { name: 'Warfarin', dosage: '5mg', frequency: 'Daily (QD)', instructions: 'Check INR (Tues/Fri)', route: 'Oral' },
-  { name: 'Metformin', dosage: '500mg', frequency: 'Twice daily (BID)', instructions: 'Take with meals', route: 'Oral' },
-  { name: 'Lisinopril', dosage: '10mg', frequency: 'Daily (QD)', instructions: 'Acknowledge non-specific cough risk', route: 'Oral' },
-  { name: 'Aspirin', dosage: '81mg', frequency: 'Daily', instructions: 'Take with food or water', route: 'Oral' },
-  { name: 'Atorvastatin', dosage: '20mg', frequency: 'Daily at bedtime', instructions: 'Take in evening', route: 'Oral' },
-  { name: 'Omeprazole', dosage: '20mg', frequency: 'Daily', instructions: 'Take 30 min before breakfast', route: 'Oral' },
-  { name: 'Amoxicillin', dosage: '500mg', frequency: '3 times daily', instructions: 'Complete full course', route: 'Oral' },
-];
-
 export function PatientMedicationsView({
   patientId,
   token,
@@ -72,12 +61,16 @@ export function PatientMedicationsView({
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addStep, setAddStep] = useState<1 | 2>(1);
   const [drugSearch, setDrugSearch] = useState('');
+  const [drugResults, setDrugResults] = useState<staffApi.DrugSearchResult[]>([]);
+  const [drugSource, setDrugSource] = useState<'drugbank' | 'rxnorm' | null>(null);
+  const [searchingDrugs, setSearchingDrugs] = useState(false);
   const [drugName, setDrugName] = useState('');
   const [dosage, setDosage] = useState('400mg');
   const [frequency, setFrequency] = useState('3 times daily');
   const [specialInstructions, setSpecialInstructions] = useState('Take with food');
   const [checkingInteraction, setCheckingInteraction] = useState(false);
   const [interactionChecked, setInteractionChecked] = useState(false);
+  const [interactionResult, setInteractionResult] = useState<staffApi.InteractionCheckResult | null>(null);
   const [savingMed, setSavingMed] = useState(false);
 
   const patientName =
@@ -138,21 +131,6 @@ export function PatientMedicationsView({
   }, [normalizedItems, searchQuery, filterActiveOnly]);
 
   // Check if existing medications has Warfarin or anticoagulant
-  const hasAnticoagulant = useMemo(() => {
-    return normalizedItems.some((m) =>
-      (m.name || '').toLowerCase().includes('warfarin') ||
-      (m.name || '').toLowerCase().includes('coumadin') ||
-      (m.name || '').toLowerCase().includes('eliquis') ||
-      (m.name || '').toLowerCase().includes('xarelto'),
-    );
-  }, [normalizedItems]);
-
-  const existingWarfarinDrug = useMemo(() => {
-    return normalizedItems.find((m) =>
-      (m.name || '').toLowerCase().includes('warfarin'),
-    )?.name || 'Warfarin 5mg';
-  }, [normalizedItems]);
-
   const openAddModal = () => {
     setAddStep(1);
     setDrugSearch('');
@@ -161,25 +139,111 @@ export function PatientMedicationsView({
     setFrequency('3 times daily');
     setSpecialInstructions('Take with food');
     setInteractionChecked(false);
+    setInteractionResult(null);
     setAddModalOpen(true);
   };
 
-  const handleSelectPreset = (p: typeof COMMON_DRUG_PRESETS[0]) => {
-    setDrugName(p.name);
-    setDosage(p.dosage);
-    setFrequency(p.frequency);
-    setSpecialInstructions(p.instructions);
+  /**
+   * Live drug lookup, replacing a filter over eight hardcoded names.
+   *
+   * Debounced because this fires on every keystroke, and the results are cached
+   * server-side, so a caregiver typing "met" then "metf" costs one round trip.
+   */
+  useEffect(() => {
+    const query = drugSearch.trim();
+
+    if (query.length < 2) {
+      setDrugResults([]);
+      setDrugSource(null);
+      setSearchingDrugs(false);
+      return;
+    }
+
+    let cancelled = false;
+    setSearchingDrugs(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await staffApi.searchMedicationCatalog(token, query, 15);
+        if (cancelled) return;
+        setDrugResults(res.medications || []);
+        setDrugSource(res.source === 'none' ? null : res.source);
+      } catch {
+        if (!cancelled) {
+          // A failed lookup must not block the form — the name can still be typed.
+          setDrugResults([]);
+          setDrugSource(null);
+        }
+      } finally {
+        if (!cancelled) setSearchingDrugs(false);
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [drugSearch, token]);
+
+  const handleSelectDrug = (d: staffApi.DrugSearchResult) => {
+    setDrugName(d.name);
+    setDosage(d.dosage);
+    // Frequency and instructions are prescribing decisions — no drug database
+    // supplies them, so they are left as the clinician set them.
     setDrugSearch('');
+    setDrugResults([]);
   };
 
-  const handleCheckInteraction = () => {
+  /**
+   * A real interaction check against what this patient is actually taking.
+   *
+   * This used to be a 700ms timer that then declared "Interaction check complete",
+   * and step 2 showed a fixed warning naming Warfarin whether or not the patient was
+   * on it. A warning that always fires teaches clinicians to dismiss it, which is
+   * worse than showing nothing.
+   */
+  const handleCheckInteraction = async () => {
+    if (!drugName.trim()) {
+      showAlert('Drug required', 'Enter a drug name before checking interactions.');
+      return;
+    }
+
     setCheckingInteraction(true);
-    setTimeout(() => {
-      setCheckingInteraction(false);
-      setInteractionChecked(true);
-      // Auto move to step 2 as in Image 5
+
+    try {
+      const res = await staffApi.checkMedicationInteractions(token, patientId, drugName.trim());
+
+      setInteractionResult(res);
+      // Only a check that actually ran counts as done.
+      setInteractionChecked(res.checked === true);
+
+      if (!res.checked) {
+        showAlert(
+          'Interaction check unavailable',
+          res.message || 'Could not check interactions. Review manually before adding.',
+          'error',
+        );
+      }
+
       setAddStep(2);
-    }, 700);
+    } catch {
+      setInteractionResult({
+        success: true,
+        checked: false,
+        reason: 'lookup_failed',
+        message: 'Could not reach the interaction service. Review manually before adding.',
+        interactions: [],
+      });
+      setInteractionChecked(false);
+      showAlert(
+        'Interaction check unavailable',
+        'Could not reach the interaction service. Review manually before adding.',
+        'error',
+      );
+      setAddStep(2);
+    } finally {
+      setCheckingInteraction(false);
+    }
   };
 
   const handleFinalizeAdd = async () => {
@@ -233,7 +297,7 @@ export function PatientMedicationsView({
             </View>
             <Text style={styles.topHeaderSubtitle}>
               {viewMode === 'list'
-                ? 'Comprehensive Medication Record • Lexicomp® Synced'
+                ? 'Comprehensive Medication Record • DrugBank® Synced'
                 : 'Active Regimens & Interaction Alerts'}
             </Text>
           </View>
@@ -355,7 +419,7 @@ export function PatientMedicationsView({
           {loading ? (
             <View style={styles.centerLoading}>
               <ActivityIndicator size="small" color="#2E525A" />
-              <Text style={styles.loadingText}>Syncing medications with Lexicomp®…</Text>
+              <Text style={styles.loadingText}>Syncing medications with DrugBank®…</Text>
             </View>
           ) : (
             <>
@@ -528,11 +592,11 @@ export function PatientMedicationsView({
                     style={styles.secondaryActionBtn}
                   >
                     <Ionicons name="time-outline" size={15} color="#2E525A" />
-                    <Text style={styles.secondaryActionBtnText}>View History (Lexicomp®)</Text>
+                    <Text style={styles.secondaryActionBtnText}>View History (DrugBank®)</Text>
                   </Pressable>
 
                   <Pressable
-                    onPress={() => showAlert('Safety Report', 'Generated Lexicomp® safety interaction summary PDF.', 'success')}
+                    onPress={() => showAlert('Safety Report', 'Generated DrugBank® safety interaction summary PDF.', 'success')}
                     style={styles.secondaryActionBtn}
                   >
                     <Ionicons name="document-text-outline" size={15} color="#2E525A" />
@@ -544,7 +608,7 @@ export function PatientMedicationsView({
               {/* Verification Footer */}
               <View style={styles.verifiedFooter}>
                 <Ionicons name="shield-checkmark" size={16} color="#0D9488" />
-                <Text style={styles.verifiedText}>Lexicomp® and UpToDate® Clinical Decision Verified</Text>
+                <Text style={styles.verifiedText}>DrugBank® and UpToDate® Clinical Decision Verified</Text>
               </View>
             </>
           )}
@@ -616,7 +680,7 @@ export function PatientMedicationsView({
             {/* Verification Footer */}
             <View style={[styles.verifiedFooter, { marginTop: 24 }]}>
               <Ionicons name="checkmark-circle" size={16} color="#0D9488" />
-              <Text style={styles.verifiedText}>Lexicomp® and UpToDate® Verified.</Text>
+              <Text style={styles.verifiedText}>DrugBank® and UpToDate® Verified.</Text>
             </View>
           </View>
         </ScrollView>
@@ -670,28 +734,53 @@ export function PatientMedicationsView({
                   <TextInput
                     value={drugSearch}
                     onChangeText={setDrugSearch}
-                    placeholder="Search Drug (Lexicomp® synced)"
+                    placeholder="Search Drug (DrugBank® synced)"
                     placeholderTextColor="#94A3B8"
                     style={styles.drugSearchInput}
                   />
                   <Ionicons name="search" size={18} color="#475569" style={styles.drugSearchIcon} />
                 </View>
 
-                {/* Quick drug suggestions matching Lexicomp sync */}
-                {drugSearch.trim() ? (
+                {/* Live results from DrugBank, or RxNorm when DrugBank is unreachable */}
+                {drugSearch.trim().length >= 2 ? (
                   <View style={styles.presetList}>
-                    {COMMON_DRUG_PRESETS.filter((p) =>
-                      p.name.toLowerCase().includes(drugSearch.toLowerCase()),
-                    ).map((p) => (
-                      <Pressable
-                        key={p.name}
-                        onPress={() => handleSelectPreset(p)}
-                        style={styles.presetItem}
-                      >
-                        <Text style={styles.presetName}>{p.name} {p.dosage}</Text>
-                        <Text style={styles.presetFreq}>{p.frequency}</Text>
-                      </Pressable>
-                    ))}
+                    {searchingDrugs && drugResults.length === 0 ? (
+                      <View style={styles.presetItem}>
+                        <ActivityIndicator size="small" color={colors.brandMagenta} />
+                        <Text style={styles.presetFreq}>Searching…</Text>
+                      </View>
+                    ) : drugResults.length === 0 ? (
+                      <View style={styles.presetItem}>
+                        <Text style={styles.presetFreq}>
+                          No match. You can type the drug name directly below.
+                        </Text>
+                      </View>
+                    ) : (
+                      <>
+                        {drugResults.map((d, i) => (
+                          <Pressable
+                            key={`${d.name}-${d.dosage}-${d.form}-${i}`}
+                            onPress={() => handleSelectDrug(d)}
+                            style={styles.presetItem}
+                          >
+                            <Text style={styles.presetName}>
+                              {d.name}
+                              {d.dosage ? ` ${d.dosage}` : ''}
+                            </Text>
+                            <Text style={styles.presetFreq}>
+                              {[d.form, d.route].filter(Boolean).join(' · ') || '—'}
+                            </Text>
+                          </Pressable>
+                        ))}
+                        {/* Name the source. The DrugBank badge below must not sit
+                            over results that came from somewhere else. */}
+                        <Text style={styles.presetSourceNote}>
+                          {drugSource === 'drugbank'
+                            ? 'Results from DrugBank®'
+                            : 'DrugBank® unavailable — results from RxNorm (NIH)'}
+                        </Text>
+                      </>
+                    )}
                   </View>
                 ) : null}
 
@@ -801,19 +890,70 @@ export function PatientMedicationsView({
                     {drugName} {dosage}, {frequency}, with {specialInstructions || 'food'}
                   </Text>
 
-                  <Text style={[styles.reviewLabel, { marginTop: 14 }]}>Existing:</Text>
+                  <Text style={[styles.reviewLabel, { marginTop: 14 }]}>Checked against:</Text>
                   <Text style={styles.reviewVal}>
-                    {hasAnticoagulant ? existingWarfarinDrug : 'Warfarin 5mg'}
+                    {interactionResult?.checked_against?.length
+                      ? interactionResult.checked_against.join(', ')
+                      : 'No other active medications on file'}
                   </Text>
                 </View>
 
-                {/* Interaction Preview Warning Box matching Image 5 Right */}
-                <View style={styles.interactionPreviewBox}>
-                  <Text style={styles.interactionPreviewTitle}>INTERACTION PREVIEW</Text>
-                  <Text style={styles.interactionPreviewBody}>
-                    *Potential interaction detected with existing {existingWarfarinDrug}. Check full report after adding.*
-                  </Text>
-                </View>
+                {/*
+                  What DrugBank actually returned for this patient's list. The old
+                  version printed a fixed Warfarin warning on every add, whether or
+                  not the patient took it.
+                */}
+                {!interactionResult || !interactionResult.checked ? (
+                  <View style={[styles.interactionPreviewBox, styles.interactionUnknownBox]}>
+                    <Text style={styles.interactionPreviewTitle}>NOT CHECKED</Text>
+                    <Text style={styles.interactionPreviewBody}>
+                      {interactionResult?.message ||
+                        'Interactions were not checked. Review manually before adding.'}
+                    </Text>
+                  </View>
+                ) : interactionResult.interactions.length === 0 ? (
+                  <View style={[styles.interactionPreviewBox, styles.interactionClearBox]}>
+                    <Text style={styles.interactionPreviewTitle}>NO KNOWN INTERACTIONS</Text>
+                    <Text style={styles.interactionPreviewBody}>
+                      DrugBank® found no documented interaction with this patient's active
+                      medications.
+                      {interactionResult.not_checked?.length
+                        ? ` Not checked: ${interactionResult.not_checked.join(', ')}.`
+                        : ''}
+                    </Text>
+                  </View>
+                ) : (
+                  <View
+                    style={[
+                      styles.interactionPreviewBox,
+                      interactionResult.highest_severity === 'major' && styles.interactionMajorBox,
+                    ]}
+                  >
+                    <Text style={styles.interactionPreviewTitle}>
+                      {interactionResult.interactions.length} INTERACTION
+                      {interactionResult.interactions.length === 1 ? '' : 'S'} FOUND
+                    </Text>
+                    {interactionResult.interactions.map((it, i) => (
+                      <View key={`${it.subject}-${it.affected}-${i}`} style={styles.interactionRow}>
+                        <Text style={styles.interactionPair}>
+                          <Text style={styles.interactionSeverity}>
+                            {it.severity.toUpperCase()}
+                          </Text>
+                          {`  ${it.subject} + ${it.affected}`}
+                        </Text>
+                        <Text style={styles.interactionPreviewBody}>{it.description}</Text>
+                        {it.management ? (
+                          <Text style={styles.interactionManagement}>{it.management}</Text>
+                        ) : null}
+                      </View>
+                    ))}
+                    {interactionResult.not_checked?.length ? (
+                      <Text style={styles.interactionManagement}>
+                        Not checked: {interactionResult.not_checked.join(', ')}.
+                      </Text>
+                    ) : null}
+                  </View>
+                )}
 
                 {/* Action Buttons matching Image 5 Right */}
                 <Pressable
@@ -842,10 +982,10 @@ export function PatientMedicationsView({
                   Discards the new medication
                 </Text>
 
-                {/* Lexicomp Verification Badge */}
+                {/* DrugBank Verification Badge */}
                 <View style={[styles.verifiedFooter, { marginTop: 24, marginBottom: 16 }]}>
                   <Ionicons name="checkmark-circle" size={16} color="#0D9488" />
-                  <Text style={styles.verifiedText}>Lexicomp® and UpToDate® Verified.</Text>
+                  <Text style={styles.verifiedText}>DrugBank® and UpToDate® Verified.</Text>
                 </View>
               </ScrollView>
             )}
@@ -853,12 +993,12 @@ export function PatientMedicationsView({
         </View>
       </Modal>
 
-      {/* View All History Modal (Lexicomp) */}
+      {/* View All History Modal (DrugBank) */}
       <Modal visible={historyModalOpen} transparent animationType="fade" onRequestClose={() => setHistoryModalOpen(false)}>
         <View style={styles.addModalOverlay}>
           <View style={[styles.addModalContainer, { maxHeight: '75%' }]}>
             <View style={styles.addHeader}>
-              <Text style={styles.addHeaderTitle}>LEXICOMP® MEDICATION HISTORY</Text>
+              <Text style={styles.addHeaderTitle}>DRUGBANK® MEDICATION HISTORY</Text>
               <Pressable onPress={() => setHistoryModalOpen(false)} hitSlop={10}>
                 <Ionicons name="close" size={22} color="#fff" />
               </Pressable>
@@ -1527,6 +1667,14 @@ const styles = StyleSheet.create({
   },
   presetItem: { paddingVertical: 6, paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E2E8F0' },
   presetName: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
+  presetSourceNote: {
+    paddingHorizontal: 12,
+    paddingTop: 6,
+    paddingBottom: 2,
+    fontSize: 11,
+    color: '#64748B',
+    fontStyle: 'italic',
+  },
   presetFreq: { fontSize: 11, color: colors.textMuted },
   formLabel: { fontSize: 13, fontWeight: '700', color: '#334155', marginTop: 10, marginBottom: 5 },
   formInput: {
@@ -1606,6 +1754,13 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 18,
   },
+  interactionUnknownBox: { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' },
+  interactionClearBox: { backgroundColor: '#ECFDF5', borderColor: '#10B981' },
+  interactionMajorBox: { backgroundColor: '#FEF2F2', borderColor: '#DC2626' },
+  interactionRow: { marginTop: 10 },
+  interactionPair: { fontSize: 12, fontWeight: '700', color: '#1E293B', marginBottom: 3 },
+  interactionSeverity: { fontSize: 11, fontWeight: '800', color: '#B91C1C' },
+  interactionManagement: { marginTop: 4, fontSize: 11, color: '#475569', fontStyle: 'italic' },
   interactionPreviewTitle: { fontSize: 13, fontWeight: '800', color: '#B45309', marginBottom: 4 },
   interactionPreviewBody: { fontSize: 13, color: '#92400E', lineHeight: 19, fontStyle: 'italic' },
   addWithWarningBtn: {
