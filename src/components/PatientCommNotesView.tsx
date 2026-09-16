@@ -817,7 +817,7 @@ export function PatientCommNotesView({
 
                 <View style={styles.signatureRow}>
                   {/* Staff Signature PIN * */}
-                  <View style={styles.sigCol}>
+                  <View style={styles.sigColPin}>
                     <Text style={styles.sigLabel}>
                       STAFF SIGNATURE PIN <Text style={{ color: '#F87171' }}>*</Text>
                     </Text>
@@ -859,7 +859,7 @@ export function PatientCommNotesView({
                               size={14}
                               color="#FFFFFF"
                             />
-                            <Text style={styles.verifyPinBtnText}>
+                            <Text style={styles.verifyPinBtnText} numberOfLines={1}>
                               {pinVerified ? 'Verified' : 'Verify'}
                             </Text>
                           </>
@@ -1793,6 +1793,15 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 140,
   },
+  /**
+   * The PIN column holds a field AND a button, so 140 leaves the input about 40px
+   * once the button has its width — legible for neither. Only this column needs the
+   * extra room; the date and time columns are fine as they are.
+   */
+  sigColPin: {
+    flex: 1,
+    minWidth: 210,
+  },
   sigLabel: {
     fontSize: 10,
     fontWeight: '800',
@@ -1821,6 +1830,7 @@ const styles = StyleSheet.create({
   verifyPinBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderWidth: 1.5,
@@ -1828,6 +1838,13 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingHorizontal: 12,
     height: 38,
+    // The PIN field beside this is flex: 1 and the whole column is one of three
+    // sharing a row, so on a phone there is very little width to go round. Without
+    // these the button keeps React Native's default flexShrink: 1, loses the fight
+    // with the input, and is squeezed to zero — present in the tree, invisible on
+    // screen, and the note can never be signed because nothing can verify the PIN.
+    flexShrink: 0,
+    minWidth: 92,
   },
   verifyPinBtnVerified: {
     backgroundColor: '#16A34A',
