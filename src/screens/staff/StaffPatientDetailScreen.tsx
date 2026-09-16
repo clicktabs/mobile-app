@@ -19,16 +19,23 @@ import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
 import { colors } from '../../theme/colors';
 import { showAlert } from '../../utils/confirm';
+import { PatientMedicationsView } from '../../components/PatientMedicationsView';
+import { PatientImmunizationLogView } from '../../components/PatientImmunizationLogView';
+import { PatientAllergiesView } from '../../components/PatientAllergiesView';
+import { PatientInfectionsView } from '../../components/PatientInfectionsView';
+import { PatientVitalsView } from '../../components/PatientVitalsView';
+import { PatientCommNotesView } from '../../components/PatientCommNotesView';
 import type { StaffPatientsStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<StaffPatientsStackParamList, 'PatientDetail'>;
-type Section = 'hub' | 'meds' | 'allergies' | 'infections' | 'vitals' | 'comm';
+type Section = 'hub' | 'meds' | 'allergies' | 'infections' | 'vitals' | 'comm' | 'immunizations';
 
 const MENU_ITEMS: { key: Section; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'meds', label: 'Medications', icon: 'medkit-outline' },
   { key: 'allergies', label: 'Allergies', icon: 'alert-circle-outline' },
   { key: 'infections', label: 'Infections', icon: 'bug-outline' },
   { key: 'vitals', label: 'Vitals', icon: 'pulse-outline' },
+  { key: 'immunizations', label: 'Immunization Log', icon: 'eyedrop-outline' },
   { key: 'comm', label: 'Communication notes', icon: 'chatbubble-ellipses-outline' },
 ];
 
@@ -100,6 +107,7 @@ export function StaffPatientDetailScreen({ route, navigation }: Props) {
       else if (key === 'meds') res = await staffApi.getMedicationSchedule(token, patientId);
       else if (key === 'allergies') res = await staffApi.getPatientAllergies(token, patientId);
       else if (key === 'infections') res = await staffApi.getPatientInfections(token, patientId);
+      else if (key === 'immunizations') res = await staffApi.getPatientImmunizations(token, patientId);
       else res = await staffApi.getCommNotes(token, patientId);
       setList(res.data || []);
     } catch (e) {
@@ -119,7 +127,60 @@ export function StaffPatientDetailScreen({ route, navigation }: Props) {
         onBack={() => (section === 'hub' ? navigation.goBack() : setSection('hub'))}
         onMenu={() => setMenuOpen((open) => !open)}
       />
-      {loading && !patient ? (
+      {section === 'meds' && token ? (
+        <PatientMedicationsView
+          patientId={patientId}
+          token={token}
+          patient={patient}
+          items={list as any}
+          onRefresh={() => openSection('meds')}
+          loading={sectionLoading}
+        />
+      ) : section === 'allergies' && token ? (
+        <PatientAllergiesView
+          patientId={patientId}
+          token={token}
+          patient={patient}
+          items={list as any}
+          onRefresh={() => openSection('allergies')}
+          loading={sectionLoading}
+        />
+      ) : section === 'infections' && token ? (
+        <PatientInfectionsView
+          patientId={patientId}
+          token={token}
+          patient={patient}
+          items={list as any}
+          onRefresh={() => openSection('infections')}
+          loading={sectionLoading}
+        />
+      ) : section === 'vitals' && token ? (
+        <PatientVitalsView
+          patientId={patientId}
+          token={token}
+          patient={patient}
+          items={list as any}
+          onRefresh={() => openSection('vitals')}
+          loading={sectionLoading}
+        />
+      ) : section === 'immunizations' && token ? (
+        <PatientImmunizationLogView
+          patientId={patientId}
+          token={token}
+          items={list as any}
+          onRefresh={() => openSection('immunizations')}
+          loading={sectionLoading}
+        />
+      ) : section === 'comm' && token ? (
+        <PatientCommNotesView
+          patientId={patientId}
+          token={token}
+          patient={patient}
+          items={list as any}
+          onRefresh={() => openSection('comm')}
+          loading={sectionLoading}
+        />
+      ) : loading && !patient ? (
         <LoadingBlock />
       ) : (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -133,26 +194,6 @@ export function StaffPatientDetailScreen({ route, navigation }: Props) {
             {section === 'hub' && patient ? <PatientProfileCard patient={patient} /> : null}
 
             {section !== 'hub' && sectionLoading ? <LoadingBlock /> : null}
-
-            {section === 'meds' && !sectionLoading && (
-              <ChartList
-                empty="No medications on file for this patient."
-                items={list}
-                renderItem={(m) => (
-                  <>
-                    <Text style={styles.itemTitle}>{dash(m.name)}</Text>
-                    <Text style={styles.statusChip}>{pretty(m.status)}</Text>
-                    <Row label="Dosage" value={m.dosage} />
-                    <Row label="Frequency" value={pretty(m.frequency)} />
-                    <Row label="Route" value={m.route} />
-                    <Row label="Indication" value={m.indication} />
-                    <Row label="Prescriber" value={m.prescriber} />
-                    <Row label="Start" value={m.start_date} />
-                    <Row label="End" value={m.end_date || 'Ongoing'} />
-                  </>
-                )}
-              />
-            )}
 
             {section === 'allergies' && !sectionLoading && (
               <ChartList

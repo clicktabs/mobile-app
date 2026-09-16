@@ -235,6 +235,29 @@ export function getMedicationSchedule(token: string, patientId: number) {
   );
 }
 
+export function addPatientMedication(
+  token: string,
+  patientId: number,
+  data: {
+    medication_name: string;
+    dosage: string;
+    frequency: string;
+    route?: string;
+    instructions?: string;
+    status?: string;
+    start_date?: string;
+  },
+) {
+  return apiRequest<ApiEnvelope<Record<string, unknown>>>(
+    `mobile/staff/patients/${patientId}/medications`,
+    {
+      method: 'POST',
+      token,
+      body: data,
+    },
+  );
+}
+
 export function administerMedication(token: string, patientId: number, body: Record<string, unknown>) {
   return apiRequest<ApiEnvelope<{ id: number }>>(`mobile/staff/patients/${patientId}/medication-admin`, {
     method: 'POST',
@@ -243,10 +266,120 @@ export function administerMedication(token: string, patientId: number, body: Rec
   });
 }
 
+export function getPatientImmunizations(token: string, patientId: number) {
+  return apiRequest<ApiEnvelope<Record<string, unknown>[]>>(
+    `mobile/staff/patients/${patientId}/immunizations`,
+    { token },
+  );
+}
+
+export function savePatientImmunization(
+  token: string,
+  patientId: number,
+  data: {
+    vaccine: string;
+    date?: string;
+    dose?: string;
+    route?: string;
+    site?: string;
+    source?: string;
+    lot?: string;
+    status?: string;
+    reason?: string;
+    active?: boolean;
+  },
+) {
+  return apiRequest<ApiEnvelope<Record<string, unknown>>>(
+    `mobile/staff/patients/${patientId}/immunizations`,
+    {
+      method: 'POST',
+      token,
+      body: data,
+    },
+  );
+}
+
+export function updatePatientImmunization(
+  token: string,
+  patientId: number,
+  id: string | number,
+  data: {
+    active?: boolean;
+    status?: string;
+  },
+) {
+  return apiRequest<ApiEnvelope<Record<string, unknown>>>(
+    `mobile/staff/patients/${patientId}/immunizations/${id}`,
+    {
+      method: 'PATCH',
+      token,
+      body: data,
+    },
+  );
+}
+
+export function deletePatientImmunization(
+  token: string,
+  patientId: number,
+  id: string | number,
+) {
+  return apiRequest<ApiEnvelope<Record<string, unknown>>>(
+    `mobile/staff/patients/${patientId}/immunizations/${id}`,
+    {
+      method: 'DELETE',
+      token,
+    },
+  );
+}
+
 export function getPatientAllergies(token: string, patientId: number) {
   return apiRequest<ApiEnvelope<Record<string, unknown>[]>>(
     `mobile/staff/patients/${patientId}/allergies`,
     { token },
+  );
+}
+
+export function addPatientAllergy(
+  token: string,
+  patientId: number,
+  data: {
+    allergen_name: string;
+    reaction?: string;
+    reaction_description?: string;
+    severity?: string;
+    allergen_type?: string;
+    allergy_type?: string;
+    date_of_diagnosis?: string;
+    onset_date?: string;
+    exposure_route?: string;
+    notes?: string;
+    acknowledged_warning?: boolean;
+  },
+) {
+  return apiRequest<ApiEnvelope<Record<string, unknown>>>(
+    `mobile/staff/patients/${patientId}/allergies`,
+    {
+      method: 'POST',
+      token,
+      body: data,
+    },
+  );
+}
+
+export function updatePatientAllergyStatus(
+  token: string,
+  patientId: number,
+  allergyId: number | string,
+  status: 'active' | 'inactive' | 'resolved',
+  reason?: string,
+) {
+  return apiRequest<ApiEnvelope<Record<string, unknown>>>(
+    `mobile/staff/patients/${patientId}/allergies/${allergyId}/status`,
+    {
+      method: 'PATCH',
+      token,
+      body: { status, reason },
+    },
   );
 }
 
@@ -257,19 +390,165 @@ export function getPatientInfections(token: string, patientId: number) {
   );
 }
 
+export function addPatientInfection(
+  token: string,
+  patientId: number,
+  data: {
+    infection_type: string;
+    organism?: string;
+    site?: string;
+    infection_site?: string;
+    risk_level?: string;
+    severity?: string;
+    isolation_precautions?: string;
+    isolation_type?: string;
+    status?: string;
+    date_identified?: string;
+    culture_results?: string;
+    culture_info?: string;
+    notes?: string;
+    additional_notes?: string;
+    precaution_type?: string;
+  },
+) {
+  return apiRequest<ApiEnvelope<Record<string, unknown>>>(
+    `mobile/staff/patients/${patientId}/infections`,
+    {
+      method: 'POST',
+      token,
+      body: data,
+    },
+  );
+}
+
+export function updatePatientInfectionStatus(
+  token: string,
+  patientId: number,
+  infectionId: number | string,
+  status: 'active' | 'resolved' | 'inactive',
+) {
+  return apiRequest<ApiEnvelope<Record<string, unknown>>>(
+    `mobile/staff/patients/${patientId}/infections/${infectionId}/status`,
+    {
+      method: 'PATCH',
+      token,
+      body: { status },
+    },
+  );
+}
+
+export type CommNotePayload = {
+  note_content?: string;
+  note?: string;
+  patient_status?: string;
+  episode_id?: number | string;
+  physician_id?: number | string;
+  note_date?: string;
+  send_as_message?: boolean;
+  status?: 'draft' | 'completed';
+  signature_pin?: string;
+  pin?: string;
+  signature_date?: string;
+  signature_time?: string;
+  type?: string;
+};
+
 export function getCommNotes(token: string, patientId: number) {
-  return apiRequest<ApiEnvelope<Record<string, unknown>[]>>(
+  return apiRequest<ApiEnvelope<Record<string, any>[]>>(
     `mobile/staff/patients/${patientId}/comm-notes`,
     { token },
   );
 }
 
-export function createCommNote(token: string, patientId: number, note: string, type = 'general') {
+export function createCommNote(
+  token: string,
+  patientId: number,
+  payload: CommNotePayload | string,
+  type = 'general'
+) {
+  const body = typeof payload === 'string'
+    ? { note: payload, note_content: payload, type }
+    : { ...payload, type: payload.type || type };
+
   return apiRequest<ApiEnvelope<{ id: number }>>(`mobile/staff/patients/${patientId}/comm-notes`, {
     method: 'POST',
     token,
-    body: { note, type },
+    body,
   });
+}
+
+export function updateCommNote(
+  token: string,
+  patientId: number,
+  noteId: string | number,
+  body: Partial<CommNotePayload>
+) {
+  return apiRequest<ApiEnvelope<Record<string, unknown>>>(
+    `mobile/staff/patients/${patientId}/comm-notes/${noteId}`,
+    {
+      method: 'PATCH',
+      token,
+      body,
+    }
+  );
+}
+
+export function deleteCommNote(token: string, patientId: number, noteId: string | number) {
+  return apiRequest<ApiEnvelope<Record<string, unknown>>>(
+    `mobile/staff/patients/${patientId}/comm-notes/${noteId}`,
+    {
+      method: 'DELETE',
+      token,
+    }
+  );
+}
+
+export type PhysicianItem = {
+  id: number;
+  name: string;
+  specialty?: string;
+  npi?: string;
+  phone?: string;
+};
+
+export function getPhysicians(token: string, search?: string) {
+  return apiRequest<ApiEnvelope<PhysicianItem[]>>('mobile/staff/physicians', {
+    token,
+    query: search ? { q: search } : undefined,
+  });
+}
+
+export function createPhysician(
+  token: string,
+  body: {
+    first_name: string;
+    last_name: string;
+    specialty?: string;
+    npi_number?: string;
+    phone?: string;
+  }
+) {
+  return apiRequest<ApiEnvelope<PhysicianItem>>('mobile/staff/physicians', {
+    method: 'POST',
+    token,
+    body,
+  });
+}
+
+export type PatientEpisodeItem = {
+  id: number;
+  start_date?: string;
+  end_date?: string;
+  status?: string;
+  type?: string;
+  episode_number?: string;
+};
+
+export function getPatientEpisodes(token: string, patientId: number) {
+  return apiRequest<ApiEnvelope<PatientEpisodeItem[]>>(
+    `mobile/staff/patients/${patientId}/episodes`,
+    { token }
+  );
 }
 
 export function getStaffMessages(token: string, folder = 'inbox') {
