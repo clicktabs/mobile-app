@@ -17,6 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import * as evvApi from '../../api/evv';
 import { ApiError } from '../../api/client';
+import { VoiceInputButton } from '../../components/VoiceInputButton';
 import { HHA_TASK_SECTIONS, type HhaTaskStatus } from '../../data/hhaTasks';
 import type { StaffScheduleStackParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
@@ -336,16 +337,32 @@ export function StaffHhaVisitNoteScreen({ navigation, route }: Props) {
                         </View>
 
                         {openComment === task.key ? (
-                          <TextInput
-                            value={comments[task.key] || ''}
-                            onChangeText={(t) =>
-                              setComments((prev) => ({ ...prev, [task.key]: t }))
-                            }
-                            placeholder="Note for this task"
-                            placeholderTextColor="#94A3B8"
-                            multiline
-                            style={styles.commentInput}
-                          />
+                          <View>
+                            <View style={styles.commentHead}>
+                              <Text style={styles.commentLabel}>NOTE</Text>
+                              {/*
+                                An aide is often mid-task with gloves on or hands full.
+                                Dictating a note is the difference between recording
+                                what happened and skipping it.
+                              */}
+                              <VoiceInputButton
+                                value={comments[task.key] || ''}
+                                onChange={(next) =>
+                                  setComments((prev) => ({ ...prev, [task.key]: next }))
+                                }
+                              />
+                            </View>
+                            <TextInput
+                              value={comments[task.key] || ''}
+                              onChangeText={(t) =>
+                                setComments((prev) => ({ ...prev, [task.key]: t }))
+                              }
+                              placeholder="Note for this task"
+                              placeholderTextColor="#94A3B8"
+                              multiline
+                              style={styles.commentInput}
+                            />
+                          </View>
                         ) : comments[task.key] ? (
                           <Text style={styles.commentPreview} numberOfLines={2}>
                             {comments[task.key]}
@@ -509,8 +526,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   choiceText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
-  commentInput: {
+  commentHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 10,
+    marginBottom: 2,
+  },
+  commentLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.textMuted,
+    letterSpacing: 0.4,
+  },
+  commentInput: {
+    marginTop: 4,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: colors.border,
