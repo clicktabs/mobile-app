@@ -29,6 +29,39 @@ export function staffChangePassword(
   });
 }
 
+export type SignaturePinStatus = {
+  has_pin: boolean;
+  pin_set_at?: string | null;
+  is_locked?: boolean;
+  locked_until?: string | null;
+};
+
+export function getSignaturePinStatus(token: string) {
+  return apiRequest<ApiEnvelope<SignaturePinStatus>>('mobile/staff/signature-pin', {
+    method: 'GET',
+    token,
+  });
+}
+
+export function updateSignaturePin(
+  token: string,
+  data: {
+    pin: string;
+    pin_confirmation: string;
+    current_pin?: string;
+    password?: string;
+  },
+) {
+  return apiRequest<ApiEnvelope<{ has_pin: boolean; pin_set_at?: string | null }>>(
+    'mobile/staff/signature-pin',
+    {
+      method: 'POST',
+      token,
+      body: data,
+    },
+  );
+}
+
 export function staffDashboard(token: string) {
   return apiRequest<
     ApiEnvelope<{
@@ -175,6 +208,7 @@ export function saveNursingNote(
     patient_id: number;
     schedule_id?: number;
     status?: 'draft' | 'completed';
+    signature_pin?: string;
     form_data: Record<string, unknown>;
     note_text?: string;
   },
@@ -183,6 +217,14 @@ export function saveNursingNote(
     method: 'POST',
     token,
     body,
+  });
+}
+
+export function verifySignaturePin(token: string, pin: string) {
+  return apiRequest<ApiEnvelope<{ verified: boolean }>>('mobile/staff/verify-pin', {
+    method: 'POST',
+    token,
+    body: { pin },
   });
 }
 

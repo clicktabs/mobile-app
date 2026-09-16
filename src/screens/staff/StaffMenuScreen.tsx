@@ -113,6 +113,11 @@ export function StaffMenuHomeScreen({ navigation }: MenuProps) {
             onPress={() => navigation.navigate('MenuAccount')}
           />
           <MenuRow
+            icon="key-outline"
+            label="Electronic Signature PIN"
+            onPress={() => navigation.navigate('MenuAccount')}
+          />
+          <MenuRow
             icon="chatbubble-outline"
             label="My Messages"
             onPress={() => tabs?.navigate('Messages')}
@@ -224,7 +229,78 @@ export function StaffMenuAccountScreen({ navigation }: NativeStackScreenProps<St
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  // Electronic Signature PIN state
+  const [pinStatus, setPinStatus] = useState<staffApi.SignaturePinStatus | null>(null);
+  const [currentPin, setCurrentPin] = useState('');
+  const [accountPassword, setAccountPassword] = useState('');
+  const [usePasswordToVerify, setUsePasswordToVerify] = useState(false);
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [savingPin, setSavingPin] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    (async () => {
+      try {
+        const res = await staffApi.getSignaturePinStatus(token);
+        if (res.data) setPinStatus(res.data);
+      } catch {
+        // non-blocking
+      }
+    })();
+  }, [token]);
+
+  const handleUpdatePin = async () => {
+    if (!token) return;
+    const cleanPin = newPin.trim();
+    const cleanConfirm = confirmPin.trim();
+
+    if (!cleanPin) {
+      showAlert('PIN required', 'Please enter a 4–6 digit numerical PIN.');
+      return;
+    }
+    if (cleanPin.length < 4 || cleanPin.length > 6 || !/^\d+$/.test(cleanPin)) {
+      showAlert('Invalid PIN', 'PIN must be between 4 and 6 digits (numbers only).');
+      return;
+    }
+    if (cleanPin !== cleanConfirm) {
+      showAlert('Mismatch', 'PIN confirmation does not match.');
+      return;
+    }
+    if (pinStatus?.has_pin) {
+      if (usePasswordToVerify) {
+        if (!accountPassword.trim()) {
+          showAlert('Password required', 'Please enter your account password.');
+          return;
+        }
+      } else if (!currentPin.trim()) {
+        showAlert('Current PIN required', 'Please enter your current PIN, or verify with account password.');
+        return;
+      }
+    }
+
+    setSavingPin(true);
+    try {
+      const res = await staffApi.updateSignaturePin(token, {
+        pin: cleanPin,
+        pin_confirmation: cleanConfirm,
+        current_pin: usePasswordToVerify ? undefined : currentPin.trim(),
+        password: usePasswordToVerify ? accountPassword.trim() : undefined,
+      });
+      showAlert('PIN saved', res.message || 'Electronic signature PIN updated successfully.', 'success');
+      setPinStatus({ has_pin: true, pin_set_at: new Date().toISOString() });
+      setCurrentPin('');
+      setAccountPassword('');
+      setNewPin('');
+      setConfirmPin('');
+    } catch (e) {
+      showAlert('Update failed', e instanceof ApiError ? e.message : 'Failed to update PIN');
+    } finally {
+      setSavingPin(false);
+    }
+  };
 
   return (
     <AppShell>
@@ -255,7 +331,87 @@ export function StaffMenuAccountScreen({ navigation }: NativeStackScreenProps<St
           </View>
         </View>
 
-        <View style={styles.passwordSection}>
+        {/* Electronic Signature PIN Section */}
+        <View style={styles.sectionCard}>
+          <View style={styles.pinHeaderRow}>
+            <View style={{ flex: 1 }}>
+              <SectionTitle>Electronic Signature PIN</SectionTitle>
+              <Text style={styles.sectionHint}>
+                Create or change your 4–6 digit PIN used to electronically sign visit documentation and clinical notes.
+              </Text>
+            </View>
+            <View style={[styles.pinStatusBadge, pinStatus?.has_pin ? styles.pinStatusConfigured : styles.pinStatusMissing]}>
+              <Ionicons
+                name={pinStatus?.has_pin ? 'checkmark-circle' : 'alert-circle'}
+                size={14}
+                color={pinStatus?.has_pin ? '#065F46' : '#92400E'}
+              />
+              <Text style={[styles.pinStatusText, pinStatus?.has_pin ? styles.pinStatusTextConfigured : styles.pinStatusTextMissing]}>
+                {pinStatus?.has_pin ? 'Configured' : 'Not set up'}
+              </Text>
+            </View>
+          </View>
+
+          {pinStatus?.has_pin ? (
+            <>
+              {usePasswordToVerify ? (
+                <Field
+                  label="Account password"
+                  value={accountPassword}
+                  onChangeText={setAccountPassword}
+                  secureTextEntry
+                  placeholder="Enter login password"
+                />
+              ) : (
+                <Field
+                  label="Current PIN"
+                  value={currentPin}
+                  onChangeText={setCurrentPin}
+                  secureTextEntry
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  placeholder="Enter current 4-6 digit PIN"
+                />
+              )}
+              <Pressable
+                onPress={() => setUsePasswordToVerify(!usePasswordToVerify)}
+                style={styles.switchVerifyLink}
+              >
+                <Text style={styles.switchVerifyText}>
+                  {usePasswordToVerify ? '← Verify with current PIN instead' : 'Forgot current PIN? Verify with account password'}
+                </Text>
+              </Pressable>
+            </>
+          ) : null}
+
+          <Field
+            label={pinStatus?.has_pin ? 'New PIN (4–6 digits)' : 'Set Signature PIN (4–6 digits)'}
+            value={newPin}
+            onChangeText={setNewPin}
+            secureTextEntry
+            keyboardType="number-pad"
+            maxLength={6}
+            placeholder="e.g. 1234"
+          />
+          <Field
+            label="Confirm New PIN"
+            value={confirmPin}
+            onChangeText={setConfirmPin}
+            secureTextEntry
+            keyboardType="number-pad"
+            maxLength={6}
+            placeholder="Repeat PIN"
+          />
+
+          <Button
+            label={savingPin ? 'Saving PIN…' : pinStatus?.has_pin ? 'Update Signature PIN' : 'Save Signature PIN'}
+            loading={savingPin}
+            onPress={handleUpdatePin}
+          />
+        </View>
+
+        {/* Change Password Section */}
+        <View style={styles.sectionCard}>
           <SectionTitle>Change password</SectionTitle>
           <Text style={styles.sectionHint}>Use a strong password you do not reuse elsewhere.</Text>
           <Field
@@ -273,20 +429,20 @@ export function StaffMenuAccountScreen({ navigation }: NativeStackScreenProps<St
           />
           <Button
             label="Update password"
-            loading={saving}
+            loading={savingPassword}
             onPress={async () => {
               if (!token) return;
-              setSaving(true);
+              setSavingPassword(true);
               try {
                 await staffApi.staffChangePassword(token, currentPassword, newPassword, confirmPassword);
-                showAlert('Password changed');
+                showAlert('Password changed', 'Your account password has been updated.', 'success');
                 setCurrentPassword('');
                 setNewPassword('');
                 setConfirmPassword('');
               } catch (e) {
                 showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
               } finally {
-                setSaving(false);
+                setSavingPassword(false);
               }
             }}
           />
@@ -747,6 +903,60 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     lineHeight: 21,
+  },
+  sectionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 20,
+    marginBottom: 20,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.04)',
+  },
+  pinHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 4,
+  },
+  pinStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginTop: 2,
+  },
+  pinStatusConfigured: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+  },
+  pinStatusMissing: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
+  },
+  pinStatusText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  pinStatusTextConfigured: {
+    color: '#065F46',
+  },
+  pinStatusTextMissing: {
+    color: '#92400E',
+  },
+  switchVerifyLink: {
+    marginTop: -8,
+    marginBottom: 16,
+    alignSelf: 'flex-start',
+  },
+  switchVerifyText: {
+    fontSize: 13,
+    color: colors.brandMagenta,
+    fontWeight: '600',
   },
   passwordSection: {
     paddingTop: 4,

@@ -7,10 +7,11 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
+import { ToastPortal } from './ToastPortal';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -91,26 +92,28 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       {toast ? (
-        <Animated.View
-          pointerEvents="box-none"
-          style={[
-            styles.wrap,
-            {
-              top: Math.max(insets.top, 12) + 8,
-              opacity,
-              transform: [{ translateY }],
-            },
-          ]}
-        >
-          <Pressable onPress={hide} style={[styles.toast, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-            <Ionicons name={palette.icon} size={22} color={palette.tint} />
-            <View style={styles.textCol}>
-              <Text style={[styles.title, { color: colors.ink }]}>{toast.title}</Text>
-              {toast.message ? <Text style={styles.message}>{toast.message}</Text> : null}
-            </View>
-            <Ionicons name="close" size={18} color={colors.textMuted} />
-          </Pressable>
-        </Animated.View>
+        <ToastPortal>
+          <Animated.View
+            pointerEvents="box-none"
+            style={[
+              styles.wrap,
+              {
+                top: Math.max(insets.top, 12) + 8,
+                opacity,
+                transform: [{ translateY }],
+              },
+            ]}
+          >
+            <Pressable onPress={hide} style={[styles.toast, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+              <Ionicons name={palette.icon} size={22} color={palette.tint} />
+              <View style={styles.textCol}>
+                <Text style={[styles.title, { color: colors.ink }]}>{toast.title}</Text>
+                {toast.message ? <Text style={styles.message}>{toast.message}</Text> : null}
+              </View>
+              <Ionicons name="close" size={18} color={colors.textMuted} />
+            </Pressable>
+          </Animated.View>
+        </ToastPortal>
       ) : null}
     </ToastContext.Provider>
   );
@@ -124,11 +127,11 @@ export function useToast() {
 
 const styles = StyleSheet.create({
   wrap: {
-    position: 'absolute',
+    position: (Platform.OS === 'web' ? 'fixed' : 'absolute') as any,
     left: 12,
     right: 12,
-    zIndex: 9999,
-    elevation: 20,
+    zIndex: 99999999,
+    elevation: 99999,
     alignItems: 'center',
   },
   toast: {

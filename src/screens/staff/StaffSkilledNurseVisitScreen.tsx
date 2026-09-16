@@ -126,6 +126,7 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
 
   const [signOpen, setSignOpen] = useState(false);
   const [signaturePin, setSignaturePin] = useState('');
+  const [signError, setSignError] = useState<string | null>(null);
   const signedAt = useMemo(() => new Date().toLocaleString(), [signOpen]);
   const [sections, setSections] = useState<Record<string, SectionState>>(() => {
     const init: Record<string, SectionState> = {};
@@ -532,20 +533,24 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
   };
 
   const completeAndSign = async () => {
-    if (!signaturePin.trim()) {
+    const pin = signaturePin.trim();
+    if (!pin) {
+      setSignError('Enter your electronic signature PIN/password.');
       showAlert('Signature required', 'Enter your electronic signature PIN/password.');
       return;
     }
     if (!token || !patientId) return;
     setSaving(true);
+    setSignError(null);
     try {
       await staffApi.saveNursingNote(token, {
         patient_id: patientId,
         schedule_id: scheduleId,
         status: 'completed',
+        signature_pin: pin,
         form_data: {
           ...buildFormData(),
-          electronic_signature_pin: signaturePin.trim(),
+          electronic_signature_pin: pin,
           electronic_signature_at: signedAt,
           electronic_signature_verified: true,
         },
@@ -563,10 +568,13 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
       }
 
       setSignOpen(false);
+      setSignError(null);
       showAlert('Documentation signed', 'Proceeding to clock-out.', 'success');
       goToEvvClockOut();
     } catch (e) {
-      showAlert('Save failed', e instanceof ApiError ? e.message : 'Error');
+      const msg = e instanceof ApiError ? e.message : 'Invalid signature PIN';
+      setSignError(msg);
+      showAlert('Signature failed', msg);
     } finally {
       setSaving(false);
     }
@@ -914,7 +922,10 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
           <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
         </Pressable>
         <Pressable
-          onPress={() => setSignOpen(true)}
+          onPress={() => {
+            setSignError(null);
+            setSignOpen(true);
+          }}
           disabled={saving}
           style={({ pressed }) => [
             styles.footerBtn,
@@ -934,14 +945,38 @@ export function StaffSkilledNurseVisitScreen({ navigation, route }: Props) {
               <Text style={styles.modalHeaderText}>Electronic Signature</Text>
             </View>
             <View style={styles.modalBody}>
+              {signError ? (
+                <View style={styles.modalErrorBanner}>
+                  <Ionicons name="alert-circle" size={18} color={colors.danger} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.modalErrorBannerText}>{signError}</Text>
+                    {signError.toLowerCase().includes('set up') || signError.toLowerCase().includes('no electronic') ? (
+                      <Pressable
+                        onPress={() => {
+                          setSignOpen(false);
+                          (navigation.getParent() as any)?.navigate('Menu', { screen: 'MenuAccount' });
+                        }}
+                        style={{ marginTop: 6 }}
+                      >
+                        <Text style={{ color: colors.brandMagenta, fontWeight: '700', fontSize: 13, textDecorationLine: 'underline' }}>
+                          Open Account Settings to set up PIN →
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                </View>
+              ) : null}
               <Text style={styles.fieldLabel}>Electronic signature authentication</Text>
               <TextInput
                 value={signaturePin}
-                onChangeText={setSignaturePin}
+                onChangeText={(val) => {
+                  setSignaturePin(val);
+                  if (signError) setSignError(null);
+                }}
                 secureTextEntry
                 placeholder="Enter PIN or password"
                 placeholderTextColor={colors.textMuted}
-                style={styles.pinInput}
+                style={[styles.pinInput, signError ? styles.pinInputError : null]}
               />
               <Text style={styles.helper}>Required for electronic signature authentication</Text>
               <Text style={styles.signDateLabel}>Signature date & time</Text>
@@ -1279,6 +1314,25 @@ const styles = StyleSheet.create({
     padding: 18,
     paddingBottom: 32,
   },
+  modalErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  modalErrorBannerText: {
+    flex: 1,
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
   fieldLabel: {
     fontSize: 14,
     fontWeight: '700',
@@ -1295,6 +1349,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: '#F8FAFC',
     marginBottom: 6,
+  },
+  pinInputError: {
+    borderColor: colors.danger,
+    backgroundColor: '#FFF5F5',
   },
   helper: {
     color: colors.textMuted,
