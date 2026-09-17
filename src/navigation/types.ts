@@ -16,6 +16,8 @@ export type StaffPatientsStackParamList = {
 
 export type StaffHomeStackParamList = {
   HomeMain: undefined;
+  /** Aide supervision that has come due — the list behind the dashboard tile. */
+  SupervisoryVisits: undefined;
   RouteVisits: undefined;
   ElectronicIdBadge: undefined;
   AvailableShifts: undefined;

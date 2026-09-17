@@ -26,6 +26,8 @@ type HomeStats = {
   availableShifts: number;
   licenses: number | null;
   payrollHours: string;
+  supervisoryDue: number;
+  supervisoryOverdue: number;
 };
 
 type DashTile = {
@@ -34,7 +36,10 @@ type DashTile = {
   icon: keyof typeof Ionicons.glyphMap;
   value?: string | number;
   showChevron?: boolean;
-  onPress: () => void;
+  /** Omitted for a tile that only reports — see the supervisory one. */
+  onPress?: () => void;
+  /** Colours the figure when it is one somebody has to act on. */
+  tone?: 'danger';
 };
 
 const EMPTY_STATS: HomeStats = {
@@ -43,6 +48,8 @@ const EMPTY_STATS: HomeStats = {
   availableShifts: 0,
   licenses: null,
   payrollHours: '0.00',
+  supervisoryDue: 0,
+  supervisoryOverdue: 0,
 };
 
 export function StaffDashboardScreen() {
@@ -109,6 +116,8 @@ export function StaffDashboardScreen() {
             : Number(s?.available_shifts ?? 0) || 0,
         licenses: s?.licenses != null ? Number(s.licenses) || 0 : null,
         payrollHours: payrollLabel || '0.00',
+        supervisoryDue: Number(s?.supervisory_visits_due ?? 0) || 0,
+        supervisoryOverdue: Number(s?.supervisory_visits_overdue ?? 0) || 0,
       });
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
@@ -166,6 +175,32 @@ export function StaffDashboardScreen() {
       value: stats.payrollHours,
       onPress: () => navigation.navigate('Menu', { screen: 'MenuPay' }),
     },
+    /*
+      Aide supervision that has come due.
+
+      A registered nurse has to observe an aide in the patient's home every 14 days
+      where skilled care is also in place, and every 60 days for an aide-only patient.
+      Miss one and it is a survey finding, and nothing surfaces it until somebody goes
+      looking — so it sits on the screen people open every morning.
+
+      Red once any of them is past its date: a bare count reads as workload, and these
+      stop being workload the day they lapse.
+
+      Opens the list, which names the patient, the aide and how far past the date each
+      one is. A count with nothing behind it tells somebody there is a problem and not
+      which one.
+    */
+    {
+      key: 'supervisory',
+      label: 'Supervisory Visits',
+      icon: 'shield-checkmark-outline',
+      value: stats.supervisoryOverdue > 0
+        ? `${stats.supervisoryDue} · ${stats.supervisoryOverdue} overdue`
+        : stats.supervisoryDue,
+      tone: stats.supervisoryOverdue > 0 ? 'danger' : undefined,
+      showChevron: true,
+      onPress: () => navigation.navigate('SupervisoryVisits'),
+    },
   ];
 
   return (
@@ -201,12 +236,23 @@ export function StaffDashboardScreen() {
               <Pressable
                 key={tile.key}
                 onPress={tile.onPress}
-                style={({ pressed }) => [styles.tile, pressed && { opacity: 0.9 }]}
+                // A tile that only reports must not look tappable or dim under a press.
+                disabled={!tile.onPress}
+                style={({ pressed }) => [
+                  styles.tile,
+                  pressed && tile.onPress ? { opacity: 0.9 } : null,
+                ]}
               >
-                <Ionicons name={tile.icon} size={22} color="#475569" />
+                <Ionicons
+                  name={tile.icon}
+                  size={22}
+                  color={tile.tone === 'danger' ? '#B91C1C' : '#475569'}
+                />
                 <Text style={styles.tileLabel}>{tile.label}</Text>
                 {tile.value !== undefined ? (
-                  <Text style={styles.tileValue}>{tile.value}</Text>
+                  <Text style={[styles.tileValue, tile.tone === 'danger' && styles.tileValueDanger]}>
+                    {tile.value}
+                  </Text>
                 ) : null}
                 {tile.showChevron && tile.value === undefined ? (
                   <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
@@ -262,5 +308,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: '#334155',
+  },
+  // Slightly smaller, because this one carries a phrase rather than a bare figure.
+  tileValueDanger: {
+    fontSize: 13,
+    color: '#B91C1C',
   },
 });

@@ -77,6 +77,16 @@ export function staffDashboard(token: string) {
         licenses_pending?: number;
         payroll_hours?: number;
         payroll_hours_label?: string;
+        /**
+         * Aide supervision that has come due — §484.80(h), every 14 days alongside
+         * skilled care and every 60 for an aide-only patient.
+         *
+         * Scoped server-side like every other list: the agency's for a manager, their
+         * own rows for a field clinician. Overdue is the subset of due that is already
+         * a compliance problem.
+         */
+        supervisory_visits_due?: number;
+        supervisory_visits_overdue?: number;
       };
       upcoming_visits: ScheduleItem[];
     }>
@@ -159,6 +169,33 @@ export function staffScheduleBetween(token: string, span: { from: string; to: st
       can_create_schedules?: boolean;
     }
   >('mobile/staff/schedule/upcoming', { token, query: span });
+}
+
+/* ------------------------------------------------------------- aide supervision */
+
+export type SupervisoryVisitRow = {
+  id: number;
+  patient_id?: number | null;
+  patient_name: string;
+  /** Who is being supervised. On a manager's list this is the point of the row. */
+  aide_name?: string | null;
+  next_due_date?: string | null;
+  is_overdue: boolean;
+  days_overdue: number;
+  last_completed_date?: string | null;
+  /** "every 14 days" — says why this date and not another. */
+  interval?: string | null;
+  compliance_type?: string | null;
+};
+
+export function getSupervisoryVisits(token: string) {
+  return apiRequest<
+    ApiEnvelope<SupervisoryVisitRow[]> & {
+      count?: number;
+      overdue_count?: number;
+      sees_whole_agency?: boolean;
+    }
+  >('mobile/staff/supervisory-visits', { token });
 }
 
 /* ------------------------------------------------------------------ booking a visit */
