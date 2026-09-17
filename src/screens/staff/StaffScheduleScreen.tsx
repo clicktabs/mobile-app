@@ -245,11 +245,21 @@ export function StaffScheduleScreen() {
     }, [load]),
   );
 
+  /**
+   * What the calendar shows: everything except past due.
+   *
+   * Past due has its own tab, which is where it gets worked. Repeating those visits on
+   * the grid meant every earlier day carried a count of work that is really sitting in
+   * one list, and the calendar stopped answering the question it is for — what is booked,
+   * and what still has to be covered.
+   */
+  const calendarItems = useMemo(() => items.filter((i) => !isPastDue(i)), [items]);
+
   /** Visits per day for the month grid, and the worst state on each. */
   const marks = useMemo(() => {
     const byDay = new Map<string, ScheduleItem[]>();
 
-    items.forEach((i) => {
+    calendarItems.forEach((i) => {
       const day = dayOf(i);
       if (!day) return;
       byDay.set(day, [...(byDay.get(day) ?? []), i]);
@@ -261,7 +271,7 @@ export function StaffScheduleScreen() {
     });
 
     return out;
-  }, [items]);
+  }, [calendarItems]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -273,9 +283,10 @@ export function StaffScheduleScreen() {
     if (tab === 'past') list = items.filter(isPastDue);
     if (tab === 'completed') list = items.filter(isCompleted);
     if (tab === 'upcoming') list = items.filter((i) => !isCompleted(i) && !isPastDue(i));
-    // The calendar's list is the selected day, in the order the visits happen.
+    // The calendar's list is the selected day, in the order the visits happen — from
+    // calendarItems, so the day below the grid holds the same visits the grid counted.
     if (mode === 'calendar') {
-      list = items
+      list = calendarItems
         .filter((i) => dayOf(i) === selectedDay)
         .sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? ''));
     }
@@ -286,7 +297,7 @@ export function StaffScheduleScreen() {
     // mode belongs here: leaving the calendar for a list tab changes which branch above
     // applies, and without it the memo hands back the selected day's visits as though
     // they were the whole list.
-  }, [items, tab, mode, search, selectedDay]);
+  }, [items, calendarItems, tab, mode, search, selectedDay]);
 
   const counts = useMemo(
     () => ({
