@@ -20,6 +20,7 @@ import { isOffline } from '../../utils/connectivity';
 import { showAlert, confirmAction } from '../../utils/confirm';
 import { AppDatePicker, AppTimePicker } from '../../components/AppDatePicker';
 import { colors } from '../../theme/colors';
+import type { ScheduleItem } from '../../types';
 import type { StaffScheduleStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<StaffScheduleStackParamList, 'CreateSchedule'>;
@@ -37,7 +38,7 @@ type Props = NativeStackScreenProps<StaffScheduleStackParamList, 'CreateSchedule
  * caps and other visits. Queueing one would mean telling a scheduler a visit exists when
  * it may yet be refused, and the person expected at the door would never know.
  */
-export function StaffCreateScheduleScreen({ navigation }: Props) {
+export function StaffCreateScheduleScreen({ navigation, route }: Props) {
   const { token, handleUnauthorized } = useAuth();
 
   const [options, setOptions] = useState<staffApi.ScheduleOptions | null>(null);
@@ -50,7 +51,9 @@ export function StaffCreateScheduleScreen({ navigation }: Props) {
   const [patientId, setPatientId] = useState<number | null>(null);
   const [employeeId, setEmployeeId] = useState<number | null>(null);
   const [taskType, setTaskType] = useState<string>('');
-  const [date, setDate] = useState(today);
+  // The day tapped on the calendar. Still editable here — the picker is a correction,
+  // not the main way in.
+  const [date, setDate] = useState(route.params?.date ?? today);
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [title, setTitle] = useState('');
@@ -92,6 +95,44 @@ export function StaffCreateScheduleScreen({ navigation }: Props) {
   useEffect(() => {
     load();
   }, [load]);
+
+  /*
+    What the chosen caregiver already has that day.
+
+    Booking blind is how a caregiver ends up with two visits at once, or a day that only
+    the weekly hours cap notices — as an error, after the scheduler has filled the whole
+    form. The web calendar shows the day's events before you click into it; this is the
+    same information, arriving as soon as there is a person and a date to ask about.
+  */
+  const [dayLoad, setDayLoad] = useState<ScheduleItem[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!token || !employeeId || !date) {
+      setDayLoad(null);
+      return;
+    }
+
+    staffApi
+      .staffScheduleBetween(token, { from: date, to: date })
+      .then((res) => {
+        if (cancelled) return;
+        setDayLoad(
+          (res.data ?? [])
+            .filter((v) => v.employee_id === employeeId)
+            .sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? '')),
+        );
+      })
+      // Silent: this is context, not a gate. The server still applies the real rules.
+      .catch(() => {
+        if (!cancelled) setDayLoad(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, employeeId, date]);
 
   const patient = useMemo(
     () => options?.patients.find((p) => p.id === patientId) ?? null,
@@ -293,8 +334,9 @@ export function StaffCreateScheduleScreen({ navigation }: Props) {
           placeholder="Select date"
         />
         {/*
-          The picker takes minDate but does not enforce it, so a past day can still be
-          chosen. A visit scheduled into the past cannot be worked.
+          The picker greys out days before minDate, so this catches only a date arriving
+          another way — a stale calendar selection carried in through the route. A visit
+          scheduled into the past cannot be worked.
         */}
         {inThePast ? <Text style={styles.warn}>Choose today or a later date.</Text> : null}
 
@@ -310,6 +352,42 @@ export function StaffCreateScheduleScreen({ navigation }: Props) {
         </View>
         {!endsAfterStart ? (
           <Text style={styles.warn}>The visit has to end after it starts.</Text>
+        ) : null}
+
+        {/*
+          The caregiver's day as it already stands.
+
+          Shown here rather than left to the server, because an overlap is the scheduler's
+          decision to make — two visits at the same hour is sometimes a correction in
+          progress and sometimes a mistake, and only the person booking knows which.
+        */}
+        {employeeId && dayLoad ? (
+          <View style={styles.dayLoad}>
+            <Text style={styles.dayLoadHead}>
+              {staffMember?.name ?? 'This caregiver'} on {date}
+            </Text>
+
+            {dayLoad.length === 0 ? (
+              <Text style={styles.dayLoadEmpty}>Nothing else booked.</Text>
+            ) : (
+              dayLoad.map((v) => {
+                const clash = overlaps(v, startTime, endTime);
+                return (
+                  <View key={v.id} style={styles.dayLoadRow}>
+                    <Ionicons
+                      name={clash ? 'alert-circle' : 'time-outline'}
+                      size={14}
+                      color={clash ? '#B45309' : '#64748B'}
+                    />
+                    <Text style={[styles.dayLoadText, clash && styles.dayLoadClash]}>
+                      {clockRange(v)} · {v.patient_name ?? 'Visit'}
+                      {clash ? '  — overlaps' : ''}
+                    </Text>
+                  </View>
+                );
+              })
+            )}
+          </View>
         ) : null}
 
         <Text style={styles.section}>Priority</Text>
@@ -526,6 +604,27 @@ function validationMessages(e: unknown): string[] {
 const isCredentialProblem = (m: string) => /credential/i.test(m);
 const isHoursProblem = (m: string) => /\bOT\b|hours/i.test(m);
 
+/** "09:00–10:00" from an existing visit's stored datetimes. */
+function clockRange(v: ScheduleItem) {
+  const at = (s?: string) => (s ? s.slice(11, 16) : '--:--');
+  return `${at(v.start_time)}–${at(v.end_time)}`;
+}
+
+/**
+ * Whether an existing visit runs into the one being booked.
+ *
+ * Touching ends do not overlap: a visit ending at 10:00 and the next starting at 10:00
+ * is a normal back-to-back day, and flagging it would train the scheduler to ignore the
+ * warning that matters.
+ */
+function overlaps(v: ScheduleItem, startTime: string, endTime: string) {
+  const from = v.start_time?.slice(11, 16);
+  const to = v.end_time?.slice(11, 16);
+  if (!from || !to) return false;
+
+  return from < endTime && to > startTime;
+}
+
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
   errorText: { fontSize: 14, color: '#334155', textAlign: 'center' },
@@ -590,6 +689,21 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     backgroundColor: '#fff',
   },
+
+  dayLoad: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: '#F8FAFC',
+    gap: 6,
+  },
+  dayLoadHead: { fontSize: 12, fontWeight: '700', color: '#0F172A' },
+  dayLoadEmpty: { fontSize: 12, color: '#64748B' },
+  dayLoadRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dayLoadText: { flex: 1, fontSize: 12, color: '#334155' },
+  dayLoadClash: { color: '#B45309', fontWeight: '700' },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   chip: {

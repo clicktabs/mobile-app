@@ -144,6 +144,23 @@ export function staffUpcomingSchedule(token: string, days?: number, days_back?: 
   >('mobile/staff/schedule/upcoming', { token, query: { days, days_back } });
 }
 
+/**
+ * An explicit span, for the month calendar.
+ *
+ * The rolling window above is right for a caregiver's own list. A calendar the user can
+ * page through needs whichever month they turned to, which may be a year out — so the
+ * dates are named rather than counted from today. The server caps the span.
+ */
+export function staffScheduleBetween(token: string, span: { from: string; to: string }) {
+  return apiRequest<
+    ApiEnvelope<ScheduleItem[]> & {
+      count?: number;
+      window?: { from: string; to: string };
+      can_create_schedules?: boolean;
+    }
+  >('mobile/staff/schedule/upcoming', { token, query: span });
+}
+
 /* ------------------------------------------------------------------ booking a visit */
 
 export type SchedulePickerOption = {

@@ -243,9 +243,10 @@ export function StaffIncidentReportScreen({ navigation, route }: Props) {
           </View>
         </View>
 
-        {/* The picker accepts maxDate but does not enforce it, so a caregiver can page
-            forward a month and choose a day that has not happened. An incident report
-            dated in the future is not a record of anything. */}
+        {/* The picker now greys out days past maxDate, so this is only reachable if a
+            date arrives some other way. Kept because an incident report dated in the
+            future is not a record of anything, and the submit button reads the same
+            condition. */}
         {incidentDate > today ? (
           <Text style={styles.warn}>An incident cannot be dated in the future.</Text>
         ) : null}

@@ -84,10 +84,25 @@ export const AppDatePicker: React.FC<AppDatePickerProps> = ({
     }
   };
 
+  /**
+   * Whether a day is inside the caller's bounds.
+   *
+   * minDate and maxDate were accepted and then ignored: every caller passing them —
+   * the incident report barring a future date, a booking barring a past one — was
+   * relying on a limit the picker did not apply, and each had to catch the bad value
+   * afterwards with its own warning line. ISO dates compare correctly as strings.
+   */
+  const isOutOfRange = (iso: string) =>
+    (!!minDate && iso < (toIsoDate(minDate) || minDate)) ||
+    (!!maxDate && iso > (toIsoDate(maxDate) || maxDate));
+
   const handleSelectDay = (day: number) => {
     const mStr = String(viewMonth + 1).padStart(2, '0');
     const dStr = String(day).padStart(2, '0');
     const newIso = `${viewYear}-${mStr}-${dStr}`;
+
+    if (isOutOfRange(newIso)) return;
+
     setSelectedIso(newIso);
   };
 
@@ -102,25 +117,24 @@ export const AppDatePicker: React.FC<AppDatePickerProps> = ({
     setModalOpen(false);
   };
 
-  const handleQuickToday = () => {
-    const todayIso = getTodayIsoDate();
-    const [y, m] = todayIso.split('-').map((n) => parseInt(n, 10));
+  /** Jump the grid to a date and select it — unless the caller's bounds exclude it. */
+  const jumpTo = (iso: string) => {
+    const [y, m] = iso.split('-').map((n) => parseInt(n, 10));
     setViewYear(y);
     setViewMonth(m - 1);
-    setSelectedIso(todayIso);
+    if (!isOutOfRange(iso)) setSelectedIso(iso);
   };
 
-  const handleQuickYesterday = () => {
+  const yesterdayIso = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const iso = `${y}-${m}-${day}`;
-    setViewYear(y);
-    setViewMonth(d.getMonth());
-    setSelectedIso(iso);
-  };
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+      d.getDate(),
+    ).padStart(2, '0')}`;
+  })();
+
+  const handleQuickToday = () => jumpTo(getTodayIsoDate());
+  const handleQuickYesterday = () => jumpTo(yesterdayIso);
 
   // Calendar math
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -172,12 +186,17 @@ export const AppDatePicker: React.FC<AppDatePickerProps> = ({
 
             {/* Quick Action Chips */}
             <View style={styles.quickChipsRow}>
-              <Pressable style={styles.quickChip} onPress={handleQuickToday}>
-                <Text style={styles.quickChipText}>Today</Text>
-              </Pressable>
-              <Pressable style={styles.quickChip} onPress={handleQuickYesterday}>
-                <Text style={styles.quickChipText}>Yesterday</Text>
-              </Pressable>
+              {/* A shortcut to a date the caller has excluded is not a shortcut. */}
+              {!isOutOfRange(getTodayIsoDate()) ? (
+                <Pressable style={styles.quickChip} onPress={handleQuickToday}>
+                  <Text style={styles.quickChipText}>Today</Text>
+                </Pressable>
+              ) : null}
+              {!isOutOfRange(yesterdayIso) ? (
+                <Pressable style={styles.quickChip} onPress={handleQuickYesterday}>
+                  <Text style={styles.quickChipText}>Yesterday</Text>
+                </Pressable>
+              ) : null}
               <Pressable style={styles.quickChip} onPress={() => setSelectedIso('')}>
                 <Text style={styles.quickChipText}>Clear</Text>
               </Pressable>
@@ -218,6 +237,7 @@ export const AppDatePicker: React.FC<AppDatePickerProps> = ({
                 const thisIso = `${viewYear}-${mStr}-${dStr}`;
                 const isSelected = selectedIso === thisIso;
                 const isToday = todayIso === thisIso;
+                const disabledDay = isOutOfRange(thisIso);
 
                 return (
                   <Pressable
@@ -227,6 +247,7 @@ export const AppDatePicker: React.FC<AppDatePickerProps> = ({
                       isToday && styles.todayCell,
                       isSelected && styles.selectedDayCell,
                     ]}
+                    disabled={disabledDay}
                     onPress={() => handleSelectDay(day)}
                   >
                     <Text
@@ -234,6 +255,9 @@ export const AppDatePicker: React.FC<AppDatePickerProps> = ({
                         styles.dayCellText,
                         isToday && styles.todayCellText,
                         isSelected && styles.selectedDayCellText,
+                        // Greyed rather than hidden: the day is still part of the month,
+                        // and a gap in the grid would read as a rendering fault.
+                        disabledDay && styles.disabledDayCellText,
                       ]}
                     >
                       {day}
@@ -615,6 +639,10 @@ const styles = StyleSheet.create({
   todayCell: {
     borderWidth: 1,
     borderColor: '#0D6EFD',
+  },
+  disabledDayCellText: {
+    color: '#CBD5E1',
+    fontWeight: '400',
   },
   todayCellText: {
     color: '#0D6EFD',

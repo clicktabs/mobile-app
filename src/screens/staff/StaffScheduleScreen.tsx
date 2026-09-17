@@ -18,6 +18,12 @@ import {
 } from '../../components/chrome';
 import { EmptyState, ErrorBanner, LoadingBlock } from '../../components/ui';
 import { scopeLabels } from '../../utils/scopeLabels';
+import {
+  MonthCalendar,
+  monthBounds,
+  type CalendarDayState,
+  type CalendarMark,
+} from '../../components/MonthCalendar';
 import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
@@ -26,6 +32,15 @@ import { colors } from '../../theme/colors';
 import { documentationRouteFor } from '../../utils/visitDocumentation';
 
 type TabKey = 'past' | 'upcoming' | 'completed';
+
+/**
+ * List or calendar.
+ *
+ * A mode rather than a fourth tab: four segments at this width clip their own labels,
+ * and the calendar is a different way of reading the same visits, not a fourth filter
+ * alongside Past Due, Upcoming and Completed.
+ */
+type ViewMode = 'list' | 'calendar';
 
 function isDocNeeded(item: ScheduleItem) {
   return item.status === 'document_needed' || !!item.needs_documentation;
@@ -81,6 +96,56 @@ function isPastDue(item: ScheduleItem) {
   return new Date(item.start_time.replace(' ', 'T')).getTime() < Date.now();
 }
 
+/** The day a visit falls on, as the calendar keys it. */
+function dayOf(item: ScheduleItem): string | null {
+  if (!item.start_time) return null;
+  // The API sends "YYYY-MM-DD HH:MM:SS" in the agency's timezone. Slicing keeps the day
+  // the office meant; parsing to a Date would shift it by the device's offset and land
+  // some visits on the wrong square.
+  return item.start_time.slice(0, 10);
+}
+
+/**
+ * Which colour a day takes — the worst state on it wins.
+ *
+ * A day holding four finished visits and one missed one is a day that needs somebody,
+ * and showing it green because most of it went well would bury the one that did not.
+ */
+function dayStateFor(items: ScheduleItem[]): CalendarDayState {
+  if (items.some((i) => isMissed(i) || isPastDue(i) || isDocNeeded(i))) return 'attention';
+  if (items.some((i) => !isCompleted(i))) return 'scheduled';
+  return items.length ? 'done' : 'none';
+}
+
+/** "Thursday 17 September" — the selected day, written out above its visits. */
+function formatDayHeading(iso: string) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString([], {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
+/**
+ * The span to fetch for a month.
+ *
+ * A week either side, because the grid's first and last rows show days from the
+ * neighbouring months and a visit on one of them is still a visit the user can see.
+ */
+function spanForMonth(year: number, monthIndex: number) {
+  const { from, to } = monthBounds(year, monthIndex);
+  const pad = (iso: string, days: number) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    const shifted = new Date(y, m - 1, d + days);
+    return `${shifted.getFullYear()}-${String(shifted.getMonth() + 1).padStart(2, '0')}-${String(
+      shifted.getDate(),
+    ).padStart(2, '0')}`;
+  };
+
+  return { from: pad(from, -7), to: pad(to, 7) };
+}
+
 function formatWhen(start?: string) {
   if (!start) return '—';
   const d = new Date(start.replace(' ', 'T'));
@@ -99,6 +164,7 @@ export function StaffScheduleScreen() {
   const labels = scopeLabels(staffUser);
   const navigation = useNavigation<any>();
   const [tab, setTab] = useState<TabKey>('upcoming');
+  const [mode, setMode] = useState<ViewMode>('list');
   const [items, setItems] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -116,13 +182,33 @@ export function StaffScheduleScreen() {
   */
   const [canCreate, setCanCreate] = useState(!!staffUser?.can_create_schedules);
 
+  // Which month the calendar is showing, and which day in it is open.
+  const now = new Date();
+  const [viewYear, setViewYear] = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(now.getMonth());
+  const [selectedDay, setSelectedDay] = useState<string | null>(
+    new Date().toISOString().slice(0, 10),
+  );
+  const todayIso = new Date().toISOString().slice(0, 10);
+
   const load = useCallback(async () => {
     if (!token) return;
     setError(null);
     try {
-      // Rolling 30-day lookback / 60-day lookahead (not a calendar week, so Saturday
-      // still includes visits past Sunday). Feeds Past Due, Upcoming, and Completed.
-      const res = await staffApi.staffUpcomingSchedule(token, 60, 30);
+      /*
+        Two shapes of request from one screen.
+
+        The lists want a rolling 30-back / 60-ahead window — not a calendar week, so a
+        Saturday still shows visits past Sunday. The calendar wants whichever month the
+        user turned to, which may be outside that window entirely; asked for explicitly,
+        it also pulls a week either side so the grid's leading and trailing cells are not
+        blank when they are not empty.
+      */
+      const res =
+        mode === 'calendar'
+          ? await staffApi.staffScheduleBetween(token, spanForMonth(viewYear, viewMonth))
+          : await staffApi.staffUpcomingSchedule(token, 60, 30);
+
       const map = new Map<number, ScheduleItem>();
       (res.data || []).forEach((v) => map.set(v.id, v));
       setItems([...map.values()]);
@@ -138,14 +224,38 @@ export function StaffScheduleScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [token, handleUnauthorized]);
+  }, [token, handleUnauthorized, mode, viewYear, viewMonth]);
 
+  /*
+    Reruns on focus, and also when the month or the view mode changes, because load()
+    closes over both. The full-screen spinner is held back once there is something on screen: paging
+    to the next month should leave the grid in place while its counts refresh, not blank
+    the calendar the user is reading.
+  */
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
+      setRefreshing(true);
       load();
     }, [load]),
   );
+
+  /** Visits per day for the month grid, and the worst state on each. */
+  const marks = useMemo(() => {
+    const byDay = new Map<string, ScheduleItem[]>();
+
+    items.forEach((i) => {
+      const day = dayOf(i);
+      if (!day) return;
+      byDay.set(day, [...(byDay.get(day) ?? []), i]);
+    });
+
+    const out: Record<string, CalendarMark> = {};
+    byDay.forEach((dayItems, day) => {
+      out[day] = { count: dayItems.length, state: dayStateFor(dayItems) };
+    });
+
+    return out;
+  }, [items]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -153,11 +263,17 @@ export function StaffScheduleScreen() {
     if (tab === 'past') list = items.filter(isPastDue);
     if (tab === 'completed') list = items.filter(isCompleted);
     if (tab === 'upcoming') list = items.filter((i) => !isCompleted(i) && !isPastDue(i));
+    // The calendar's list is the selected day, in the order the visits happen.
+    if (mode === 'calendar') {
+      list = items
+        .filter((i) => dayOf(i) === selectedDay)
+        .sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? ''));
+    }
     if (!q) return list;
     return list.filter((i) =>
       `${i.patient_name || ''} ${i.title || ''} ${i.task_type || ''}`.toLowerCase().includes(q),
     );
-  }, [items, tab, search]);
+  }, [items, tab, search, selectedDay]);
 
   const counts = useMemo(
     () => ({
@@ -173,6 +289,22 @@ export function StaffScheduleScreen() {
       screen: 'MenuEvv',
       params: { scheduleId: item.id },
     });
+  };
+
+  const stepMonth = (delta: number) => {
+    const d = new Date(viewYear, viewMonth + delta, 1);
+    setViewYear(d.getFullYear());
+    setViewMonth(d.getMonth());
+    // The day travels with the month, so the list below the grid is never showing a day
+    // from a month that is no longer on screen.
+    setSelectedDay(null);
+  };
+
+  const goToToday = () => {
+    const d = new Date();
+    setViewYear(d.getFullYear());
+    setViewMonth(d.getMonth());
+    setSelectedDay(d.toISOString().slice(0, 10));
   };
 
   const openDocumentation = (item: ScheduleItem) => {
@@ -201,34 +333,75 @@ export function StaffScheduleScreen() {
             },
           },
           /*
-            Books a visit for whoever holds "Schedule Visits/Activities" on the web.
+            The month, the way the calendar icon opens it on the web Schedule Center.
 
-            For everyone else it still jumps to Upcoming, which is what it has always
-            done. The icon is not hidden from them: a schedule icon that disappears for
-            some people reads as a bug, and the alternative — showing a button that
-            answers 403 — is worse. The server checks again either way.
+            Booking is reached from inside it — tap a day, then Schedule — rather than
+            straight from this icon, because a visit is always booked *onto* a day and a
+            scheduler needs to see what is already on it first. The button that appears
+            on the selected day is shown only to whoever holds "Schedule
+            Visits/Activities"; everyone else gets the month as a read-only view of their
+            own work, which is worth having on its own.
           */
           {
-            icon: 'calendar-outline',
-            onPress: () =>
-              canCreate ? navigation.navigate('CreateSchedule') : setTab('upcoming'),
+            icon: mode === 'calendar' ? 'list-outline' : 'calendar-outline',
+            onPress: () => {
+              if (mode === 'calendar') {
+                setMode('list');
+                return;
+              }
+              setMode('calendar');
+              goToToday();
+            },
           },
         ]}
       />
-      <SegmentTabs
-        tabs={[
-          { key: 'past', label: `Past Due (${counts.past})`, tint: colors.danger },
-          { key: 'upcoming', label: `Upcoming (${counts.upcoming})`, tint: colors.brandMagenta },
-          { key: 'completed', label: `Completed (${counts.completed})`, tint: colors.success },
-        ]}
-        value={tab}
-        onChange={setTab}
-      />
-      <SearchBar
-        value={search}
-        onChangeText={setSearch}
-        placeholder={`Search ${tab === 'past' ? 'Past Due' : tab === 'completed' ? 'Completed' : 'Upcoming'} Tasks`}
-      />
+      {mode === 'list' ? (
+        <SegmentTabs
+          tabs={[
+            { key: 'past', label: `Past Due (${counts.past})`, tint: colors.danger },
+            { key: 'upcoming', label: `Upcoming (${counts.upcoming})`, tint: colors.brandMagenta },
+            { key: 'completed', label: `Completed (${counts.completed})`, tint: colors.success },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+      ) : null}
+      {mode === 'calendar' ? (
+        <MonthCalendar
+          year={viewYear}
+          monthIndex={viewMonth}
+          marks={marks}
+          selectedIso={selectedDay}
+          todayIso={todayIso}
+          onSelect={setSelectedDay}
+          onPrev={() => stepMonth(-1)}
+          onNext={() => stepMonth(1)}
+          onToday={goToToday}
+        />
+      ) : (
+        <SearchBar
+          value={search}
+          onChangeText={setSearch}
+          placeholder={`Search ${tab === 'past' ? 'Past Due' : tab === 'completed' ? 'Completed' : 'Upcoming'} Tasks`}
+        />
+      )}
+      {mode === 'calendar' && selectedDay ? (
+        <View style={styles.dayBar}>
+          <Text style={styles.dayBarTitle}>
+            {formatDayHeading(selectedDay)} · {filtered.length}{' '}
+            {filtered.length === 1 ? 'visit' : 'visits'}
+          </Text>
+          {canCreate ? (
+            <Pressable
+              style={styles.dayBarAdd}
+              onPress={() => navigation.navigate('CreateSchedule', { date: selectedDay })}
+            >
+              <Ionicons name="add" size={16} color="#fff" />
+              <Text style={styles.dayBarAddText}>SCHEDULE</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
       {error ? <ErrorBanner message={error} onRetry={load} /> : null}
       <View style={{ flex: 1 }}>
         {loading ? (
@@ -249,11 +422,15 @@ export function StaffScheduleScreen() {
             {filtered.length === 0 ? (
               <EmptyState
                 message={
-                  tab === 'past'
-                    ? 'No past due tasks found.'
-                    : tab === 'completed'
-                      ? 'No completed tasks found.'
-                      : 'No upcoming tasks found.'
+                  mode === 'calendar'
+                    ? selectedDay
+                      ? 'Nothing scheduled on this day.'
+                      : 'Choose a day to see its visits.'
+                    : tab === 'past'
+                      ? 'No past due tasks found.'
+                      : tab === 'completed'
+                        ? 'No completed tasks found.'
+                        : 'No upcoming tasks found.'
                 }
               />
             ) : (
@@ -401,6 +578,32 @@ export function StaffScheduleScreen() {
 
 const styles = StyleSheet.create({
   empty: { flexGrow: 1, justifyContent: 'center' },
+
+  // The selected day, named above its visits, with the way to add one to it.
+  dayBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#F8FAFC',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  dayBarTitle: { flex: 1, fontSize: 13, fontWeight: '700', color: '#0F172A' },
+  dayBarAdd: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#B4006E',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  dayBarAddText: { fontSize: 11, fontWeight: '800', color: '#fff', letterSpacing: 0.4 },
+
   /** A determined miss, not just a late start. */
   /** Started with nobody there yet — a warning, not a determination. */
   rowLate: {
