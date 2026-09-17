@@ -1262,6 +1262,8 @@ export type IncidentReportPayload = {
   description: string;
   types: string[];
   patient_id?: number;
+  /** The visit it happened during, when the caregiver was clocked in. */
+  schedule_id?: number;
   injury_level?: string;
   witnessed?: string;
   witness_names?: string;

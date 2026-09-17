@@ -82,7 +82,7 @@ export function StaffIncidentReportScreen({ navigation, route }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [token, handleUnauthorized]);
+  }, [token, handleUnauthorized, patientId]);
 
   useEffect(() => {
     load();
