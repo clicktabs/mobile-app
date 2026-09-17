@@ -169,7 +169,9 @@ export function StaffScheduleScreen() {
   // "My Schedule" is wrong for a manager: the schedule is the agency's, not theirs.
   const labels = scopeLabels(staffUser);
   const navigation = useNavigation<any>();
-  const [tab, setTab] = useState<TabKey>('upcoming');
+  // Opens on the whole schedule. The other three are filters of it, and landing on one
+  // of them means the first thing anyone sees is already a subset of their work.
+  const [tab, setTab] = useState<TabKey>('all');
   const [mode, setMode] = useState<ViewMode>('list');
   const [items, setItems] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
