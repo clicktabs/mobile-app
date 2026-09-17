@@ -205,7 +205,21 @@ export function SegmentTabs<T extends string>({
               active && { borderBottomColor: color, borderBottomWidth: 2 },
             ]}
           >
-            <Text style={[styles.segmentText, { color }]}>{t.label}</Text>
+            {/*
+              Four segments leave about 90pt each on a 360pt screen, and "Schedule List"
+              at 13pt does not fit. Stepped down a point past three tabs, then allowed to
+              shrink a little further rather than wrap — a wrapped label makes one tab two
+              lines tall and knocks the row out of line with its neighbours. Rows of two
+              or three keep the size they have.
+            */}
+            <Text
+              style={[styles.segmentText, tabs.length > 3 && styles.segmentTextTight, { color }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+            >
+              {t.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -376,7 +390,11 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
+    // Lets flex shrink a segment below its label's natural width instead of pushing the
+    // row wider than the screen.
+    minWidth: 0,
     paddingVertical: 12,
+    paddingHorizontal: 4,
     alignItems: 'center',
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
@@ -386,6 +404,7 @@ const styles = StyleSheet.create({
     borderRightColor: colors.border,
   },
   segmentText: { fontWeight: '700', fontSize: 13 },
+  segmentTextTight: { fontSize: 12 },
   outlineBtn: {
     marginHorizontal: 16,
     marginTop: 12,

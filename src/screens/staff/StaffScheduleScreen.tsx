@@ -31,7 +31,13 @@ import type { ScheduleItem } from '../../types';
 import { colors } from '../../theme/colors';
 import { documentationRouteFor } from '../../utils/visitDocumentation';
 
-type TabKey = 'past' | 'upcoming' | 'completed';
+/**
+ * `all` is the Schedule List: every visit in the window, in the order they happen.
+ *
+ * It sits first because it is the unfiltered thing the other three are filters of —
+ * reading the whole schedule should not mean checking three tabs and adding them up.
+ */
+type TabKey = 'all' | 'past' | 'upcoming' | 'completed';
 
 /**
  * List or calendar.
@@ -260,6 +266,10 @@ export function StaffScheduleScreen() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = items;
+    // The whole schedule, earliest first — the order it will actually be worked.
+    if (tab === 'all') {
+      list = [...items].sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? ''));
+    }
     if (tab === 'past') list = items.filter(isPastDue);
     if (tab === 'completed') list = items.filter(isCompleted);
     if (tab === 'upcoming') list = items.filter((i) => !isCompleted(i) && !isPastDue(i));
@@ -273,7 +283,10 @@ export function StaffScheduleScreen() {
     return list.filter((i) =>
       `${i.patient_name || ''} ${i.title || ''} ${i.task_type || ''}`.toLowerCase().includes(q),
     );
-  }, [items, tab, search, selectedDay]);
+    // mode belongs here: leaving the calendar for a list tab changes which branch above
+    // applies, and without it the memo hands back the selected day's visits as though
+    // they were the whole list.
+  }, [items, tab, mode, search, selectedDay]);
 
   const counts = useMemo(
     () => ({
@@ -358,6 +371,9 @@ export function StaffScheduleScreen() {
       {mode === 'list' ? (
         <SegmentTabs
           tabs={[
+            // No count of its own: it is the sum of the other three, and the label is
+            // already the longest in the row.
+            { key: 'all', label: 'Schedule List', tint: colors.brandMagenta },
             { key: 'past', label: `Past Due (${counts.past})`, tint: colors.danger },
             { key: 'upcoming', label: `Upcoming (${counts.upcoming})`, tint: colors.brandMagenta },
             { key: 'completed', label: `Completed (${counts.completed})`, tint: colors.success },
@@ -382,7 +398,11 @@ export function StaffScheduleScreen() {
         <SearchBar
           value={search}
           onChangeText={setSearch}
-          placeholder={`Search ${tab === 'past' ? 'Past Due' : tab === 'completed' ? 'Completed' : 'Upcoming'} Tasks`}
+          placeholder={
+            tab === 'all'
+              ? 'Search all scheduled tasks'
+              : `Search ${tab === 'past' ? 'Past Due' : tab === 'completed' ? 'Completed' : 'Upcoming'} Tasks`
+          }
         />
       )}
       {mode === 'calendar' && selectedDay ? (
@@ -426,11 +446,13 @@ export function StaffScheduleScreen() {
                     ? selectedDay
                       ? 'Nothing scheduled on this day.'
                       : 'Choose a day to see its visits.'
-                    : tab === 'past'
-                      ? 'No past due tasks found.'
-                      : tab === 'completed'
-                        ? 'No completed tasks found.'
-                        : 'No upcoming tasks found.'
+                    : tab === 'all'
+                      ? 'Nothing scheduled in this period.'
+                      : tab === 'past'
+                        ? 'No past due tasks found.'
+                        : tab === 'completed'
+                          ? 'No completed tasks found.'
+                          : 'No upcoming tasks found.'
                 }
               />
             ) : (
