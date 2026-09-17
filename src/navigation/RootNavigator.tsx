@@ -95,6 +95,9 @@ function StaffPatientsNavigator() {
         component={StaffPatientDetailScreen}
         options={{ headerShown: false }}
       />
+      {/* Filed from the patient's profile, so it lives in this stack rather than the
+          menu — opening it does not lose the patient the caregiver was looking at. */}
+      <StaffPatientsStack.Screen name="IncidentReport" component={StaffIncidentReportScreen} />
     </StaffPatientsStack.Navigator>
   );
 }
@@ -120,10 +123,7 @@ function StaffMenuNavigator() {
     <StaffMenuStack.Navigator screenOptions={{ headerShown: false }}>
       <StaffMenuStack.Screen name="MenuHome" component={StaffMenuHomeScreen} />
       <StaffMenuStack.Screen name="MenuAccount" component={StaffMenuAccountScreen} />
-      <StaffMenuStack.Screen name="MenuCovid" component={StaffMenuInfoScreen} />
-      <StaffMenuStack.Screen name="MenuImmunizations" component={StaffMenuInfoScreen} />
       <StaffMenuStack.Screen name="MenuCertification" component={StaffLicensesScreen} />
-      <StaffMenuStack.Screen name="MenuIncidentReport" component={StaffIncidentReportScreen} />
       <StaffMenuStack.Screen name="MenuPay" component={StaffPayrollScreen} />
       <StaffMenuStack.Screen name="MenuMileage" component={StaffMenuMileageScreen} />
       <StaffMenuStack.Screen name="MenuEvv" component={StaffMenuEvvScreen} />

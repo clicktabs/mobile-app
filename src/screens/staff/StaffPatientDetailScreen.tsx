@@ -280,12 +280,28 @@ export function StaffPatientDetailScreen({ route, navigation }: Props) {
       <SlideDownMenu
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
-        items={MENU_ITEMS.map((item) => ({
-          key: item.key,
-          label: item.label,
-          icon: item.icon,
-          onPress: () => openSection(item.key),
-        }))}
+        items={[
+          ...MENU_ITEMS.map((item) => ({
+            key: item.key,
+            label: item.label,
+            icon: item.icon,
+            onPress: () => openSection(item.key),
+          })),
+          // Not a section of the chart: it opens its own screen and carries the patient
+          // with it, so the caregiver does not have to name them again.
+          {
+            key: 'incident',
+            label: 'Report an incident',
+            icon: 'warning-outline' as const,
+            onPress: () =>
+              navigation.navigate('IncidentReport', {
+                patientId,
+                patientName: patient
+                  ? `${patient.first_name ?? ''} ${patient.last_name ?? ''}`.trim() || undefined
+                  : undefined,
+              }),
+          },
+        ]}
       />
     </AppShell>
   );

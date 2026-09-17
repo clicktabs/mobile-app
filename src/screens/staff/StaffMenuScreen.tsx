@@ -88,24 +88,9 @@ export function StaffMenuHomeScreen({ navigation }: MenuProps) {
             onPress={() => tabs?.navigate('Home', { screen: 'ElectronicIdBadge' })}
           />
           <MenuRow
-            icon="alert-circle-outline"
-            label="My COVID-19 Screening(s)"
-            onPress={() => navigation.navigate('MenuCovid')}
-          />
-          <MenuRow
-            icon="medkit-outline"
-            label="Immunizations"
-            onPress={() => navigation.navigate('MenuImmunizations')}
-          />
-          <MenuRow
             icon="ribbon-outline"
             label="Licenses & Credentials"
             onPress={() => navigation.navigate('MenuCertification')}
-          />
-          <MenuRow
-            icon="warning-outline"
-            label="Incident Report"
-            onPress={() => navigation.navigate('MenuIncidentReport')}
           />
           <MenuRow
             icon="wallet-outline"
@@ -404,31 +389,20 @@ export function StaffMenuSwitchAgencyScreen({
   );
 }
 
+/**
+ * Licenses & Credentials.
+ *
+ * This was a generic info screen shared by six menu entries, keyed off route.name. Five
+ * of those entries have been removed, so the lookup tables and per-route conditionals are
+ * gone with them — one entry in a map is just an indirection.
+ */
 export function StaffMenuInfoScreen({
   navigation,
-  route,
-}: NativeStackScreenProps<
-  StaffMenuStackParamList,
-  'MenuCovid' | 'MenuImmunizations' | 'MenuCertification'
->) {
-  const titles: Record<string, string> = {
-    MenuCovid: 'My COVID-19 Screening(s)',
-    MenuImmunizations: 'Immunizations',
-    MenuCertification: 'Click Tabs Certification',
-  };
-  const bodies: Record<string, string> = {
-    MenuCovid:
-      'COVID-19 screening is saved on the patient chart in Click Tabs web. Open a patient from the Patients tab to continue clinical documentation there.',
-    MenuImmunizations:
-      'Patient immunization logs live on the patient chart (intake meta) in Click Tabs web. Use Patients to open a chart, then record immunizations on web.',
-    MenuCertification:
-      'Organization and clinician certification / SOC certification reports are available in Click Tabs web Reports. Your mobile account role and organization are shown under Account.',
-  };
-
+}: NativeStackScreenProps<StaffMenuStackParamList, 'MenuCertification'>) {
   return (
     <AppShell>
       <AppHeader
-        title={titles[route.name] || 'Info'}
+        title="Click Tabs Certification"
         actions={[
           {
             icon: 'arrow-back',
@@ -440,13 +414,12 @@ export function StaffMenuInfoScreen({
         ]}
       />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-        <Text style={styles.body}>{bodies[route.name]}</Text>
-        {route.name === 'MenuCovid' || route.name === 'MenuImmunizations' ? (
-          <Button label="Go to Patients" onPress={() => navigation.getParent()?.navigate('Patients')} />
-        ) : null}
-        {route.name === 'MenuCertification' ? (
-          <Button label="Open Account" onPress={() => navigation.navigate('MenuAccount')} />
-        ) : null}
+        <Text style={styles.body}>
+          Organization and clinician certification / SOC certification reports are available
+          in Click Tabs web Reports. Your mobile account role and organization are shown
+          under Account.
+        </Text>
+        <Button label="Open Account" onPress={() => navigation.navigate('MenuAccount')} />
       </ScrollView>
     </AppShell>
   );

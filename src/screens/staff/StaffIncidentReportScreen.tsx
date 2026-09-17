@@ -11,10 +11,11 @@ import { queueDocument } from '../../api/docQueue';
 import { isOffline } from '../../utils/connectivity';
 import { showAlert } from '../../utils/confirm';
 import { VoiceInputButton } from '../../components/VoiceInputButton';
+import { AppDatePicker, AppTimePicker } from '../../components/AppDatePicker';
 import { colors } from '../../theme/colors';
-import type { StaffMenuStackParamList } from '../../navigation/types';
+import type { StaffPatientsStackParamList } from '../../navigation/types';
 
-type Props = NativeStackScreenProps<StaffMenuStackParamList, 'MenuIncidentReport'>;
+type Props = NativeStackScreenProps<StaffPatientsStackParamList, 'IncidentReport'>;
 
 /**
  * An incident report, filed from the field.
@@ -26,8 +27,11 @@ type Props = NativeStackScreenProps<StaffMenuStackParamList, 'MenuIncidentReport
  * Lists come from the server rather than this file so a type the phone offers and the
  * office does not cannot exist.
  */
-export function StaffIncidentReportScreen({ navigation }: Props) {
+export function StaffIncidentReportScreen({ navigation, route }: Props) {
   const { token, handleUnauthorized } = useAuth();
+  // Present when filed from a patient's profile; absent if ever opened on its own.
+  const patientId = route.params?.patientId;
+  const patientName = route.params?.patientName;
 
   const [options, setOptions] = useState<staffApi.IncidentReportOptions | null>(null);
   const [recent, setRecent] = useState<staffApi.IncidentReportRow[]>([]);
@@ -90,6 +94,7 @@ export function StaffIncidentReportScreen({ navigation }: Props) {
 
   const canSubmit =
     !!incidentDate &&
+    incidentDate <= today &&
     location.trim().length > 0 &&
     types.length > 0 &&
     description.trim().length >= 10 &&
@@ -102,6 +107,9 @@ export function StaffIncidentReportScreen({ navigation }: Props) {
     severity,
     description: description.trim(),
     types,
+    // The patient the profile was open on. Sent only when there is one, so the server's
+    // assignment check is not asked about a patient nobody named.
+    ...(patientId ? { patient_id: patientId } : {}),
     injury_level: injuryLevel,
     witnessed,
     witness_names: witnessNames.trim() || undefined,
@@ -200,28 +208,47 @@ export function StaffIncidentReportScreen({ navigation }: Props) {
           Report what happened while it is fresh. The office reviews and completes the record.
         </Text>
 
+        {/* Said plainly, because the report is filed against this patient and the
+            caregiver should not have to infer that from how they got here. */}
+        {patientName ? (
+          <View style={styles.patientBanner}>
+            <Ionicons name="person-outline" size={16} color="#0F172A" />
+            <Text style={styles.patientBannerText}>About {patientName}</Text>
+          </View>
+        ) : null}
+
         {/* ── When and where ─────────────────────────────────────────────── */}
         <Text style={styles.section}>When and where</Text>
         <View style={styles.row}>
           <View style={styles.half}>
             <Text style={styles.label}>Date</Text>
-            <TextInput
+            {/* ISO, because that is what the API stores. The picker's own display
+                formatting is separate from the value it hands back. */}
+            <AppDatePicker
               value={incidentDate}
-              onChangeText={setIncidentDate}
-              placeholder="YYYY-MM-DD"
-              style={styles.input}
+              onChange={setIncidentDate}
+              format="YYYY-MM-DD"
+              maxDate={today}
+              placeholder="Select date"
             />
           </View>
           <View style={styles.half}>
             <Text style={styles.label}>Time</Text>
-            <TextInput
+            <AppTimePicker
               value={incidentTime}
-              onChangeText={setIncidentTime}
-              placeholder="HH:MM"
-              style={styles.input}
+              onChange={setIncidentTime}
+              format="24h"
+              placeholder="Select time"
             />
           </View>
         </View>
+
+        {/* The picker accepts maxDate but does not enforce it, so a caregiver can page
+            forward a month and choose a day that has not happened. An incident report
+            dated in the future is not a record of anything. */}
+        {incidentDate > today ? (
+          <Text style={styles.warn}>An incident cannot be dated in the future.</Text>
+        ) : null}
 
         <Text style={styles.label}>Location</Text>
         <TextInput
@@ -418,6 +445,17 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   pad: { padding: 16, paddingBottom: 48 },
   lead: { fontSize: 13, color: '#475569', marginBottom: 16, lineHeight: 19 },
+  patientBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 6,
+  },
+  patientBannerText: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
   section: {
     fontSize: 12,
     fontWeight: '700',

@@ -9,6 +9,9 @@ export type AuthStackParamList = {
 export type StaffPatientsStackParamList = {
   PatientsList: undefined;
   PatientDetail: { patientId: number };
+  // Filed from the patient it concerns, so the report carries the patient without the
+  // caregiver having to pick them again.
+  IncidentReport: { patientId?: number; patientName?: string } | undefined;
 };
 
 export type StaffHomeStackParamList = {
@@ -22,10 +25,7 @@ export type StaffHomeStackParamList = {
 export type StaffMenuStackParamList = {
   MenuHome: undefined;
   MenuAccount: undefined;
-  MenuCovid: undefined;
-  MenuImmunizations: undefined;
   MenuCertification: undefined;
-  MenuIncidentReport: undefined;
   MenuPay: undefined;
   MenuMileage: undefined;
   MenuEvv: { scheduleId?: number } | undefined;
