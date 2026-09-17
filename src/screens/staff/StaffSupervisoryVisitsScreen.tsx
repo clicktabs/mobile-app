@@ -23,8 +23,14 @@ import { ApiError } from '../../api/client';
  * without having made one.
  */
 export function StaffSupervisoryVisitsScreen() {
-  const { token, handleUnauthorized } = useAuth();
+  const { token, handleUnauthorized, staffUser } = useAuth();
   const navigation = useNavigation<any>();
+
+  /** Supervising is a nurse's function, and never over yourself. */
+  const canRecord = (row: staffApi.SupervisoryVisitRow) =>
+    !!row.aide_id &&
+    row.aide_id !== staffUser?.id &&
+    !['home_health_aide', 'caregiver'].includes(staffUser?.role ?? '');
 
   const [rows, setRows] = useState<staffApi.SupervisoryVisitRow[]>([]);
   const [agencyWide, setAgencyWide] = useState(false);
@@ -141,20 +147,31 @@ export function StaffSupervisoryVisitsScreen() {
                       </Text>
                     </View>
 
-                    {r.patient_id ? (
+                    {/*
+                      Opens the observation form for this aide on this patient.
+
+                      Not offered to the aide herself, or to an aide-role account: the
+                      observation is *of* the aide *by* a nurse, and a self-signed one
+                      would advance the next due date on the strength of nothing. The
+                      server refuses it too — this only avoids offering a button that
+                      answers 403.
+                    */}
+                    {r.patient_id && canRecord(r) ? (
                       <Pressable
                         hitSlop={8}
-                        style={styles.openPatient}
-                        accessibilityLabel="Open patient"
+                        style={styles.recordBtn}
+                        accessibilityLabel="Record supervisory visit"
                         onPress={() =>
-                          navigation.navigate('Patients', {
-                            screen: 'PatientDetail',
-                            params: { patientId: r.patient_id },
+                          navigation.navigate('SupervisoryVisitForm', {
+                            patientId: r.patient_id as number,
+                            patientName: r.patient_name,
+                            aideId: r.aide_id as number,
+                            aideName: r.aide_name,
                           })
                         }
                       >
-                        <Text style={styles.openPatientText}>Open patient</Text>
-                        <Ionicons name="chevron-forward" size={14} color="#0F172A" />
+                        <Text style={styles.recordBtnText}>RECORD VISIT</Text>
+                        <Ionicons name="chevron-forward" size={13} color="#fff" />
                       </Pressable>
                     ) : null}
                   </View>
@@ -221,8 +238,17 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 11, fontWeight: '800', color: '#854D0E' },
   badgeTextOverdue: { color: '#fff' },
 
-  openPatient: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  openPatientText: { fontSize: 11, fontWeight: '700', color: '#0F172A' },
+  recordBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#B4006E',
+    borderRadius: 999,
+    paddingLeft: 10,
+    paddingRight: 6,
+    paddingVertical: 6,
+  },
+  recordBtnText: { fontSize: 10, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
 
   footnote: { fontSize: 11, color: '#94A3B8', marginTop: 8, lineHeight: 16 },
 });

@@ -12,6 +12,7 @@ import { StaffLoginScreen } from '../screens/auth/StaffLoginScreen';
 import { PatientLoginScreen } from '../screens/auth/PatientLoginScreen';
 import { StaffDashboardScreen } from '../screens/staff/StaffDashboardScreen';
 import { StaffSupervisoryVisitsScreen } from '../screens/staff/StaffSupervisoryVisitsScreen';
+import { StaffSupervisoryVisitFormScreen } from '../screens/staff/StaffSupervisoryVisitFormScreen';
 import { StaffScheduleScreen } from '../screens/staff/StaffScheduleScreen';
 import { StaffCreateScheduleScreen } from '../screens/staff/StaffCreateScheduleScreen';
 import { StaffSkilledNurseVisitScreen } from '../screens/staff/StaffSkilledNurseVisitScreen';
@@ -81,6 +82,7 @@ function StaffHomeNavigator() {
     <StaffHomeStack.Navigator screenOptions={{ headerShown: false }}>
       <StaffHomeStack.Screen name="HomeMain" component={StaffDashboardScreen} />
       <StaffHomeStack.Screen name="SupervisoryVisits" component={StaffSupervisoryVisitsScreen} />
+      <StaffHomeStack.Screen name="SupervisoryVisitForm" component={StaffSupervisoryVisitFormScreen} />
       <StaffHomeStack.Screen name="RouteVisits" component={StaffMenuRouteVisitsScreen} />
       <StaffHomeStack.Screen name="ElectronicIdBadge" component={StaffMenuBadgeScreen} />
       <StaffHomeStack.Screen name="AvailableShifts" component={StaffAvailableShiftsScreen} />

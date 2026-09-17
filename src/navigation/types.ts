@@ -18,6 +18,19 @@ export type StaffHomeStackParamList = {
   HomeMain: undefined;
   /** Aide supervision that has come due — the list behind the dashboard tile. */
   SupervisoryVisits: undefined;
+  /**
+   * A nurse's record of observing an aide in the home.
+   *
+   * The aide is carried in rather than picked, because the row that opened this names
+   * both her and the patient — and the server refuses a visit whose supervisee is the
+   * person filing it.
+   */
+  SupervisoryVisitForm: {
+    patientId: number;
+    patientName: string;
+    aideId: number;
+    aideName?: string | null;
+  };
   RouteVisits: undefined;
   ElectronicIdBadge: undefined;
   AvailableShifts: undefined;

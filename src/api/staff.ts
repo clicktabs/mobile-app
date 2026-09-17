@@ -178,6 +178,7 @@ export type SupervisoryVisitRow = {
   patient_id?: number | null;
   patient_name: string;
   /** Who is being supervised. On a manager's list this is the point of the row. */
+  aide_id?: number | null;
   aide_name?: string | null;
   next_due_date?: string | null;
   is_overdue: boolean;
@@ -187,6 +188,53 @@ export type SupervisoryVisitRow = {
   interval?: string | null;
   compliance_type?: string | null;
 };
+
+export type SupervisoryFormOptions = {
+  /** The 15 observations, in the order the agency's form asks them. */
+  items: string[];
+  ratings: { value: string; label: string }[];
+  care_types: { value: string; label: string }[];
+};
+
+export type SupervisoryVisitPayload = {
+  patient_id: number;
+  /** The aide being observed. The server refuses a visit whose supervisee is the caller. */
+  supervisee_id: number;
+  visit_date: string;
+  staff_present?: 'yes' | 'no';
+  care_type?: string[];
+  evaluations: { rating?: string | null; comment?: string | null }[];
+  care_plan_meets_needs?: boolean;
+  care_plan_revised?: boolean;
+  care_plan_date_revised?: string;
+  supervisor_comments?: string;
+  strengths_observed?: string;
+  areas_for_improvement?: string;
+  /**
+   * The patient's signature, as an SVG path — the same shape as every other signature
+   * in this app. It is what attests the observation happened in the home.
+   *
+   * The server requires this or a reason, never neither, and never both silently: a
+   * patient who cannot hold a stylus should produce a truthful record, not a signature
+   * somebody else made for them.
+   */
+  patient_signature?: string;
+  patient_signature_name?: string;
+  patient_unable_to_sign_reason?: string;
+};
+
+export function getSupervisoryFormOptions(token: string) {
+  return apiRequest<ApiEnvelope<SupervisoryFormOptions>>('mobile/staff/supervisory-visits/options', {
+    token,
+  });
+}
+
+export function saveSupervisoryVisit(token: string, payload: SupervisoryVisitPayload) {
+  return apiRequest<{ success: boolean; message?: string; data?: { id: number } }>(
+    'mobile/staff/supervisory-visits',
+    { method: 'POST', token, body: payload },
+  );
+}
 
 export function getSupervisoryVisits(token: string) {
   return apiRequest<
