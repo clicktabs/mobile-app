@@ -8,7 +8,27 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
+
+// On Web, NetInfo's internal reachability check triggers unhandled AbortError
+// rejections because it cancels CORS-blocked fetch calls without catching the promise.
+// We disable its reachability runner on web and rely on our own mobile/ping probe.
+if (Platform.OS === 'web') {
+  NetInfo.configure({
+    reachabilityShouldRun: () => false,
+  });
+
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('unhandledrejection', (event) => {
+      if (
+        event.reason?.name === 'AbortError' ||
+        event.reason?.message?.includes('aborted')
+      ) {
+        event.preventDefault();
+      }
+    });
+  }
+}
 
 import { apiRequest } from '../api/client';
 import { flushDocumentQueue, pendingDocumentCount } from '../api/docQueue';
@@ -157,7 +177,9 @@ export function ConnectivityProvider({ children }: { children: React.ReactNode }
     const unsubscribe = NetInfo.addEventListener((netState) => {
       // isInternetReachable is null while unknown; treat that as "maybe" and let the
       // probe decide rather than declaring either way.
-      const connected = netState.isConnected === true && netState.isInternetReachable !== false;
+      const connected =
+        netState.isConnected === true &&
+        (Platform.OS === 'web' || netState.isInternetReachable !== false);
 
       if (connected) {
         reportNetworkAvailable();

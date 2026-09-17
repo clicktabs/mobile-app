@@ -242,7 +242,11 @@ export function StaffScheduleScreen() {
                 const late = isLate(item);
                 return (
                   <View key={item.id} style={[styles.row, late && styles.rowLate, missed && styles.rowMissed]}>
-                    <View style={styles.rowMain}>
+                    <Pressable
+                      style={styles.rowMain}
+                      onPress={() => openEvvForVisit(item)}
+                      accessibilityLabel="Open visit EVV"
+                    >
                       <Text style={styles.name} numberOfLines={1}>
                         {item.patient_name || item.title}
                       </Text>
@@ -274,7 +278,15 @@ export function StaffScheduleScreen() {
                           </Text>
                         )}
                       </View>
-                    </View>
+                      {item.employee_name ? (
+                        <View style={styles.assigneeRow}>
+                          <Ionicons name="person-outline" size={12} color={colors.textMuted} />
+                          <Text style={styles.assigneeText} numberOfLines={1}>
+                            Assigned: {item.employee_name}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </Pressable>
                     <View style={styles.rowActions}>
                       {item.patient_id ? (
                         <Pressable
@@ -330,21 +342,21 @@ export function StaffScheduleScreen() {
                           the two screens agree rather than each inventing a colour.
                         */
                         <Pressable
-                          accessibilityLabel="Continue visit"
+                          accessibilityLabel="Continue visit and clock out"
                           style={styles.inProgressActionBtn}
                           onPress={() => openEvvForVisit(item)}
                         >
-                          <Ionicons name="time-outline" size={16} color="#1D4ED8" />
-                          <Text style={styles.inProgressActionBtnText}>In Visit</Text>
+                          <Ionicons name="stopwatch" size={15} color="#1D4ED8" />
+                          <Text style={styles.inProgressActionBtnText}>Clock Out</Text>
                         </Pressable>
                       ) : !completed ? (
                         <Pressable
-                          accessibilityLabel="Complete visit"
-                          hitSlop={8}
-                          style={[styles.iconBtn, styles.completeBtn]}
+                          accessibilityLabel="Clock in"
+                          style={styles.clockInBtn}
                           onPress={() => openEvvForVisit(item)}
                         >
-                          <Ionicons name="checkmark" size={18} color="#fff" />
+                          <Ionicons name="play" size={13} color="#fff" />
+                          <Text style={styles.clockInBtnText}>Clock In</Text>
                         </Pressable>
                       ) : (
                         <View style={[styles.iconBtn, styles.doneChip]}>
@@ -490,6 +502,31 @@ const styles = StyleSheet.create({
   },
   docActionBtnText: {
     color: '#854D0E',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  assigneeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  assigneeText: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontWeight: '500',
+  },
+  clockInBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.brandMagenta,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  clockInBtnText: {
+    color: '#fff',
     fontSize: 12,
     fontWeight: '800',
   },

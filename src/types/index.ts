@@ -52,6 +52,9 @@ export type ScheduleItem = {
   priority?: string;
   special_instructions?: string;
   staff_name?: string;
+  employee_id?: number;
+  employee_name?: string;
+  is_assigned?: boolean;
   documentation_completed?: boolean;
   needs_documentation?: boolean;
   is_late?: boolean;

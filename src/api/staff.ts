@@ -731,6 +731,26 @@ export function getStaffMessages(token: string, folder = 'inbox') {
   });
 }
 
+export function getStaffMessage(token: string, messageId: number) {
+  return apiRequest<ApiEnvelope<Record<string, unknown>>>(`mobile/staff/messages/${messageId}`, {
+    token,
+  });
+}
+
+export function markStaffMessageRead(token: string, messageId: number) {
+  return apiRequest<ApiEnvelope<{ success: boolean }>>(`mobile/staff/messages/${messageId}/read`, {
+    method: 'PATCH',
+    token,
+  });
+}
+
+export function markStaffMessageUnread(token: string, messageId: number) {
+  return apiRequest<ApiEnvelope<{ success: boolean }>>(`mobile/staff/messages/${messageId}/unread`, {
+    method: 'PATCH',
+    token,
+  });
+}
+
 export function sendStaffMessage(
   token: string,
   body: {
@@ -739,6 +759,8 @@ export function sendStaffMessage(
     to?: string;
     subject: string;
     body: string;
+    reply_to_id?: number;
+    thread_id?: number;
   },
 ) {
   return apiRequest<ApiEnvelope<{ id: number }>>('mobile/staff/messages', {

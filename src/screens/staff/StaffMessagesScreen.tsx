@@ -32,8 +32,12 @@ type Msg = {
   subject?: string;
   body?: string;
   from?: string;
+  from_email?: string;
+  to?: string;
   created_at?: string;
   is_read?: boolean;
+  reply_to_id?: number;
+  thread_id?: number;
 };
 
 export function StaffMessagesScreen() {
@@ -49,6 +53,8 @@ export function StaffMessagesScreen() {
   const [toEmail, setToEmail] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [replyToId, setReplyToId] = useState<number | undefined>(undefined);
+  const [threadId, setThreadId] = useState<number | undefined>(undefined);
   const [sending, setSending] = useState(false);
   const [selected, setSelected] = useState<Msg | null>(null);
 
@@ -56,11 +62,8 @@ export function StaffMessagesScreen() {
     if (!token) return;
     setError(null);
     try {
-      const apiFolder = folder === 'inbox' ? 'inbox' : 'all';
-      const res = await staffApi.getStaffMessages(token, apiFolder);
-      let data = (res.data || []) as Msg[];
-      if (folder === 'sent') data = [];
-      if (folder === 'deleted') data = [];
+      const res = await staffApi.getStaffMessages(token, folder);
+      const data = (res.data || []) as Msg[];
       setItems(data);
       setUpdatedAt(new Date());
     } catch (e) {
@@ -86,7 +89,7 @@ export function StaffMessagesScreen() {
     const q = search.trim().toLowerCase();
     if (!q) return items;
     return items.filter((m) =>
-      `${m.from || ''} ${m.subject || ''} ${m.body || ''}`.toLowerCase().includes(q),
+      `${m.from || ''} ${m.to || ''} ${m.subject || ''} ${m.body || ''}`.toLowerCase().includes(q),
     );
   }, [items, search]);
 
@@ -94,7 +97,81 @@ export function StaffMessagesScreen() {
     setToEmail('');
     setSubject('');
     setBody('');
+    setReplyToId(undefined);
+    setThreadId(undefined);
   };
+
+  const openMessage = useCallback(
+    async (m: Msg) => {
+      setSelected(m);
+      if (folder === 'inbox' && !m.is_read && token) {
+        setItems((prev) => prev.map((item) => (item.id === m.id ? { ...item, is_read: true } : item)));
+        setSelected((prev) => (prev && prev.id === m.id ? { ...prev, is_read: true } : prev));
+        try {
+          await staffApi.markStaffMessageRead(token, m.id);
+        } catch {
+          // Non-blocking UI update
+        }
+      }
+    },
+    [token, folder],
+  );
+
+  const toggleReadStatus = useCallback(
+    async (m: Msg, fromViewer = false) => {
+      if (!token) return;
+      const nextRead = !m.is_read;
+      setItems((prev) => prev.map((item) => (item.id === m.id ? { ...item, is_read: nextRead } : item)));
+
+      if (fromViewer) {
+        // In Gmail, tapping "Mark as unread" closes the viewer so you return to the inbox
+        // with the message unread, rather than staying inside the message you just marked unread.
+        setSelected(null);
+      } else if (selected && selected.id === m.id) {
+        setSelected((prev) => (prev ? { ...prev, is_read: nextRead } : null));
+      }
+
+      try {
+        if (nextRead) {
+          await staffApi.markStaffMessageRead(token, m.id);
+        } else {
+          await staffApi.markStaffMessageUnread(token, m.id);
+        }
+      } catch (e) {
+        // Revert on failure
+        setItems((prev) => prev.map((item) => (item.id === m.id ? { ...item, is_read: m.is_read } : item)));
+        if (fromViewer) {
+          setSelected(m);
+        } else if (selected && selected.id === m.id) {
+          setSelected((prev) => (prev ? { ...prev, is_read: m.is_read } : null));
+        }
+        showAlert('Update failed', 'Could not update read status.');
+      }
+    },
+    [token, selected],
+  );
+
+  const handleReply = useCallback((m: Msg) => {
+    const replyRecipient = m.from_email || (m.from && m.from.includes('@') ? m.from : '');
+    const cleanSubject = (m.subject || '').trim();
+    const replySubject = cleanSubject.toLowerCase().startsWith('re:')
+      ? cleanSubject
+      : `Re: ${cleanSubject}`;
+    const quotedBody = `\n\n--- On ${m.created_at || 'earlier'}, ${m.from || 'sender'} wrote: ---\n${(
+      m.body || ''
+    )
+      .split('\n')
+      .map((line) => `> ${line}`)
+      .join('\n')}`;
+
+    setToEmail(replyRecipient);
+    setSubject(replySubject);
+    setBody(quotedBody);
+    setReplyToId(m.id);
+    setThreadId(m.thread_id || m.id);
+    setSelected(null);
+    setCompose(true);
+  }, []);
 
   const send = async () => {
     if (!token) return;
@@ -117,11 +194,13 @@ export function StaffMessagesScreen() {
         recipient_email: email,
         subject: subject.trim(),
         body: body.trim(),
+        reply_to_id: replyToId,
+        thread_id: threadId,
       });
       showAlert('Message sent', `Delivered to ${email}.`);
       setCompose(false);
       resetCompose();
-      setFolder('inbox');
+      setFolder('sent');
       await load();
     } catch (e) {
       showAlert('Send failed', e instanceof ApiError ? e.message : 'Could not send');
@@ -138,7 +217,10 @@ export function StaffMessagesScreen() {
           {
             icon: 'create-outline',
             label: 'Compose',
-            onPress: () => setCompose(true),
+            onPress: () => {
+              resetCompose();
+              setCompose(true);
+            },
           },
           {
             icon: 'refresh',
@@ -196,45 +278,91 @@ export function StaffMessagesScreen() {
                 <Text style={styles.emptySub}>
                   Messages you send and receive with Click Tabs users will show up here.
                 </Text>
-                <Pressable style={styles.composePill} onPress={() => setCompose(true)}>
+                <Pressable
+                  style={styles.composePill}
+                  onPress={() => {
+                    resetCompose();
+                    setCompose(true);
+                  }}
+                >
                   <Ionicons name="pencil" size={18} color="#fff" />
                   <Text style={styles.composePillText}>Compose</Text>
                 </Pressable>
               </View>
             ) : (
-              filtered.map((m) => (
-                <Pressable key={m.id} style={styles.row} onPress={() => setSelected(m)}>
-                  {!m.is_read ? <View style={styles.unreadDot} /> : <View style={styles.readPad} />}
-                  <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{(m.from || 'C')[0]?.toUpperCase()}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.rowTop}>
-                      <Text style={[styles.from, !m.is_read && styles.unreadText]} numberOfLines={1}>
-                        {m.from || 'Click Tabs'}
-                      </Text>
-                      <Text style={styles.date}>
-                        {m.created_at
-                          ? new Date(m.created_at.replace(' ', 'T')).toLocaleDateString()
-                          : ''}
+              filtered.map((m) => {
+                const isUnread = !m.is_read;
+                const displayName =
+                  folder === 'sent' ? `To: ${m.to || 'Recipient'}` : m.from || 'Click Tabs';
+                return (
+                  <Pressable
+                    key={m.id}
+                    style={[styles.row, isUnread && styles.rowUnread]}
+                    onPress={() => openMessage(m)}
+                  >
+                    {folder === 'inbox' ? (
+                      <Pressable
+                        hitSlop={10}
+                        style={styles.unreadToggleBtn}
+                        onPress={() => toggleReadStatus(m)}
+                        accessibilityLabel={isUnread ? 'Mark as read' : 'Mark as unread'}
+                      >
+                        <Ionicons
+                          name={isUnread ? 'mail-unread' : 'mail-outline'}
+                          size={18}
+                          color={isUnread ? '#2563EB' : colors.textMuted}
+                        />
+                      </Pressable>
+                    ) : null}
+
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>
+                        {(displayName.replace(/^To:\s*/, '') || 'C')[0]?.toUpperCase()}
                       </Text>
                     </View>
-                    <Text style={[styles.subject, !m.is_read && styles.unreadText]} numberOfLines={1}>
-                      {m.subject || '(no subject)'}
-                    </Text>
-                    <Text style={styles.preview} numberOfLines={1}>
-                      {m.body}
-                    </Text>
-                  </View>
-                </Pressable>
-              ))
+
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={styles.rowTop}>
+                        <Text
+                          style={[styles.from, isUnread && styles.unreadText]}
+                          numberOfLines={1}
+                        >
+                          {displayName}
+                        </Text>
+                        <Text style={[styles.date, isUnread && styles.unreadDate]}>
+                          {m.created_at
+                            ? new Date(m.created_at.replace(' ', 'T')).toLocaleDateString()
+                            : ''}
+                        </Text>
+                      </View>
+                      <Text
+                        style={[styles.subject, isUnread && styles.unreadText]}
+                        numberOfLines={1}
+                      >
+                        {m.subject || '(no subject)'}
+                      </Text>
+                      <Text style={styles.preview} numberOfLines={1}>
+                        {m.body}
+                      </Text>
+                    </View>
+
+                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                  </Pressable>
+                );
+              })
             )}
           </ScrollView>
         )}
       </View>
 
       {filtered.length > 0 ? (
-        <Pressable style={styles.fab} onPress={() => setCompose(true)}>
+        <Pressable
+          style={styles.fab}
+          onPress={() => {
+            resetCompose();
+            setCompose(true);
+          }}
+        >
           <Ionicons name="pencil" size={20} color="#fff" />
           <Text style={styles.fabText}>Compose</Text>
         </Pressable>
@@ -242,14 +370,16 @@ export function StaffMessagesScreen() {
 
       <LastUpdatedBar at={updatedAt} />
 
-      {/* Gmail-like compose */}
+      {/* Compose Modal */}
       <Modal visible={compose} animationType="slide" onRequestClose={() => setCompose(false)}>
         <AppShell>
           <View style={styles.composeHeader}>
             <Pressable onPress={() => setCompose(false)} hitSlop={10}>
               <Ionicons name="arrow-back" size={24} color={colors.ink} />
             </Pressable>
-            <Text style={styles.composeTitle}>New message</Text>
+            <Text style={styles.composeTitle}>
+              {replyToId ? 'Reply message' : 'New message'}
+            </Text>
             <Pressable
               onPress={send}
               disabled={sending}
@@ -301,22 +431,76 @@ export function StaffMessagesScreen() {
         </AppShell>
       </Modal>
 
+      {/* Message Detail Viewer Modal */}
       <Modal visible={!!selected} animationType="slide" onRequestClose={() => setSelected(null)}>
         <AppShell>
           <View style={styles.composeHeader}>
-            <Pressable onPress={() => setSelected(null)} hitSlop={10}>
+            <Pressable onPress={() => setSelected(null)} hitSlop={10} accessibilityLabel="Back">
               <Ionicons name="arrow-back" size={24} color={colors.ink} />
             </Pressable>
             <Text style={styles.composeTitle} numberOfLines={1}>
               {selected?.subject || 'Message'}
             </Text>
-            <View style={{ width: 72 }} />
+            <View style={styles.viewerHeaderActions}>
+              {selected && folder === 'inbox' ? (
+                <Pressable
+                  hitSlop={8}
+                  style={styles.headerActionBtn}
+                  onPress={() => toggleReadStatus(selected, true)}
+                  accessibilityLabel="Mark as unread"
+                >
+                  <Ionicons
+                    name="mail-unread-outline"
+                    size={22}
+                    color={colors.ink}
+                  />
+                </Pressable>
+              ) : null}
+              {selected && folder !== 'sent' ? (
+                <Pressable
+                  hitSlop={8}
+                  style={styles.replyHeaderBtn}
+                  onPress={() => handleReply(selected)}
+                  accessibilityLabel="Reply"
+                >
+                  <Ionicons name="arrow-undo" size={16} color="#fff" />
+                  <Text style={styles.replyHeaderBtnText}>Reply</Text>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
-          <ScrollView contentContainerStyle={{ padding: 16 }}>
-            <Text style={styles.from}>{selected?.from || 'Click Tabs'}</Text>
-            <Text style={styles.date}>{selected?.created_at}</Text>
-            <Text style={[styles.subject, { marginTop: 12 }]}>{selected?.subject}</Text>
-            <Text style={{ marginTop: 12, color: colors.text, lineHeight: 22 }}>{selected?.body}</Text>
+          <ScrollView contentContainerStyle={styles.viewerScroll}>
+            <View style={styles.messageMetaBox}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {((folder === 'sent' ? selected?.to : selected?.from) || 'C')[0]?.toUpperCase()}
+                </Text>
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.fromName}>
+                  {folder === 'sent'
+                    ? `To: ${selected?.to || 'Recipient'}`
+                    : selected?.from || 'Click Tabs'}
+                </Text>
+                {selected?.from_email && folder !== 'sent' ? (
+                  <Text style={styles.fromEmailSub}>{selected.from_email}</Text>
+                ) : null}
+                <Text style={styles.date}>{selected?.created_at}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.subjectDetail}>{selected?.subject || '(no subject)'}</Text>
+            <View style={styles.divider} />
+            <Text style={styles.bodyDetail}>{selected?.body}</Text>
+
+            {selected && folder !== 'sent' ? (
+              <View style={styles.replyFooter}>
+                <Pressable style={styles.replyPill} onPress={() => handleReply(selected)}>
+                  <Ionicons name="arrow-undo-outline" size={18} color={colors.brandMagenta} />
+                  <Text style={styles.replyPillText}>Reply</Text>
+                </Pressable>
+              </View>
+            ) : null}
           </ScrollView>
         </AppShell>
       </Modal>
@@ -361,21 +545,28 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     backgroundColor: '#fff',
   },
+  rowUnread: {
+    backgroundColor: '#F8FAFC',
+  },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#FFE4EC',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: colors.brandMagenta, fontWeight: '800' },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#3B82F6' },
-  readPad: { width: 8 },
-  from: { flex: 1, fontWeight: '600', color: colors.ink, fontSize: 14 },
-  unreadText: { fontWeight: '800', color: '#000' },
+  avatarText: { color: colors.brandMagenta, fontWeight: '800', fontSize: 16 },
+  unreadToggleBtn: {
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  from: { flex: 1, fontWeight: '500', color: colors.ink, fontSize: 14 },
+  unreadText: { fontWeight: '800', color: '#0F172A' },
   date: { color: colors.textMuted, fontSize: 12 },
+  unreadDate: { color: '#2563EB', fontWeight: '700' },
   subject: { color: colors.text, marginTop: 2, fontSize: 14 },
   preview: { color: colors.textMuted, marginTop: 2, fontSize: 13 },
   fab: {
@@ -403,7 +594,13 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     backgroundColor: '#fff',
   },
-  composeTitle: { flex: 1, marginHorizontal: 12, fontSize: 17, fontWeight: '700', color: colors.ink },
+  composeTitle: {
+    flex: 1,
+    marginHorizontal: 10,
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.ink,
+  },
   sendBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -414,6 +611,29 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   sendBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  viewerHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerActionBtn: {
+    padding: 6,
+    borderRadius: 8,
+  },
+  replyHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.brandMagenta,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  replyHeaderBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
   composeBody: { paddingBottom: 40, backgroundColor: '#fff', flexGrow: 1 },
   composeField: {
     flexDirection: 'row',
@@ -444,5 +664,65 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
     outlineStyle: 'none' as any,
+  },
+  viewerScroll: {
+    padding: 16,
+    backgroundColor: '#fff',
+    flexGrow: 1,
+  },
+  messageMetaBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  fromName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  fromEmailSub: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  subjectDetail: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.ink,
+    lineHeight: 24,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 14,
+  },
+  bodyDetail: {
+    fontSize: 15,
+    color: colors.text,
+    lineHeight: 24,
+  },
+  replyFooter: {
+    marginTop: 32,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  replyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: colors.brandMagenta,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#FFF1F5',
+  },
+  replyPillText: {
+    color: colors.brandMagenta,
+    fontWeight: '700',
+    fontSize: 14,
   },
 });
