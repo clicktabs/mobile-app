@@ -37,11 +37,11 @@ import {
   StaffMenuAccountScreen,
   StaffMenuInfoScreen,
   StaffMenuBadgeScreen,
-  StaffMenuTimeScreen,
   StaffMenuMileageScreen,
   StaffMenuEvvScreen,
   StaffMenuSwitchAgencyScreen,
 } from '../screens/staff/StaffMenuScreen';
+import { StaffIncidentReportScreen } from '../screens/staff/StaffIncidentReportScreen';
 import { StaffMenuRouteVisitsScreen } from '../screens/staff/StaffRouteVisitsScreen';
 import { PatientHomeScreen } from '../screens/patient/PatientHomeScreen';
 import { PatientScheduleScreen } from '../screens/patient/PatientScheduleScreen';
@@ -120,13 +120,10 @@ function StaffMenuNavigator() {
     <StaffMenuStack.Navigator screenOptions={{ headerShown: false }}>
       <StaffMenuStack.Screen name="MenuHome" component={StaffMenuHomeScreen} />
       <StaffMenuStack.Screen name="MenuAccount" component={StaffMenuAccountScreen} />
-      <StaffMenuStack.Screen name="MenuNva" component={StaffMenuInfoScreen} />
       <StaffMenuStack.Screen name="MenuCovid" component={StaffMenuInfoScreen} />
       <StaffMenuStack.Screen name="MenuImmunizations" component={StaffMenuInfoScreen} />
-      <StaffMenuStack.Screen name="MenuContact" component={StaffMenuInfoScreen} />
       <StaffMenuStack.Screen name="MenuCertification" component={StaffLicensesScreen} />
-      <StaffMenuStack.Screen name="MenuUpdates" component={StaffMenuInfoScreen} />
-      <StaffMenuStack.Screen name="MenuTime" component={StaffMenuTimeScreen} />
+      <StaffMenuStack.Screen name="MenuIncidentReport" component={StaffIncidentReportScreen} />
       <StaffMenuStack.Screen name="MenuPay" component={StaffPayrollScreen} />
       <StaffMenuStack.Screen name="MenuMileage" component={StaffMenuMileageScreen} />
       <StaffMenuStack.Screen name="MenuEvv" component={StaffMenuEvvScreen} />

@@ -22,13 +22,10 @@ export type StaffHomeStackParamList = {
 export type StaffMenuStackParamList = {
   MenuHome: undefined;
   MenuAccount: undefined;
-  MenuNva: undefined;
   MenuCovid: undefined;
   MenuImmunizations: undefined;
-  MenuContact: undefined;
   MenuCertification: undefined;
-  MenuUpdates: undefined;
-  MenuTime: undefined;
+  MenuIncidentReport: undefined;
   MenuPay: undefined;
   MenuMileage: undefined;
   MenuEvv: { scheduleId?: number } | undefined;

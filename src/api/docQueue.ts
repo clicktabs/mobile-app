@@ -21,7 +21,7 @@ const REJECTED_KEY = 'ct_doc_offline_rejected';
 /** Give up re-sending after this many attempts and park it for review. */
 const MAX_ATTEMPTS = 5;
 
-export type QueuedDocKind = 'nursing_note' | 'hha_note' | 'missed_visit_note';
+export type QueuedDocKind = 'nursing_note' | 'hha_note' | 'missed_visit_note' | 'incident_report';
 
 export type QueuedDoc = {
   id: string;
@@ -53,12 +53,15 @@ function newId(): string {
 }
 
 /**
- * Hold a document until there is a connection.
+ * Kinds that belong to a visit, so a later save replaces the queued one.
  *
- * One queued document per schedule per kind: writing the note again before it has synced
- * replaces the earlier version rather than queueing a second one, because two notes for
- * one visit is not what the caregiver meant.
+ * Re-writing a visit note before it syncs means the caregiver corrected it; two notes for
+ * one visit is not what they meant. An incident report is not one of these — it is an
+ * event in its own right, and two reports are two things that happened.
  */
+const REPLACED_PER_SCHEDULE: QueuedDocKind[] = ['nursing_note', 'hha_note', 'missed_visit_note'];
+
+/** Hold a document until there is a connection. */
 export async function queueDocument(
   kind: QueuedDocKind,
   scheduleId: number,
@@ -75,9 +78,9 @@ export async function queueDocument(
     attempts: 0,
   };
 
-  const without = list.filter(
-    (d) => !(d.kind === kind && Number(d.schedule_id) === Number(scheduleId)),
-  );
+  const without = REPLACED_PER_SCHEDULE.includes(kind)
+    ? list.filter((d) => !(d.kind === kind && Number(d.schedule_id) === Number(scheduleId)))
+    : list;
 
   await storageSet(QUEUE_KEY, JSON.stringify([...without, doc]));
 
@@ -117,6 +120,9 @@ async function send(token: string, doc: QueuedDoc): Promise<void> {
       return;
     case 'missed_visit_note':
       await staffApi.saveMissedVisitNote(token, doc.schedule_id, payload);
+      return;
+    case 'incident_report':
+      await staffApi.saveIncidentReport(token, payload);
       return;
     default:
       throw new ApiError(`Unknown queued document kind: ${doc.kind}`, 400);

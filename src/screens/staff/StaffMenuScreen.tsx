@@ -3,12 +3,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import {
-  AppHeader,
-  AppShell,
-  MenuRow,
-  openSupportEmail,
-} from '../../components/chrome';
+import { AppHeader, AppShell, MenuRow } from '../../components/chrome';
 import { BrandLogo } from '../../components/BrandLogo';
 import { Button, Field, LoadingBlock, SectionTitle, Subtitle } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
@@ -98,19 +93,9 @@ export function StaffMenuHomeScreen({ navigation }: MenuProps) {
             onPress={() => navigation.navigate('MenuCovid')}
           />
           <MenuRow
-            icon="clipboard-outline"
-            label="NVA Log"
-            onPress={() => navigation.navigate('MenuNva')}
-          />
-          <MenuRow
             icon="medkit-outline"
             label="Immunizations"
             onPress={() => navigation.navigate('MenuImmunizations')}
-          />
-          <MenuRow
-            icon="mail-outline"
-            label="Contact Us"
-            onPress={() => navigation.navigate('MenuContact')}
           />
           <MenuRow
             icon="ribbon-outline"
@@ -118,14 +103,9 @@ export function StaffMenuHomeScreen({ navigation }: MenuProps) {
             onPress={() => navigation.navigate('MenuCertification')}
           />
           <MenuRow
-            icon="sparkles-outline"
-            label="Product Updates"
-            onPress={() => navigation.navigate('MenuUpdates')}
-          />
-          <MenuRow
-            icon="time-outline"
-            label="Time Clock"
-            onPress={() => navigation.navigate('MenuTime')}
+            icon="warning-outline"
+            label="Incident Report"
+            onPress={() => navigation.navigate('MenuIncidentReport')}
           />
           <MenuRow
             icon="wallet-outline"
@@ -136,11 +116,6 @@ export function StaffMenuHomeScreen({ navigation }: MenuProps) {
             icon="car-outline"
             label="Mileage"
             onPress={() => navigation.navigate('MenuMileage')}
-          />
-          <MenuRow
-            icon="navigate-outline"
-            label="EVV"
-            onPress={() => navigation.navigate('MenuEvv', { scheduleId: 0 })}
           />
         </View>
 
@@ -434,29 +409,20 @@ export function StaffMenuInfoScreen({
   route,
 }: NativeStackScreenProps<
   StaffMenuStackParamList,
-  'MenuNva' | 'MenuCovid' | 'MenuImmunizations' | 'MenuCertification' | 'MenuUpdates' | 'MenuContact'
+  'MenuCovid' | 'MenuImmunizations' | 'MenuCertification'
 >) {
   const titles: Record<string, string> = {
-    MenuNva: 'NVA Log',
     MenuCovid: 'My COVID-19 Screening(s)',
     MenuImmunizations: 'Immunizations',
     MenuCertification: 'Click Tabs Certification',
-    MenuUpdates: 'Product Updates',
-    MenuContact: 'Contact Us',
   };
   const bodies: Record<string, string> = {
-    MenuNva:
-      'Non-Visit Activities (NVA) are managed in Click Tabs web under Admin → Non-Visit Activities. Mobile shows this entry so field staff can jump to Contact Us or Account while NVA logging stays on web.',
     MenuCovid:
       'COVID-19 screening is saved on the patient chart in Click Tabs web. Open a patient from the Patients tab to continue clinical documentation there.',
     MenuImmunizations:
       'Patient immunization logs live on the patient chart (intake meta) in Click Tabs web. Use Patients to open a chart, then record immunizations on web.',
     MenuCertification:
       'Organization and clinician certification / SOC certification reports are available in Click Tabs web Reports. Your mobile account role and organization are shown under Account.',
-    MenuUpdates:
-      'Route Visits, Electronic ID Badge, EVV check-in/out, offline visit download, and in-app email messaging are available in this mobile app. More field tools continue to roll out from the production API.',
-    MenuContact:
-      'Need help? Email Click Tabs support. You can also reach your agency administrator from your organization account.',
   };
 
   return (
@@ -475,9 +441,6 @@ export function StaffMenuInfoScreen({
       />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
         <Text style={styles.body}>{bodies[route.name]}</Text>
-        {route.name === 'MenuContact' ? (
-          <Button label="Email support" onPress={() => openSupportEmail()} />
-        ) : null}
         {route.name === 'MenuCovid' || route.name === 'MenuImmunizations' ? (
           <Button label="Go to Patients" onPress={() => navigation.getParent()?.navigate('Patients')} />
         ) : null}
@@ -584,77 +547,6 @@ export function StaffMenuBadgeScreen({
           <Text style={styles.noneBtnText}>Account</Text>
         </Pressable>
       </ScrollView>
-    </AppShell>
-  );
-}
-
-export function StaffMenuTimeScreen({
-  navigation,
-}: NativeStackScreenProps<StaffMenuStackParamList, 'MenuTime'>) {
-  const { token } = useAuth();
-  const [entries, setEntries] = useState<Record<string, any>[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    if (!token) return;
-    try {
-      const res = await staffApi.getTimeEntries(token);
-      setEntries(res.data || []);
-    } catch (e) {
-      showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  return (
-    <AppShell>
-      <AppHeader title="Time Clock" actions={[{ icon: 'arrow-back', onPress: () => navigation.goBack() }]} />
-      {loading ? (
-        <LoadingBlock />
-      ) : (
-        <ScrollView contentContainerStyle={{ padding: 16 }}>
-          <Button
-            label="Clock in"
-            onPress={async () => {
-              if (!token) return;
-              try {
-                await staffApi.clockIn(token);
-                showAlert('Clocked in');
-                load();
-              } catch (e) {
-                showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
-              }
-            }}
-          />
-          <Button
-            label="Clock out"
-            variant="secondary"
-            onPress={async () => {
-              if (!token) return;
-              try {
-                await staffApi.clockOut(token);
-                showAlert('Clocked out');
-                load();
-              } catch (e) {
-                showAlert('Failed', e instanceof ApiError ? e.message : 'Error');
-              }
-            }}
-          />
-          {entries.map((e) => (
-            <View key={String(e.id)} style={styles.card}>
-              <Text>
-                {String(e.clock_in)} → {String(e.clock_out || 'open')}
-              </Text>
-              <Text style={styles.meta}>Hours: {String(e.hours ?? '—')}</Text>
-            </View>
-          ))}
-        </ScrollView>
-      )}
     </AppShell>
   );
 }

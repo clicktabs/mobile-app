@@ -7,7 +7,6 @@ import {
   View,
   ViewStyle,
   Switch,
-  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -287,11 +286,6 @@ export function OfflineCard({
       </View>
     </View>
   );
-}
-
-export async function openSupportEmail(to = 'support@clicktabs.technology') {
-  const url = `mailto:${to}?subject=${encodeURIComponent('Click Tabs Support')}`;
-  await Linking.openURL(url);
 }
 
 const styles = StyleSheet.create({

@@ -1232,3 +1232,61 @@ export function disputeStaffPayrollPeriod(token: string, periodId: number, reaso
   });
 }
 
+
+/* ── Incident reporting ──────────────────────────────────────────────────── */
+
+export type IncidentReportOptions = {
+  types: Record<string, string>;
+  severities: Record<string, string>;
+  injury_levels: Record<string, string>;
+  yes_no_na: Record<string, string>;
+};
+
+export type IncidentReportRow = {
+  id: number;
+  report_number: string;
+  incident_date: string | null;
+  incident_time: string | null;
+  location: string;
+  severity: string;
+  status: string;
+  description: string;
+  types: string[];
+};
+
+export type IncidentReportPayload = {
+  incident_date: string;
+  incident_time?: string;
+  location: string;
+  severity: string;
+  description: string;
+  types: string[];
+  patient_id?: number;
+  injury_level?: string;
+  witnessed?: string;
+  witness_names?: string;
+  sentinel_event?: string;
+  interventions_provided?: string;
+  family_notified?: boolean;
+  physician_notified?: boolean;
+  follow_up_details?: string;
+};
+
+/** The lists the form offers, served so they cannot drift from the web form. */
+export function getIncidentReportOptions(token: string) {
+  return apiRequest<{ success: boolean } & IncidentReportOptions>(
+    'mobile/staff/incident-reports/options',
+    { token },
+  );
+}
+
+export function getIncidentReports(token: string) {
+  return apiRequest<ApiEnvelope<IncidentReportRow[]>>('mobile/staff/incident-reports', { token });
+}
+
+export function saveIncidentReport(token: string, payload: IncidentReportPayload) {
+  return apiRequest<ApiEnvelope<{ id: number; report_number: string; status: string }>>(
+    'mobile/staff/incident-reports',
+    { method: 'POST', token, body: payload },
+  );
+}
