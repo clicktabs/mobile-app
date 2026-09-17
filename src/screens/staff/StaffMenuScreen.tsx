@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { AppHeader, AppShell, MenuRow } from '../../components/chrome';
 import { BrandLogo } from '../../components/BrandLogo';
 import { Button, Field, LoadingBlock, SectionTitle, Subtitle } from '../../components/ui';
+import { scopeLabels } from '../../utils/scopeLabels';
 import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
@@ -17,9 +18,19 @@ import { colors } from '../../theme/colors';
 import type { StaffHomeStackParamList, StaffMenuStackParamList } from '../../navigation/types';
 import { StaffEvvScreen } from './StaffEvvScreen';
 
-function formatRole(role?: string | null) {
-  if (!role) return '—';
-  return role
+/**
+ * How a role reads on screen.
+ *
+ * Prefers the label the server sends, which is the org role's own display name — "Home
+ * Health Aide", "Caregiver (Personal Care)", "Director of Nursing". Tidying the slug is
+ * only a fallback: it would turn home_health_aide into "Home Health Aide" by luck, and
+ * "Caregiver (Personal Care)" into something the agency never chose.
+ */
+function formatRole(user?: { role?: string | null; role_label?: string | null } | null) {
+  if (user?.role_label) return user.role_label;
+  if (!user?.role) return '—';
+
+  return user.role
     .replace(/[_-]+/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -27,7 +38,10 @@ function formatRole(role?: string | null) {
 type MenuProps = NativeStackScreenProps<StaffMenuStackParamList, 'MenuHome'>;
 
 export function StaffMenuHomeScreen({ navigation }: MenuProps) {
-  const { token, logout } = useAuth();
+  const { token, logout, staffUser } = useAuth();
+  // A Director of Nursing is shown "Patients", not "My Patients" — the lists are the
+  // agency's, not hers.
+  const labels = scopeLabels(staffUser);
   // Reported, not chosen: the app decides this for itself now.
   const { state: connectivity } = useConnectivity();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -69,12 +83,12 @@ export function StaffMenuHomeScreen({ navigation }: MenuProps) {
           />
           <MenuRow
             icon="calendar-outline"
-            label="My Schedule"
+            label={labels.schedule}
             onPress={() => tabs?.navigate('Schedule')}
           />
           <MenuRow
             icon="people-outline"
-            label="My Patients"
+            label={labels.patients}
             onPress={() => tabs?.navigate('Patients')}
           />
           <MenuRow
@@ -231,7 +245,7 @@ export function StaffMenuAccountScreen({ navigation }: NativeStackScreenProps<St
           <View style={styles.metaList}>
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>Role</Text>
-              <Text style={styles.metaValue}>{formatRole(staffUser?.role)}</Text>
+              <Text style={styles.metaValue}>{formatRole(staffUser)}</Text>
             </View>
             <View style={styles.metaDivider} />
             <View style={styles.metaRow}>
@@ -474,7 +488,7 @@ export function StaffMenuBadgeScreen({
     await storageDelete(storageKey);
   };
 
-  const roleLabel = formatRole(staffUser?.role) || 'Caregiver';
+  const roleLabel = formatRole(staffUser);
   const orgName = staffUser?.organization_name || 'Click Tabs';
 
   return (

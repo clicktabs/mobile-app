@@ -37,6 +37,11 @@ export type StaffMenuStackParamList = {
 
 export type StaffScheduleStackParamList = {
   ScheduleList: undefined;
+  /**
+   * Booking a visit. Reached from the calendar icon on the Schedules header, which only
+   * appears for someone the server says holds "Schedule Visits/Activities".
+   */
+  CreateSchedule: undefined;
   SkilledNurseVisit: {
     scheduleId: number;
     patientId?: number;

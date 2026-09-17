@@ -129,9 +129,28 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
         evvApi.getEvvVisits(token, { days_past: 30, days_ahead: 60, schedule_id: scheduleId }),
       ]);
       setVisit(visitRes.visit);
+
       const activeId = listRes.active_schedule_id ?? null;
-      if (activeId != null && Number(activeId) !== Number(scheduleId)) {
+      const activeElsewhere = activeId != null && Number(activeId) !== Number(scheduleId);
+      if (activeElsewhere) {
         setActiveElsewhereId(Number(activeId));
+      }
+
+      /*
+        Not assigned to you is the blocking reason, so it is the one shown.
+
+        "Clock out of your other visit first" would be true and useless here: doing it
+        would not unlock this visit. A manager reaching this screen off the agency-wide
+        list needs the reason that actually applies to them.
+      */
+      if (visitRes.visit?.can_clock_in === false) {
+        const name = visitRes.visit.assigned_to?.name;
+        setError(
+          name
+            ? `This visit is assigned to ${name}. Reassign it in the office before clocking in.`
+            : 'This visit is not assigned to you. Reassign it in the office before clocking in.',
+        );
+      } else if (activeElsewhere) {
         setError('You are already clocked in on another visit. Clock out there before starting this one.');
       }
     } catch (e) {
@@ -189,7 +208,12 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
     (geofence.status === 'match' || geofence.status === 'skipped') &&
     !submitting &&
     !visit?.evv?.is_open_session &&
-    !activeElsewhereId;
+    !activeElsewhereId &&
+    // Clocking in attests that you personally delivered this care, so the server accepts
+    // it only from the caregiver the visit is assigned to. A manager who reaches this
+    // screen off the agency-wide list is stopped here rather than at submit. Undefined
+    // means an older server that does not send the field: leave the decision to it.
+    visit?.can_clock_in !== false;
 
   const initials = (patient?.name || 'PT')
     .split(/\s+/)

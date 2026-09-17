@@ -7,6 +7,24 @@ export type StaffUser = {
   last_name?: string;
   email: string;
   role?: UserRole;
+  /** Human-readable role, from the org role's display name — "Home Health Aide". */
+  role_label?: string;
+  /**
+   * Whether this person's patient and schedule lists cover the whole agency.
+   *
+   * Decided by the server, which owns the rule. Used for labelling: a Director of
+   * Nursing sees "Patients", a caregiver sees "My Patients".
+   */
+  sees_whole_agency?: boolean;
+  /**
+   * Whether this person may book a visit — "Schedule Visits/Activities" in the web app's
+   * role settings, which the Scheduler role exists to carry.
+   *
+   * Stored from login so the calendar icon is right on first paint, then corrected by
+   * every schedule load: this payload is written once at sign-in and never refreshed, so
+   * on its own it would go stale the moment a permission changed.
+   */
+  can_create_schedules?: boolean;
   is_super_admin?: boolean;
   department?: string;
   organization_id?: number;
@@ -102,4 +120,14 @@ export type EvvVisit = {
     gps_checkin?: { latitude?: number | null; longitude?: number | null } | null;
     gps_checkout?: { latitude?: number | null; longitude?: number | null } | null;
   } | null;
+  /** Who the visit is scheduled for. Null when the office has not assigned it yet. */
+  assigned_to?: { id: number; name?: string | null } | null;
+  /**
+   * Whether this user may clock into this visit.
+   *
+   * A manager's list is the whole agency, but clocking in attests that you personally
+   * delivered the care, so only the assigned caregiver may do it. The server decides and
+   * sends the answer; offering a button it will refuse would read as a broken app.
+   */
+  can_clock_in?: boolean;
 };

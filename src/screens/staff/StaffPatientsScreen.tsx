@@ -3,6 +3,7 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'rea
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { AppHeader, AppShell, LastUpdatedBar, SearchBar } from '../../components/chrome';
 import { EmptyState, ErrorBanner, LoadingBlock } from '../../components/ui';
+import { scopeLabels } from '../../utils/scopeLabels';
 import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
@@ -10,7 +11,9 @@ import type { PatientListItem } from '../../types';
 import { colors } from '../../theme/colors';
 
 export function StaffPatientsScreen() {
-  const { token, handleUnauthorized } = useAuth();
+  const { token, handleUnauthorized, staffUser } = useAuth();
+  // "My Patients" is wrong for a manager: the list is the agency's, not theirs.
+  const labels = scopeLabels(staffUser);
   const navigation = useNavigation<any>();
   const [search, setSearch] = useState('');
   const [items, setItems] = useState<PatientListItem[]>([]);
@@ -62,7 +65,7 @@ export function StaffPatientsScreen() {
   return (
     <AppShell>
       <AppHeader
-        title="My Patients"
+        title={labels.patients}
         actions={[
           {
             icon: 'refresh',

@@ -59,6 +59,47 @@ function visitTitle(v: EvvVisit) {
   );
 }
 
+/**
+ * The one line on the card that says where the visit stands, and what to do next.
+ *
+ * Read in priority order: what already happened beats what is possible, and a reason the
+ * button is missing beats a prompt to press it.
+ */
+function cardStatus(v: {
+  scheduleDone: boolean;
+  verificationStatus?: string;
+  isActiveSession: boolean;
+  checkedInAt?: string;
+  assignedElsewhere: boolean;
+  assignedName?: string | null;
+  blockedByOther: boolean;
+  lastSessionClosed: boolean;
+}) {
+  if (v.scheduleDone) {
+    return `Schedule completed · ${v.verificationStatus || 'pending verification'}`;
+  }
+
+  if (v.isActiveSession) {
+    const at = v.checkedInAt
+      ? new Date(v.checkedInAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      : null;
+    return at ? `In progress · clocked in ${at}` : 'In progress';
+  }
+
+  // Says who owns the visit and how to take it over, rather than only that the button is
+  // gone — a manager looking at the agency's whole list otherwise has no way to tell why.
+  if (v.assignedElsewhere) {
+    return v.assignedName
+      ? `${v.assignedName} clocks in on this visit — reassign it in the office to cover it yourself`
+      : 'Nobody is assigned to this visit yet — assign it in the office before clocking in';
+  }
+
+  if (v.blockedByOther) return 'Clock out of your active visit before starting here';
+  if (v.lastSessionClosed) return 'Last session clocked out — clock in again for this schedule';
+
+  return 'Not started — clock in on arrival';
+}
+
 export function StaffEvvScreen({
   embedded = false,
   focusScheduleId,
@@ -211,9 +252,27 @@ export function StaffEvvScreen({
             const lastSessionClosed = !!v.evv?.check_out_time && !v.evv?.is_open_session;
             const isActiveSession = sameId(v.id, activeScheduleId) && !!v.evv?.is_open_session;
             const blockedByOther = !!activeScheduleId && !sameId(v.id, activeScheduleId);
-            const canClockIn = !isActiveSession && !scheduleDone;
+            /*
+              A manager's list is the whole agency, but clocking in attests that you
+              personally delivered the care — so only the assigned caregiver may do it,
+              and the server refuses anyone else. Undefined means an older server that
+              does not send the field; treat that as allowed and let the server decide.
+            */
+            const assignedElsewhere = v.can_clock_in === false;
+            const assignedName = v.assigned_to?.name;
+            const canClockIn = !isActiveSession && !scheduleDone && !assignedElsewhere;
             const title = visitTitle(v);
             const phase = scheduleDone ? 3 : isActiveSession ? 2 : 1;
+            const statusLine = cardStatus({
+              scheduleDone,
+              verificationStatus: v.evv?.verification_status,
+              isActiveSession,
+              checkedInAt: v.evv?.check_in_time,
+              assignedElsewhere,
+              assignedName,
+              blockedByOther,
+              lastSessionClosed,
+            });
 
             return (
               <View
@@ -236,6 +295,11 @@ export function StaffEvvScreen({
                         {v.patient.address}
                       </Text>
                     ) : null}
+                    {assignedElsewhere ? (
+                      <Text style={styles.cardMeta}>
+                        {assignedName ? `Assigned to ${assignedName}` : 'Not assigned to you'}
+                      </Text>
+                    ) : null}
                   </View>
                   <PhaseBadge
                     phase={phase}
@@ -244,17 +308,7 @@ export function StaffEvvScreen({
                   />
                 </View>
 
-                <Text style={styles.cardStatus}>
-                  {scheduleDone
-                    ? `Schedule completed · ${v.evv?.verification_status || 'pending verification'}`
-                    : isActiveSession
-                      ? `In progress · clocked in ${new Date(v.evv!.check_in_time!).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
-                      : blockedByOther
-                        ? 'Clock out of your active visit before starting here'
-                        : lastSessionClosed
-                          ? 'Last session clocked out — clock in again for this schedule'
-                          : 'Not started — clock in on arrival'}
-                </Text>
+                <Text style={styles.cardStatus}>{statusLine}</Text>
 
                 {isActiveSession ? (
                   /*

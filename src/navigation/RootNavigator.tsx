@@ -12,6 +12,7 @@ import { StaffLoginScreen } from '../screens/auth/StaffLoginScreen';
 import { PatientLoginScreen } from '../screens/auth/PatientLoginScreen';
 import { StaffDashboardScreen } from '../screens/staff/StaffDashboardScreen';
 import { StaffScheduleScreen } from '../screens/staff/StaffScheduleScreen';
+import { StaffCreateScheduleScreen } from '../screens/staff/StaffCreateScheduleScreen';
 import { StaffSkilledNurseVisitScreen } from '../screens/staff/StaffSkilledNurseVisitScreen';
 import { StaffHhaVisitNoteScreen } from '../screens/staff/StaffHhaVisitNoteScreen';
 import { StaffMissedVisitNoteScreen } from '../screens/staff/StaffMissedVisitNoteScreen';
@@ -106,6 +107,7 @@ function StaffScheduleNavigator() {
   return (
     <StaffScheduleStack.Navigator screenOptions={{ headerShown: false }}>
       <StaffScheduleStack.Screen name="ScheduleList" component={StaffScheduleScreen} />
+      <StaffScheduleStack.Screen name="CreateSchedule" component={StaffCreateScheduleScreen} />
       <StaffScheduleStack.Screen name="SkilledNurseVisit" component={StaffSkilledNurseVisitScreen} />
       <StaffScheduleStack.Screen name="HhaVisitNote" component={StaffHhaVisitNoteScreen} />
       <StaffScheduleStack.Screen name="MissedVisitNote" component={StaffMissedVisitNoteScreen} />

@@ -59,6 +59,9 @@ const PERMANENT_REASONS = new Set([
   'no_evv_provider_configured',
   'active_visit_exists',
   'no_active_checkin',
+  // The visit had not started yet. Re-sending later would eventually be accepted, but by
+  // then the recorded start time would be wrong twice over — the office reconciles this.
+  'clock_in_too_early',
 ]);
 
 /** The server already has this event. Not an error — the outcome we wanted. */

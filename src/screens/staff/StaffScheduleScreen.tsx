@@ -17,6 +17,7 @@ import {
   SegmentTabs,
 } from '../../components/chrome';
 import { EmptyState, ErrorBanner, LoadingBlock } from '../../components/ui';
+import { scopeLabels } from '../../utils/scopeLabels';
 import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
@@ -93,7 +94,9 @@ function formatWhen(start?: string) {
 }
 
 export function StaffScheduleScreen() {
-  const { token, handleUnauthorized } = useAuth();
+  const { token, handleUnauthorized, staffUser } = useAuth();
+  // "My Schedule" is wrong for a manager: the schedule is the agency's, not theirs.
+  const labels = scopeLabels(staffUser);
   const navigation = useNavigation<any>();
   const [tab, setTab] = useState<TabKey>('upcoming');
   const [items, setItems] = useState<ScheduleItem[]>([]);
@@ -102,6 +105,16 @@ export function StaffScheduleScreen() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  /*
+    Whether this person may book a visit — "Schedule Visits/Activities" in the web app's
+    role settings, which the Scheduler role exists to carry.
+
+    Taken from the schedule response rather than the stored login payload, because that
+    payload is written once at sign-in and never refreshed: a permission granted this
+    morning would stay invisible until the person signed out and back in. Falls back to
+    the login value so the button does not flicker in on first load.
+  */
+  const [canCreate, setCanCreate] = useState(!!staffUser?.can_create_schedules);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -113,6 +126,7 @@ export function StaffScheduleScreen() {
       const map = new Map<number, ScheduleItem>();
       (res.data || []).forEach((v) => map.set(v.id, v));
       setItems([...map.values()]);
+      if (typeof res.can_create_schedules === 'boolean') setCanCreate(res.can_create_schedules);
       setUpdatedAt(new Date());
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
@@ -177,7 +191,7 @@ export function StaffScheduleScreen() {
   return (
     <AppShell>
       <AppHeader
-        title="My Schedule"
+        title={labels.schedule}
         actions={[
           {
             icon: 'refresh-outline',
@@ -186,9 +200,18 @@ export function StaffScheduleScreen() {
               load();
             },
           },
+          /*
+            Books a visit for whoever holds "Schedule Visits/Activities" on the web.
+
+            For everyone else it still jumps to Upcoming, which is what it has always
+            done. The icon is not hidden from them: a schedule icon that disappears for
+            some people reads as a bug, and the alternative — showing a button that
+            answers 403 — is worse. The server checks again either way.
+          */
           {
             icon: 'calendar-outline',
-            onPress: () => setTab('upcoming'),
+            onPress: () =>
+              canCreate ? navigation.navigate('CreateSchedule') : setTab('upcoming'),
           },
         ]}
       />

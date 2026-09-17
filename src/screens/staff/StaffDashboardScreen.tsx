@@ -12,6 +12,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader, AppShell } from '../../components/chrome';
 import { ErrorBanner, LoadingBlock } from '../../components/ui';
+import { scopeLabels } from '../../utils/scopeLabels';
 import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
@@ -45,7 +46,9 @@ const EMPTY_STATS: HomeStats = {
 };
 
 export function StaffDashboardScreen() {
-  const { token, handleUnauthorized } = useAuth();
+  const { token, handleUnauthorized, staffUser } = useAuth();
+  // "My Patients" is wrong for a manager: the list is the agency's, not theirs.
+  const labels = scopeLabels(staffUser);
   const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -129,7 +132,7 @@ export function StaffDashboardScreen() {
   const tiles: DashTile[] = [
     {
       key: 'patients',
-      label: 'My Patients',
+      label: labels.patients,
       icon: 'person-circle-outline',
       value: stats.patients,
       onPress: () => navigation.navigate('Patients'),

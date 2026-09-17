@@ -132,8 +132,66 @@ export function staffUpcomingSchedule(token: string, days?: number, days_back?: 
     ApiEnvelope<ScheduleItem[]> & {
       count?: number;
       window?: { from: string; to: string; days: number; days_back: number };
+      /*
+        Whether this person may book a visit — "Schedule Visits/Activities" in the web
+        app's role settings. It rides along with the list rather than being read from the
+        stored login payload, which is written once at sign-in and never refreshed: a
+        permission granted this morning would otherwise stay invisible until the person
+        signed out and back in.
+      */
+      can_create_schedules?: boolean;
     }
   >('mobile/staff/schedule/upcoming', { token, query: { days, days_back } });
+}
+
+/* ------------------------------------------------------------------ booking a visit */
+
+export type SchedulePickerOption = {
+  id: number;
+  name: string;
+  subtitle?: string | null;
+};
+
+export type ScheduleOptions = {
+  patients: SchedulePickerOption[];
+  /** Only staff who can actually be sent: active account, employee record behind it. */
+  staff: SchedulePickerOption[];
+  task_types: { value: string; label: string }[];
+  priorities: { value: string; label: string }[];
+};
+
+export type NewSchedulePayload = {
+  patient_id: number;
+  employee_id: number;
+  task_type: string;
+  /** YYYY-MM-DD */
+  date: string;
+  /** HH:MM, 24h */
+  start_time: string;
+  end_time: string;
+  title?: string;
+  priority?: string;
+  special_instructions?: string;
+  /**
+   * Both default to off and are sent only after the user is shown what is wrong and says
+   * to go ahead anyway. Sending either by default would turn a real check off on the
+   * phone while leaving it in place on the web.
+   */
+  override_credentials?: boolean;
+  override_hours?: boolean;
+};
+
+export function getScheduleOptions(token: string) {
+  return apiRequest<ApiEnvelope<ScheduleOptions>>('mobile/staff/schedule/options', { token });
+}
+
+export function createSchedule(token: string, payload: NewSchedulePayload) {
+  return apiRequest<{
+    success: boolean;
+    message?: string;
+    warning?: string | null;
+    schedule?: { id: number };
+  }>('mobile/staff/schedule', { method: 'POST', token, body: payload });
 }
 
 export function completeVisit(
