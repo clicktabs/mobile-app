@@ -16,6 +16,8 @@ import { useAuth } from '../../context/AuthContext';
 import * as evvApi from '../../api/evv';
 import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
+import { queueDocument } from '../../api/docQueue';
+import { isOffline } from '../../utils/connectivity';
 import { showAlert } from '../../utils/confirm';
 import { colors } from '../../theme/colors';
 import type { StaffMenuStackParamList } from '../../navigation/types';
@@ -36,6 +38,8 @@ export function StaffEvvNursingNoteScreen({ navigation, route }: Props) {
   const { token, handleUnauthorized } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** The visit could not be confirmed with the server; this device is the only record. */
+  const [offlineVisit, setOfflineVisit] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [subjective, setSubjective] = useState('');
@@ -54,7 +58,11 @@ export function StaffEvvNursingNoteScreen({ navigation, route }: Props) {
     try {
       const res = await evvApi.getEvvVisit(token, scheduleId);
       if (!res.visit?.evv?.check_in_time) {
-        setError('Clock in before documenting this visit.');
+        // The server may simply not have the clock-in yet.
+        const local = await evvApi.localVisitState(scheduleId);
+        if (!local.checkedIn) {
+          setError('Clock in before documenting this visit.');
+        }
       }
       const tasks = (res.visit as any)?.care_tasks;
       if (Array.isArray(tasks)) {
@@ -65,6 +73,18 @@ export function StaffEvvNursingNoteScreen({ navigation, route }: Props) {
         await handleUnauthorized();
         return;
       }
+
+      // Offline is not a reason to withhold the form. The caregiver is standing in the
+      // patient's house; the visit happened whether or not the server can confirm it.
+      // Gating documentation on a server round trip is what produced "no active check-in
+      // for this visit" on a clock-in that was queued on this very device.
+      if (e instanceof ApiError && e.status === 0) {
+        const local = await evvApi.localVisitState(scheduleId);
+        setOfflineVisit(true);
+        setError(local.checkedIn ? null : 'Clock in before documenting this visit.');
+        return;
+      }
+
       setError(e instanceof ApiError ? e.message : 'Failed to load visit');
     } finally {
       setLoading(false);
@@ -95,41 +115,90 @@ export function StaffEvvNursingNoteScreen({ navigation, route }: Props) {
     !!patientId &&
     !saving;
 
+  /**
+   * What gets sent, built once.
+   *
+   * Hoisted out of the save so the offline path can queue exactly what the online path
+   * would have sent, including when the connection drops mid-request.
+   */
+  const buildPayload = useCallback((pid: number) => {
+    const noteText = [
+      'Subjective & Objective:',
+      subjective.trim(),
+      '',
+      `Vitals — BP: ${bp}, HR: ${hr} bpm, SpO2: ${spo2}%, Temp: ${temp}°F, Resp: ${respiration} bpm`,
+      '',
+      'Interventions & Medications:',
+      interventions.trim(),
+      woundDeviation.trim() ? `\nWound Care Deviation: ${woundDeviation.trim()}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    return {
+      patient_id: pid,
+      schedule_id: scheduleId,
+      status: 'completed' as const,
+      note_text: noteText,
+      form_data: {
+        evv_mobile: true,
+        subjective_objective: subjective.trim(),
+        vitals: { bp, hr, spo2, temp, respiration },
+        interventions_medications: interventions.trim(),
+        wound_deviation_note: woundDeviation.trim() || null,
+        wound_care_ordered: woundCareOrdered,
+      },
+    };
+  }, [
+    scheduleId,
+    subjective,
+    bp,
+    hr,
+    spo2,
+    temp,
+    respiration,
+    interventions,
+    woundDeviation,
+    woundCareOrdered,
+  ]);
+
   const onSignAndProceed = async () => {
     if (!token || !patientId || !canProceed) return;
     setSaving(true);
     try {
-      const noteText = [
-        'Subjective & Objective:',
-        subjective.trim(),
-        '',
-        `Vitals — BP: ${bp}, HR: ${hr} bpm, SpO2: ${spo2}%, Temp: ${temp}°F, Resp: ${respiration} bpm`,
-        '',
-        'Interventions & Medications:',
-        interventions.trim(),
-        woundDeviation.trim() ? `\nWound Care Deviation: ${woundDeviation.trim()}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n');
+      const payload = buildPayload(patientId);
 
-      await staffApi.saveNursingNote(token, {
-        patient_id: patientId,
-        schedule_id: scheduleId,
-        status: 'completed',
-        note_text: noteText,
-        form_data: {
-          evv_mobile: true,
-          subjective_objective: subjective.trim(),
-          vitals: { bp, hr, spo2, temp, respiration },
-          interventions_medications: interventions.trim(),
-          wound_deviation_note: woundDeviation.trim() || null,
-          wound_care_ordered: woundCareOrdered,
-        },
-      });
+      // Known to be offline: queue without spending ten seconds proving it.
+      if (isOffline()) {
+        await queueDocument('nursing_note', scheduleId, payload);
+        showAlert('Saved on this device', 'The note will upload when you are back online.', 'info');
+        navigation.replace('MenuEvvClockOut', { scheduleId });
+        return;
+      }
+
+      await staffApi.saveNursingNote(token, payload);
 
       showAlert('Shift note signed', 'Proceeding to clock-out.', 'success');
       navigation.replace('MenuEvvClockOut', { scheduleId });
     } catch (e) {
+      // The connection dropped mid-save. The note is written; losing it because the
+      // network chose that moment would be the worst outcome of the three.
+      if (e instanceof ApiError && e.status === 0) {
+        try {
+          await queueDocument('nursing_note', scheduleId, buildPayload(patientId));
+          showAlert(
+            'Saved on this device',
+            'The connection dropped. The note will upload when you are back online.',
+            'info',
+          );
+          navigation.replace('MenuEvvClockOut', { scheduleId });
+          return;
+        } catch {
+          // Falls through to the error below: if it cannot even be written locally,
+          // the caregiver must be told rather than left thinking it was saved.
+        }
+      }
+
       showAlert(
         'Save failed',
         e instanceof ApiError ? e.message : 'Could not save nursing note',

@@ -17,6 +17,8 @@ import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import * as evvApi from '../../api/evv';
 import { ApiError } from '../../api/client';
+import { queueDocument } from '../../api/docQueue';
+import { isOffline } from '../../utils/connectivity';
 import { VoiceInputButton } from '../../components/VoiceInputButton';
 import { HHA_TASK_SECTIONS, type HhaTaskStatus } from '../../data/hhaTasks';
 import type { StaffScheduleStackParamList } from '../../navigation/types';
@@ -142,13 +144,58 @@ export function StaffHhaVisitNoteScreen({ navigation, route }: Props) {
 
     setSaving(true);
 
+    const queueAsDraft = async () => {
+      // A draft, never a signed note, whatever was asked for.
+      //
+      // The signature PIN is verified on the server; offline there is nothing to verify
+      // it against. The alternatives are to keep a PIN on the device or to accept a
+      // signature nobody checked, and neither is worth it — the work is captured either
+      // way, and the caregiver signs it when there is a connection.
+      await queueDocument('hha_note', scheduleId, buildPayload('draft'));
+    };
+
     try {
+      if (isOffline()) {
+        if (status === 'completed') {
+          await queueAsDraft();
+          setSignError(
+            'Saved on this device as a draft. Signing needs a connection — sign it once you are back online.',
+          );
+          return false;
+        }
+
+        await queueAsDraft();
+        showAlert('Saved on this device', 'The note will upload when you are back online.', 'info');
+        return true;
+      }
+
       await staffApi.saveHhaNote(token, {
         ...buildPayload(status),
         ...(signaturePin ? { signature_pin: signaturePin } : {}),
       });
       return true;
     } catch (e) {
+      // The connection went mid-save. Keep the work rather than lose it.
+      if (e instanceof ApiError && e.status === 0) {
+        try {
+          await queueAsDraft();
+          const message =
+            status === 'completed'
+              ? 'The connection dropped. Saved on this device as a draft — sign it once you are back online.'
+              : 'The connection dropped. Saved on this device and will upload when you are back online.';
+
+          if (status === 'completed') {
+            setSignError(message);
+            return false;
+          }
+
+          showAlert('Saved on this device', message, 'info');
+          return true;
+        } catch {
+          // Cannot even write locally; fall through and say so.
+        }
+      }
+
       const msg = e instanceof ApiError ? e.message : 'Could not save the note.';
       if (status === 'completed') {
         setSignError(msg);

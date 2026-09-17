@@ -15,12 +15,7 @@ import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
 import { confirmAction, showAlert } from '../../utils/confirm';
-import {
-  getWorkOffline,
-  loadOfflineVisits,
-  saveOfflineVisits,
-  setWorkOffline,
-} from '../../utils/offline';
+import { useConnectivity } from '../../context/ConnectivityContext';
 import { storageDelete, storageGet, storageSet } from '../../utils/storage';
 import { safeGoBack } from '../../utils/navigation';
 import { colors } from '../../theme/colors';
@@ -38,71 +33,26 @@ type MenuProps = NativeStackScreenProps<StaffMenuStackParamList, 'MenuHome'>;
 
 export function StaffMenuHomeScreen({ navigation }: MenuProps) {
   const { token, logout } = useAuth();
-  const [offline, setOffline] = useState(false);
-  const [downloading, setDownloading] = useState(false);
+  // Reported, not chosen: the app decides this for itself now.
+  const { state: connectivity } = useConnectivity();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [cachedCount, setCachedCount] = useState(0);
 
   const tabs = navigation.getParent();
-
-  useEffect(() => {
-    (async () => {
-      setOffline(await getWorkOffline());
-      const cached = await loadOfflineVisits();
-      setCachedCount(cached.visits.length);
-    })();
-  }, []);
-
-  const downloadVisits = async () => {
-    if (!token) return;
-    setDownloading(true);
-    try {
-      const res = await staffApi.staffTodaySchedule(token);
-      const visits = res.data || [];
-      await saveOfflineVisits(visits);
-      setCachedCount(visits.length);
-      showAlert('Downloaded', `${visits.length} visit(s) saved for offline use.`);
-    } catch (e) {
-      showAlert('Download failed', e instanceof ApiError ? e.message : 'Error');
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  const toggleOffline = async () => {
-    const next = !offline;
-    if (next && cachedCount === 0 && token) {
-      await downloadVisits();
-    }
-    setOffline(next);
-    await setWorkOffline(next);
-    showAlert(
-      next ? 'Working offline' : 'Back online',
-      next
-        ? 'Downloaded visits are available without a connection.'
-        : 'You are connected to Click Tabs again.',
-    );
-  };
 
   return (
     <AppShell>
       <AppHeader title="Menu" />
       <ScrollView contentContainerStyle={styles.menuPad}>
-        <Pressable
-          onPress={toggleOffline}
-          disabled={downloading}
-          style={({ pressed }) => [
-            styles.goOfflineBtn,
-            offline && styles.goOfflineBtnActive,
-            (pressed || downloading) && { opacity: 0.85 },
-          ]}
-        >
-          <Text style={[styles.goOfflineText, offline && styles.goOfflineTextActive]}>
-            {downloading ? 'Preparing…' : offline ? 'Go Online' : 'Go Offline'}
+        {/* Status, not a control. There is nothing here to press: the app switches
+            between online and offline on its own, and a button offering to "Go Online"
+            could not deliver it on a phone with no signal. Shown only when it is not the
+            ordinary case, so a working connection costs no attention. */}
+        {connectivity !== 'online' ? (
+          <Text style={styles.cacheHint}>
+            {connectivity === 'probing'
+              ? 'Checking the connection…'
+              : 'No connection. Work is saved on this device and will upload automatically.'}
           </Text>
-        </Pressable>
-        {cachedCount > 0 ? (
-          <Text style={styles.cacheHint}>{cachedCount} visit(s) cached on this device</Text>
         ) : null}
 
         <View style={styles.menuGroup}>
@@ -805,30 +755,6 @@ export function StaffMenuEvvScreen({
 const styles = StyleSheet.create({
   menuPad: {
     paddingBottom: 32,
-  },
-  goOfflineBtn: {
-    marginHorizontal: 20,
-    marginTop: 18,
-    marginBottom: 8,
-    borderWidth: 1.5,
-    borderColor: colors.ink,
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  goOfflineBtnActive: {
-    borderColor: colors.brandMagenta,
-    backgroundColor: '#FFF1F5',
-  },
-  goOfflineText: {
-    fontWeight: '700',
-    fontSize: 15,
-    color: colors.ink,
-    letterSpacing: -0.1,
-  },
-  goOfflineTextActive: {
-    color: colors.brandMagenta,
   },
   menuGroup: {
     borderTopWidth: StyleSheet.hairlineWidth,

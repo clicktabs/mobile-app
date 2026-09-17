@@ -17,7 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import * as evvApi from '../../api/evv';
 import { ApiError } from '../../api/client';
 import { showAlert } from '../../utils/confirm';
-import { getWorkOffline } from '../../utils/offline';
+import { isOffline } from '../../utils/connectivity';
 import { safeGoBack } from '../../utils/navigation';
 import { getGpsFix, formatLocationError } from '../../utils/location';
 import { colors } from '../../theme/colors';
@@ -209,7 +209,8 @@ export function StaffEvvClockInScreen({ navigation, route }: Props) {
     if (!token || !coords || !canStart) return;
     setSubmitting(true);
     try {
-      const offline = await getWorkOffline();
+      // Detected automatically now, or forced by the caregiver — the branch is the same.
+      const offline = isOffline();
       if (offline) {
         await evvApi.queueOfflineEvvEvent({
           type: 'checkin',
