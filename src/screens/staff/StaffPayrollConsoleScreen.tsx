@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
@@ -36,6 +36,8 @@ export function StaffPayrollConsoleScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [pickingPeriod, setPickingPeriod] = useState(false);
 
   // Creating a period, shown on demand rather than occupying the top of the screen.
   const [creating, setCreating] = useState(false);
@@ -199,28 +201,27 @@ export function StaffPayrollConsoleScreen() {
         */}
         <Text style={styles.section}>Pay period</Text>
 
+        {/*
+          One field, opening the list.
+
+          A row of chips grew with the agency's history and pushed the stages off the
+          screen — and the older a period is, the less anybody needs it at a glance. The
+          current one is what belongs on screen; the rest are a list you go and get.
+        */}
         {periods.length === 0 ? (
           <EmptyState message="No pay periods yet. Create one to begin." />
         ) : (
-          <View style={styles.periodRow}>
-            {periods.slice(0, 6).map((p) => {
-              const on = p.id === selected?.id;
-              return (
-                <Pressable
-                  key={p.id}
-                  onPress={() => pickPeriod(p)}
-                  style={[styles.periodChip, on && styles.periodChipOn]}
-                >
-                  <Text style={[styles.periodChipText, on && styles.periodChipTextOn]}>
-                    {p.name}
-                  </Text>
-                  <Text style={[styles.periodChipMeta, on && styles.periodChipTextOn]}>
-                    {p.status}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <Pressable style={styles.periodField} onPress={() => setPickingPeriod(true)}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.periodFieldName}>{selected?.name ?? 'Choose a pay period'}</Text>
+              {selected ? (
+                <Text style={styles.periodFieldMeta}>
+                  {selected.period_start} – {selected.period_end} · {selected.status}
+                </Text>
+              ) : null}
+            </View>
+            <Ionicons name="chevron-down" size={18} color="#64748B" />
+          </Pressable>
         )}
 
         {creating ? (
@@ -342,6 +343,66 @@ export function StaffPayrollConsoleScreen() {
 
         <PayrollStageNav stage="intake" periodId={selected?.id} />
       </ScrollView>
+
+      {/*
+        The list of pay periods.
+
+        Newest first, as the server sends them, and each row says its dates and status —
+        "paid" and "draft" are the difference between a record and something still being
+        worked, and picking the wrong one is otherwise only obvious once the figures look
+        strange.
+      */}
+      <Modal
+        visible={pickingPeriod}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setPickingPeriod(false)}
+      >
+        <View style={styles.sheetBackdrop}>
+          <View style={styles.sheet}>
+            <View style={styles.sheetHead}>
+              <Text style={styles.sheetTitle}>Pay period</Text>
+              <Pressable onPress={() => setPickingPeriod(false)} hitSlop={10}>
+                <Ionicons name="close" size={22} color="#0F172A" />
+              </Pressable>
+            </View>
+
+            <ScrollView>
+              {periods.map((p) => {
+                const on = p.id === selected?.id;
+                return (
+                  <Pressable
+                    key={p.id}
+                    style={[styles.sheetRow, on && styles.sheetRowOn]}
+                    onPress={() => {
+                      setPickingPeriod(false);
+                      if (!on) pickPeriod(p);
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.sheetRowName}>{p.name}</Text>
+                      <Text style={styles.sheetRowMeta}>
+                        {p.period_start} – {p.period_end} ·{' '}
+                        {p.entries > 0
+                          ? `${p.entries} ${p.entries === 1 ? 'entry' : 'entries'}`
+                          : 'not calculated'}
+                      </Text>
+                    </View>
+
+                    <View style={[styles.sheetPill, !p.is_open && styles.sheetPillSettled]}>
+                      <Text style={[styles.sheetPillText, !p.is_open && styles.sheetPillTextSettled]}>
+                        {p.status}
+                      </Text>
+                    </View>
+
+                    {on ? <Ionicons name="checkmark" size={18} color="#B4006E" /> : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </AppShell>
   );
 }
@@ -395,7 +456,7 @@ function StageCard({
         </Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.stageName}>{name}</Text>
+        <Text style={[styles.stageName, current && styles.stageNameCurrent]}>{name}</Text>
         <Text style={[styles.stageMeta, tone === 'attention' && styles.stageMetaAttention]}>
           {meta}
         </Text>
@@ -453,19 +514,63 @@ const styles = StyleSheet.create({
   },
   figureValue: { fontSize: 17, fontWeight: '800', color: '#0F172A', marginTop: 4 },
 
-  periodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  periodChip: {
+  periodField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     backgroundColor: '#fff',
   },
-  periodChipOn: { backgroundColor: '#0F172A', borderColor: '#0F172A' },
-  periodChipText: { fontSize: 13, color: '#0F172A', fontWeight: '600' },
-  periodChipMeta: { fontSize: 11, color: '#64748B', marginTop: 2, textTransform: 'capitalize' },
-  periodChipTextOn: { color: '#fff' },
+  periodFieldName: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
+  periodFieldMeta: { fontSize: 12, color: '#64748B', marginTop: 2, textTransform: 'capitalize' },
+
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingTop: 14,
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+    maxHeight: '75%',
+  },
+  sheetHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  sheetTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
+  sheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  sheetRowOn: { backgroundColor: '#FDF2F8' },
+  sheetRowName: { fontSize: 15, fontWeight: '600', color: '#0F172A' },
+  sheetRowMeta: { fontSize: 12, color: '#64748B', marginTop: 2 },
+  // A settled period reads differently from one still being worked.
+  sheetPill: {
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    backgroundColor: '#FEF3C7',
+  },
+  sheetPillSettled: { backgroundColor: '#ECFDF5' },
+  sheetPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#854D0E',
+    textTransform: 'capitalize',
+  },
+  sheetPillTextSettled: { color: '#047857' },
 
   addPeriod: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10 },
   addPeriodText: { fontSize: 13, fontWeight: '700', color: '#B4006E' },
@@ -500,15 +605,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stageCurrent: { backgroundColor: '#F8FAFC', borderColor: '#CBD5E1' },
-  stageNAttention: { backgroundColor: '#B4006E', borderColor: '#B4006E' },
-  stageNCurrent: { backgroundColor: '#0F172A', borderColor: '#0F172A' },
-  stageHere: { fontSize: 11, fontWeight: '700', color: '#64748B' },
+  /*
+    The stage you are on, shown as active rather than spent.
+
+    A grey ground and a muted label read as disabled — the one card that is definitely
+    live looked like the one that was switched off. It carries the brand colour and a
+    rail down its left edge, which is how the rest of the app marks a current selection.
+  */
+  stageCurrent: {
+    backgroundColor: '#FDF2F8',
+    borderColor: '#B4006E',
+    borderLeftWidth: 4,
+    borderLeftColor: '#B4006E',
+  },
+  /*
+    Two different things, so two different colours.
+
+    Magenta is the brand's "this is the one selected" and now marks the stage you are on.
+    A stage with work outstanding is not a selection — it is a warning — so it takes the
+    amber already used for an unfinished note and the orphaned-hours banner. They were
+    briefly both magenta, which made the stage you were standing on and the stage needing
+    work indistinguishable.
+  */
+  stageNAttention: { backgroundColor: '#B45309', borderColor: '#B45309' },
+  stageNCurrent: { backgroundColor: '#B4006E', borderColor: '#B4006E' },
+  stageHere: { fontSize: 11, fontWeight: '800', color: '#B4006E', letterSpacing: 0.3 },
   stageNText: { fontSize: 12, fontWeight: '800', color: '#64748B' },
   stageNTextAttention: { color: '#fff' },
   stageName: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
+  stageNameCurrent: { color: '#B4006E' },
   stageMeta: { fontSize: 12.5, color: '#64748B', marginTop: 2 },
-  stageMetaAttention: { color: '#B4006E', fontWeight: '600' },
+  stageMetaAttention: { color: '#B45309', fontWeight: '600' },
 
   webStage: {
     flexDirection: 'row',
