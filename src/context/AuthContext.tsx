@@ -17,6 +17,20 @@ type AuthState = {
   patientUser: PatientUser | null;
   loginStaff: (email: string, password: string) => Promise<void>;
   loginPatient: (email: string, credential: string, type: 'dob' | 'mrn') => Promise<void>;
+  /**
+   * Merge fresher facts into the stored staff user.
+   *
+   * The login payload is written once at sign-in and never refreshed, so anything it
+   * carries goes stale the moment it changes on the server — and anything *added* to it
+   * later is simply absent for everyone already signed in. That has now hidden two
+   * permission-gated controls from the people who hold the permission, because an
+   * undefined flag reads as false.
+   *
+   * So a screen that learns something newer — the dashboard, which asks the server on
+   * every visit — writes it back here, and the rest of the app sees it without anybody
+   * having to sign out.
+   */
+  updateStaffUser: (patch: Partial<StaffUser>) => Promise<void>;
   logout: () => Promise<void>;
   handleUnauthorized: () => Promise<void>;
 };
@@ -128,6 +142,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPatientUser(null);
   }, []);
 
+  const updateStaffUser = useCallback(async (patch: Partial<StaffUser>) => {
+    setStaffUser((current) => {
+      if (!current) return current;
+
+      // Nothing actually newer — return the same object so this cannot loop a screen
+      // that calls it from an effect.
+      const changed = Object.keys(patch).some(
+        (key) => (current as any)[key] !== (patch as any)[key],
+      );
+      if (!changed) return current;
+
+      const next = { ...current, ...patch };
+      // Persisted too, or the correction lasts only until the app is reopened.
+      storageSet(USER_KEY, JSON.stringify(next)).catch(() => {});
+
+      return next;
+    });
+  }, []);
+
   const value = useMemo(
     () => ({
       ready,
@@ -137,6 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       patientUser,
       loginStaff,
       loginPatient,
+      updateStaffUser,
       logout,
       handleUnauthorized,
     }),
@@ -148,6 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       patientUser,
       loginStaff,
       loginPatient,
+      updateStaffUser,
       logout,
       handleUnauthorized,
     ],

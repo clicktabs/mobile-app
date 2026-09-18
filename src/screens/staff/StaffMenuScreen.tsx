@@ -111,6 +111,25 @@ export function StaffMenuHomeScreen({ navigation }: MenuProps) {
             label="My Pay"
             onPress={() => navigation.navigate('MenuPay')}
           />
+          {/*
+            The Payroll Console, opened in the browser.
+
+            Deliberately not rebuilt in the app. Its stages price a batch, release
+            compliance holds and send a payout — work that wants the whole batch in view
+            and is close to irreversible, and a second implementation of those rules would
+            be the thing that eventually disagrees with the first. The console's own layout
+            now works at phone width, so the browser is a real answer rather than a dodge.
+
+            Shown only to somebody the server says holds a payroll permission: following
+            the link without one produces an error in a browser they then have to close.
+          */}
+          {staffUser?.can_manage_payroll ? (
+            <MenuRow
+              icon="calculator-outline"
+              label="Payroll Console"
+              onPress={() => tabs?.navigate('Home', { screen: 'PayrollHome' })}
+            />
+          ) : null}
           <MenuRow
             icon="car-outline"
             label="Mileage"

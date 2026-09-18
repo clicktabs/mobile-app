@@ -13,6 +13,10 @@ import { PatientLoginScreen } from '../screens/auth/PatientLoginScreen';
 import { StaffDashboardScreen } from '../screens/staff/StaffDashboardScreen';
 import { StaffSupervisoryVisitsScreen } from '../screens/staff/StaffSupervisoryVisitsScreen';
 import { StaffSupervisoryVisitFormScreen } from '../screens/staff/StaffSupervisoryVisitFormScreen';
+import { StaffPayrollConsoleScreen } from '../screens/staff/StaffPayrollConsoleScreen';
+import { StaffPayrollHoursScreen } from '../screens/staff/StaffPayrollHoursScreen';
+import { StaffPayrollBatchScreen } from '../screens/staff/StaffPayrollBatchScreen';
+import { StaffPayrollGateScreen } from '../screens/staff/StaffPayrollGateScreen';
 import { StaffScheduleScreen } from '../screens/staff/StaffScheduleScreen';
 import { StaffCreateScheduleScreen } from '../screens/staff/StaffCreateScheduleScreen';
 import { StaffSkilledNurseVisitScreen } from '../screens/staff/StaffSkilledNurseVisitScreen';
@@ -87,6 +91,10 @@ function StaffHomeNavigator() {
       <StaffHomeStack.Screen name="ElectronicIdBadge" component={StaffMenuBadgeScreen} />
       <StaffHomeStack.Screen name="AvailableShifts" component={StaffAvailableShiftsScreen} />
       <StaffHomeStack.Screen name="ShiftOffers" component={StaffShiftOffersScreen} />
+      <StaffHomeStack.Screen name="PayrollHome" component={StaffPayrollConsoleScreen} />
+      <StaffHomeStack.Screen name="PayrollHours" component={StaffPayrollHoursScreen} />
+      <StaffHomeStack.Screen name="PayrollBatch" component={StaffPayrollBatchScreen} />
+      <StaffHomeStack.Screen name="PayrollGate" component={StaffPayrollGateScreen} />
     </StaffHomeStack.Navigator>
   );
 }

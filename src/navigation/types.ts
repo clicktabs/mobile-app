@@ -35,6 +35,25 @@ export type StaffHomeStackParamList = {
   ElectronicIdBadge: undefined;
   AvailableShifts: undefined;
   ShiftOffers: undefined;
+
+  /*
+    The Payroll Console.
+
+    In the Home stack rather than a navigator of its own: it is reached from the dashboard
+    and from the menu, and a second nested navigator would buy nothing but a back button
+    that goes somewhere unexpected.
+
+    The period is chosen once on PayrollHome and carried in params, rather than each stage
+    resolving "the current period" for itself — that is how a stage ends up showing a
+    different period from the one named on the screen you came from.
+
+    Payout and sync are absent: they commit a batch to an external payer and cannot be
+    recalled, so they stay on the web where the whole batch is visible at once.
+  */
+  PayrollHome: undefined;
+  PayrollHours: { periodId: number };
+  PayrollBatch: { periodId: number };
+  PayrollGate: { periodId: number };
 };
 
 export type StaffMenuStackParamList = {

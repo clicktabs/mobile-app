@@ -53,7 +53,7 @@ const EMPTY_STATS: HomeStats = {
 };
 
 export function StaffDashboardScreen() {
-  const { token, handleUnauthorized, staffUser } = useAuth();
+  const { token, handleUnauthorized, staffUser, updateStaffUser } = useAuth();
   // "My Patients" is wrong for a manager: the list is the agency's, not theirs.
   const labels = scopeLabels(staffUser);
   const navigation = useNavigation<any>();
@@ -119,6 +119,20 @@ export function StaffDashboardScreen() {
         supervisoryDue: Number(s?.supervisory_visits_due ?? 0) || 0,
         supervisoryOverdue: Number(s?.supervisory_visits_overdue ?? 0) || 0,
       });
+
+      /*
+        Correct the stored login payload from what the server just said.
+
+        That payload is written once at sign-in and never refreshed, so a permission flag
+        added to it later is absent for everyone already signed in — and absent reads as
+        false, which hid the Payroll Console entry from the people who hold the permission.
+        The dashboard asks the server on every visit, so it is the one screen that always
+        knows better; the Menu reads the result without anybody signing out.
+      */
+      const flags: Partial<typeof staffUser & object> = {};
+      if (typeof s?.can_manage_payroll === 'boolean') flags.can_manage_payroll = s.can_manage_payroll;
+      if (typeof s?.can_create_schedules === 'boolean') flags.can_create_schedules = s.can_create_schedules;
+      if (Object.keys(flags).length) await updateStaffUser(flags);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         await handleUnauthorized();
@@ -129,7 +143,7 @@ export function StaffDashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [token, handleUnauthorized]);
+  }, [token, handleUnauthorized, updateStaffUser]);
 
   useFocusEffect(
     useCallback(() => {
@@ -201,6 +215,28 @@ export function StaffDashboardScreen() {
       showChevron: true,
       onPress: () => navigation.navigate('SupervisoryVisits'),
     },
+    /*
+      The Payroll Console, opened in the browser.
+
+      Not rebuilt in the app on purpose: its stages price a batch, release compliance
+      holds and send a payout — work that wants the whole batch in view and is close to
+      irreversible — and a second implementation of those rules would eventually disagree
+      with the first. The console's own layout works at phone width now.
+
+      Shown only to somebody the server says holds a payroll permission, because following
+      the link without one produces an error in a browser they then have to close.
+    */
+    ...(staffUser?.can_manage_payroll
+      ? [
+          {
+            key: 'payroll_console',
+            label: 'Payroll Console',
+            icon: 'calculator-outline' as const,
+            showChevron: true,
+            onPress: () => navigation.navigate('PayrollHome'),
+          },
+        ]
+      : []),
   ];
 
   return (

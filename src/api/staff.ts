@@ -87,6 +87,16 @@ export function staffDashboard(token: string) {
          */
         supervisory_visits_due?: number;
         supervisory_visits_overdue?: number;
+        /**
+         * Permissions, sent here as well as at login.
+         *
+         * The stored login payload is written once and never refreshed, so a flag added
+         * to it later is absent for everyone already signed in — and absent reads as
+         * false, hiding the control from exactly the people who hold the permission. The
+         * dashboard is fetched on every visit, so it corrects the record.
+         */
+        can_manage_payroll?: boolean;
+        can_create_schedules?: boolean;
       };
       upcoming_visits: ScheduleItem[];
     }>

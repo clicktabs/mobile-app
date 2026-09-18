@@ -25,6 +25,15 @@ export type StaffUser = {
    * on its own it would go stale the moment a permission changed.
    */
   can_create_schedules?: boolean;
+  /**
+   * Whether this person may open the Payroll Console.
+   *
+   * The console stays a web screen — its stages move money and want the whole batch in
+   * view — so the app links out to it rather than rebuilding it. This decides whether the
+   * link is offered, since following it without the permission only produces an error in
+   * a browser the user then has to close.
+   */
+  can_manage_payroll?: boolean;
   is_super_admin?: boolean;
   department?: string;
   organization_id?: number;
