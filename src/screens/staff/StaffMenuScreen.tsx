@@ -130,6 +130,25 @@ export function StaffMenuHomeScreen({ navigation }: MenuProps) {
               onPress={() => tabs?.navigate('Home', { screen: 'PayrollHome' })}
             />
           ) : null}
+
+          {/*
+            Quality Assurance.
+
+            Labelled for what the person opening it will find. A reviewer gets the queue;
+            everyone else gets their own notes and the feedback on them, which is by far
+            the more common case — so the row says what the area is called rather than
+            what one half of it does, and the screen decides which half to show.
+
+            Shown to anybody with qa.access, which is every clinical role that writes
+            documentation. A caregiver holds neither flag and sees no row.
+          */}
+          {staffUser?.can_access_qa ? (
+            <MenuRow
+              icon="shield-checkmark-outline"
+              label="Quality Assurance"
+              onPress={() => tabs?.navigate('Home', { screen: 'Qa' })}
+            />
+          ) : null}
           <MenuRow
             icon="car-outline"
             label="Mileage"

@@ -97,6 +97,11 @@ export function staffDashboard(token: string) {
          */
         can_manage_payroll?: boolean;
         can_create_schedules?: boolean;
+        qa_returned_to_me?: number;
+        /** Null for somebody who cannot review — not the same as zero. */
+        qa_pending_review?: number | null;
+        can_access_qa?: boolean;
+        can_approve_qa?: boolean;
       };
       upcoming_visits: ScheduleItem[];
     }>

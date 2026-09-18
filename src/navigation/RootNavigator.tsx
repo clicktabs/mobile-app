@@ -17,6 +17,9 @@ import { StaffPayrollConsoleScreen } from '../screens/staff/StaffPayrollConsoleS
 import { StaffPayrollHoursScreen } from '../screens/staff/StaffPayrollHoursScreen';
 import { StaffPayrollBatchScreen } from '../screens/staff/StaffPayrollBatchScreen';
 import { StaffPayrollGateScreen } from '../screens/staff/StaffPayrollGateScreen';
+import { StaffQaScreen } from '../screens/staff/StaffQaScreen';
+import { StaffQaQueueScreen } from '../screens/staff/StaffQaQueueScreen';
+import { StaffQaReviewScreen } from '../screens/staff/StaffQaReviewScreen';
 import { StaffScheduleScreen } from '../screens/staff/StaffScheduleScreen';
 import { StaffCreateScheduleScreen } from '../screens/staff/StaffCreateScheduleScreen';
 import { StaffSkilledNurseVisitScreen } from '../screens/staff/StaffSkilledNurseVisitScreen';
@@ -95,6 +98,9 @@ function StaffHomeNavigator() {
       <StaffHomeStack.Screen name="PayrollHours" component={StaffPayrollHoursScreen} />
       <StaffHomeStack.Screen name="PayrollBatch" component={StaffPayrollBatchScreen} />
       <StaffHomeStack.Screen name="PayrollGate" component={StaffPayrollGateScreen} />
+      <StaffHomeStack.Screen name="Qa" component={StaffQaScreen} />
+      <StaffHomeStack.Screen name="QaQueue" component={StaffQaQueueScreen} />
+      <StaffHomeStack.Screen name="QaReview" component={StaffQaReviewScreen} />
     </StaffHomeStack.Navigator>
   );
 }

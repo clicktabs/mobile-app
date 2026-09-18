@@ -28,6 +28,10 @@ type HomeStats = {
   payrollHours: string;
   supervisoryDue: number;
   supervisoryOverdue: number;
+  /** My own notes QA sent back. */
+  qaReturned: number;
+  /** Waiting on a reviewer — null when this person is not one. */
+  qaPending: number | null;
 };
 
 type DashTile = {
@@ -50,6 +54,8 @@ const EMPTY_STATS: HomeStats = {
   payrollHours: '0.00',
   supervisoryDue: 0,
   supervisoryOverdue: 0,
+  qaReturned: 0,
+  qaPending: null,
 };
 
 export function StaffDashboardScreen() {
@@ -118,6 +124,11 @@ export function StaffDashboardScreen() {
         payrollHours: payrollLabel || '0.00',
         supervisoryDue: Number(s?.supervisory_visits_due ?? 0) || 0,
         supervisoryOverdue: Number(s?.supervisory_visits_overdue ?? 0) || 0,
+        qaReturned: Number(s?.qa_returned_to_me ?? 0) || 0,
+        // Left null for somebody who cannot review, so the tile can leave the number
+        // off rather than claim an empty queue.
+        qaPending:
+          typeof s?.qa_pending_review === 'number' ? s.qa_pending_review : null,
       });
 
       /*
@@ -132,6 +143,8 @@ export function StaffDashboardScreen() {
       const flags: Partial<typeof staffUser & object> = {};
       if (typeof s?.can_manage_payroll === 'boolean') flags.can_manage_payroll = s.can_manage_payroll;
       if (typeof s?.can_create_schedules === 'boolean') flags.can_create_schedules = s.can_create_schedules;
+      if (typeof s?.can_access_qa === 'boolean') flags.can_access_qa = s.can_access_qa;
+      if (typeof s?.can_approve_qa === 'boolean') flags.can_approve_qa = s.can_approve_qa;
       if (Object.keys(flags).length) await updateStaffUser(flags);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
@@ -226,6 +239,34 @@ export function StaffDashboardScreen() {
       Shown only to somebody the server says holds a payroll permission, because following
       the link without one produces an error in a browser they then have to close.
     */
+    /*
+      Quality Assurance.
+
+      Leads with the number that is the reader's own problem — notes QA sent back, which
+      are unbilled work sitting still — and only then with the queue, which is a reviewer's
+      problem and is left off entirely for everybody else.
+
+      Red when something has come back: a returned note is not workload, it is a document
+      that cannot be billed until somebody fixes it.
+    */
+    ...(staffUser?.can_access_qa
+      ? [
+          {
+            key: 'qa',
+            label: 'Quality Assurance',
+            icon: 'checkmark-done-outline' as const,
+            value:
+              stats.qaReturned > 0
+                ? `${stats.qaReturned} sent back`
+                : stats.qaPending !== null
+                  ? `${stats.qaPending} to review`
+                  : '—',
+            tone: stats.qaReturned > 0 ? ('danger' as const) : undefined,
+            showChevron: true,
+            onPress: () => navigation.navigate('Qa'),
+          },
+        ]
+      : []),
     ...(staffUser?.can_manage_payroll
       ? [
           {

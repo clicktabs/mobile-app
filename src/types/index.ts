@@ -34,6 +34,16 @@ export type StaffUser = {
    * a browser the user then has to close.
    */
   can_manage_payroll?: boolean;
+  /**
+   * Quality Assurance — two flags, because they open two different things.
+   *
+   * `can_access_qa` is held by every clinical role that writes documentation and gets a
+   * clinician their own notes and the QA feedback on them. `can_approve_qa` is the narrow
+   * one and additionally opens the review queue, which is other people's pending work
+   * with patient names on it.
+   */
+  can_access_qa?: boolean;
+  can_approve_qa?: boolean;
   is_super_admin?: boolean;
   department?: string;
   organization_id?: number;

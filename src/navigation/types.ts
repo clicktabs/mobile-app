@@ -54,6 +54,28 @@ export type StaffHomeStackParamList = {
   PayrollHours: { periodId: number };
   PayrollBatch: { periodId: number };
   PayrollGate: { periodId: number };
+
+  /*
+    Quality Assurance.
+
+    Two audiences on one screen, split by permission: `can_access_qa` gets a clinician
+    their own notes and the feedback on them, `can_approve_qa` additionally gets the
+    review queue.
+
+    QaQueue carries the type slug and its label, because the label comes from the server's
+    QA registry — the app does not have a list of document types and should not grow one.
+  */
+  Qa: undefined;
+  QaQueue: { type: string; label?: string };
+  /*
+    One document, open for review.
+
+    Only the slug and id travel: everything shown — the note itself, the prior
+    feedback, whether a decision can honestly be made here at all — comes from the
+    server, so a card that is a few minutes stale cannot put a wrong document on
+    screen or offer a button the server will refuse.
+  */
+  QaReview: { type: string; id: number };
 };
 
 export type StaffMenuStackParamList = {
