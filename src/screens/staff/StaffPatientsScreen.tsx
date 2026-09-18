@@ -67,8 +67,25 @@ export function StaffPatientsScreen() {
       <AppHeader
         title={labels.patients}
         actions={[
+          /*
+            Taking a referral, shown only to somebody the server says may.
+
+            Reached from the patient list because that is where people look for "add
+            someone new" — but what it creates is a referral, and the screen behind it
+            says so before anything is typed. A patient only exists once the office has
+            verified the referral and converted it.
+          */
+          ...(staffUser?.can_take_referrals
+            ? [
+                {
+                  icon: 'person-add-outline' as const,
+                  label: 'New referral',
+                  onPress: () => navigation.navigate('NewReferral'),
+                },
+              ]
+            : []),
           {
-            icon: 'refresh',
+            icon: 'refresh' as const,
             onPress: () => {
               setRefreshing(true);
               load(1, false);

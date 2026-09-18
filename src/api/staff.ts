@@ -102,6 +102,7 @@ export function staffDashboard(token: string) {
         qa_pending_review?: number | null;
         can_access_qa?: boolean;
         can_approve_qa?: boolean;
+        can_take_referrals?: boolean;
       };
       upcoming_visits: ScheduleItem[];
     }>
@@ -1488,4 +1489,83 @@ export function saveIncidentReport(token: string, payload: IncidentReportPayload
     'mobile/staff/incident-reports',
     { method: 'POST', token, body: payload },
   );
+}
+
+/* ------------------------------------------------------------------ taking a referral */
+
+/**
+ * A referral, as the phone takes it.
+ *
+ * Not a patient. Somebody has asked the agency to take this person on; the office verifies
+ * insurance and eligibility, and converting the referral is what opens a chart and sets an
+ * admission date.
+ *
+ * Only five things are required — the name, who referred them, the date, and how urgent —
+ * because the rest is often not known at the moment the referral arrives, and demanding it
+ * would mean the referral does not get written down at all.
+ */
+export type NewReferral = {
+  first_name: string;
+  last_name: string;
+  date_of_birth?: string;
+  phone?: string;
+
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  insurance?: string;
+
+  referral_source_type?: ReferralSourceType;
+  referral_source_name: string;
+  referral_source_phone?: string;
+
+  referral_date: string;
+  requested_start_date?: string;
+  reason_for_referral?: string;
+  services_requested?: string;
+
+  priority: 'routine' | 'urgent' | 'emergent';
+
+  /** Set only after the existing referral or chart has been shown. */
+  allow_duplicate?: boolean;
+};
+
+/** The values the referrals table's CHECK constraint allows. */
+export type ReferralSourceType =
+  | 'physician'
+  | 'hospital'
+  | 'snf'
+  | 'alf'
+  | 'self'
+  | 'family'
+  | 'insurance'
+  | 'rehab'
+  | 'other';
+
+/**
+ * Somebody already in the system under this name.
+ *
+ * `kind` separates the two situations, because they want different answers: an open
+ * referral means the same referral arrived twice and the second should join the first;
+ * an existing chart usually means a readmission, which is a real referral worth taking —
+ * but the person taking it should see the chart before deciding.
+ */
+export type ExistingMatch = {
+  kind: 'referral' | 'patient';
+  id: number;
+  name: string;
+  dob: string | null;
+  detail: string;
+  status: string;
+  matched_on: string;
+};
+
+export function createReferral(token: string, payload: NewReferral) {
+  return apiRequest<{
+    success: boolean;
+    message: string;
+    referral: { id: number; name: string; status: string; priority: string };
+  }>('mobile/staff/referrals', { method: 'POST', token, body: payload });
 }

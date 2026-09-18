@@ -12,6 +12,15 @@ export type StaffPatientsStackParamList = {
   // Filed from the patient it concerns, so the report carries the patient without the
   // caregiver having to pick them again.
   IncidentReport: { patientId?: number; patientName?: string } | undefined;
+  /*
+    Taking a referral from the field.
+
+    In the Patients stack because that is where it is reached from and where it
+    returns to — but what it creates is a referral, not a patient. The office verifies
+    insurance and eligibility, and converting the referral is what opens a chart, so
+    there is no new patient to navigate to on success.
+  */
+  NewReferral: undefined;
 };
 
 export type StaffHomeStackParamList = {

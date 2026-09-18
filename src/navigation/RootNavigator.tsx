@@ -32,6 +32,7 @@ import { StaffNewWoundOrderScreen } from '../screens/staff/StaffNewWoundOrderScr
 import { StaffWoundOrderProfilesScreen } from '../screens/staff/StaffWoundOrderProfilesScreen';
 import { StaffPatientsScreen } from '../screens/staff/StaffPatientsScreen';
 import { StaffPatientDetailScreen } from '../screens/staff/StaffPatientDetailScreen';
+import { StaffNewReferralScreen } from '../screens/staff/StaffNewReferralScreen';
 import { StaffMessagesScreen } from '../screens/staff/StaffMessagesScreen';
 import {
   StaffAvailableShiftsScreen,
@@ -117,6 +118,7 @@ function StaffPatientsNavigator() {
       {/* Filed from the patient's profile, so it lives in this stack rather than the
           menu — opening it does not lose the patient the caregiver was looking at. */}
       <StaffPatientsStack.Screen name="IncidentReport" component={StaffIncidentReportScreen} />
+      <StaffPatientsStack.Screen name="NewReferral" component={StaffNewReferralScreen} />
     </StaffPatientsStack.Navigator>
   );
 }

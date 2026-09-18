@@ -145,6 +145,7 @@ export function StaffDashboardScreen() {
       if (typeof s?.can_create_schedules === 'boolean') flags.can_create_schedules = s.can_create_schedules;
       if (typeof s?.can_access_qa === 'boolean') flags.can_access_qa = s.can_access_qa;
       if (typeof s?.can_approve_qa === 'boolean') flags.can_approve_qa = s.can_approve_qa;
+      if (typeof s?.can_take_referrals === 'boolean') flags.can_take_referrals = s.can_take_referrals;
       if (Object.keys(flags).length) await updateStaffUser(flags);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {

@@ -44,6 +44,15 @@ export type StaffUser = {
    */
   can_access_qa?: boolean;
   can_approve_qa?: boolean;
+  /**
+   * May this person take a referral?
+   *
+   * "Add/Edit/Delete Referrals" in the role settings: DON, clinical and office
+   * managers, case managers, clerks and community liaisons. A referral is not an
+   * admission — the office converts it — so this is narrower than adding a patient
+   * and is held by the people who actually field referrals.
+   */
+  can_take_referrals?: boolean;
   is_super_admin?: boolean;
   department?: string;
   organization_id?: number;
