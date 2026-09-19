@@ -323,7 +323,7 @@ export function StaffNewWoundOrderScreen({ navigation, route }: Props) {
         .filter(Boolean)
         .join('\n');
 
-      await staffApi.createWoundOrder(token, patientId, {
+      const order = await staffApi.createWoundOrder(token, patientId, {
         wound_location: active!.pin.label || 'Unspecified',
         wound_type: 'Pressure Ulcer',
         wound_stage: stage,
@@ -367,7 +367,12 @@ export function StaffNewWoundOrderScreen({ navigation, route }: Props) {
           stage_grade: stage,
           onset_date: new Date().toISOString().slice(0, 10),
           present_on_admission: true,
-          treatment_performed: supplies,
+          // The wound and the order it is dressed under are the same wound. Saying so is
+          // what lets the visit note reach the treatment record later.
+          wound_order_id: order?.data?.id,
+          // Supplies, under their own name. This used to be sent as `treatment_performed`
+          // at the moment the order was written — before anything had been performed.
+          supplies_needed: supplies,
           notes,
           map_x: active!.pin.x,
           map_y: active!.pin.y,

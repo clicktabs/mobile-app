@@ -1101,6 +1101,14 @@ export type WoundCareListResponse = ApiEnvelope<WoundCareRow[]> & {
   meta?: {
     active_count?: number;
     button_state?: WoundButtonState;
+    /**
+     * The frequencies a treatment order can be written in and actually be scheduled.
+     *
+     * Served rather than held in the app, so what a nurse is offered in a patient's home
+     * cannot drift from what the schedule builder can read. An order written in a
+     * frequency it cannot read produces no treatments at all.
+     */
+    treatment_frequencies?: string[];
   };
 };
 
@@ -1120,6 +1128,22 @@ export function createWoundCare(
     additional_location?: string;
     description?: string;
     notes?: string;
+    /**
+     * The treatment order this wound is dressed under, when there is one.
+     *
+     * What lets a later visit note be recorded against the treatment the TAR has
+     * scheduled for this wound, instead of the two living in separate tables that never
+     * mention one another.
+     */
+    wound_order_id?: number;
+    /** What to bring. Not what was done — this used to be sent as `treatment_performed`. */
+    supplies_needed?: string;
+    /**
+     * What the clinician did at the visit this wound was found on.
+     *
+     * The wound's own note. The record that carries who did it and when is the TAR, which
+     * a later visit write-up fills in.
+     */
     treatment_performed?: string;
     map_x?: number;
     map_y?: number;
@@ -1138,7 +1162,9 @@ export function updateWoundCare(
   woundId: number,
   body: Record<string, unknown>,
 ) {
-  return apiRequest<ApiEnvelope<{ id: number }>>(
+  // `tar_record_id` comes back when writing up the visit also recorded the treatment on
+  // the TAR, so the screen can say so rather than leaving it to be assumed.
+  return apiRequest<ApiEnvelope<{ id: number; tar_record_id?: number | null }>>(
     `mobile/staff/patients/${patientId}/wound-care/${woundId}`,
     { method: 'PATCH', token, body },
   );
@@ -1188,11 +1214,14 @@ export function createWoundOrder(
     treatment_notes?: string;
     electronic_signature?: {
       path: string | null;
-      name: string;
+      /** Optional: the server signs it in the authenticated user's name when absent. */
+      name?: string;
       signed_at: string;
     };
   },
 ) {
+  // `status` comes back as the server decided it — `active` when signed, `draft` when not —
+  // which is what the screen tells the nurse, rather than what it hoped for.
   return apiRequest<ApiEnvelope<{ id: number; status?: string }>>(
     `mobile/staff/patients/${patientId}/wound-orders`,
     { method: 'POST', token, body },
