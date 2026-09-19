@@ -20,6 +20,8 @@ import { ApiError } from '../../api/client';
 import { colors } from '../../theme/colors';
 import { showAlert } from '../../utils/confirm';
 import { PatientMedicationsView } from '../../components/PatientMedicationsView';
+import { PatientMarView } from '../../components/PatientMarView';
+import { PatientTarView } from '../../components/PatientTarView';
 import { PatientImmunizationLogView } from '../../components/PatientImmunizationLogView';
 import { PatientAllergiesView } from '../../components/PatientAllergiesView';
 import { PatientInfectionsView } from '../../components/PatientInfectionsView';
@@ -28,10 +30,29 @@ import { PatientCommNotesView } from '../../components/PatientCommNotesView';
 import type { StaffPatientsStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<StaffPatientsStackParamList, 'PatientDetail'>;
-type Section = 'hub' | 'meds' | 'allergies' | 'infections' | 'vitals' | 'comm' | 'immunizations';
+type Section =
+  | 'hub'
+  | 'meds'
+  | 'mar'
+  | 'tar'
+  | 'allergies'
+  | 'infections'
+  | 'vitals'
+  | 'comm'
+  | 'immunizations';
 
 const MENU_ITEMS: { key: Section; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'meds', label: 'Medications', icon: 'medkit-outline' },
+  /*
+    Two records, kept apart.
+
+    Medications is what the patient is ordered; MAR is what they were actually given.
+    TAR is separate again because a treatment is not a dose — a wound dressing has
+    supplies to bring and a result worth recording, and folding it into the MAR would
+    mean one screen doing neither job properly.
+  */
+  { key: 'mar', label: 'Medication Record (MAR)', icon: 'checkbox-outline' },
+  { key: 'tar', label: 'Treatment Record (TAR)', icon: 'bandage-outline' },
   { key: 'allergies', label: 'Allergies', icon: 'alert-circle-outline' },
   { key: 'infections', label: 'Infections', icon: 'bug-outline' },
   { key: 'vitals', label: 'Vitals', icon: 'pulse-outline' },
@@ -99,6 +120,11 @@ export function StaffPatientDetailScreen({ route, navigation }: Props) {
     setMenuOpen(false);
     setSection(key);
     if (key === 'hub') return;
+    /*
+      MAR and TAR fetch their own day rather than a flat list — each response is a day
+      with its own summary and side lists, none of which fits `data: []`.
+    */
+    if (key === 'mar' || key === 'tar') return;
     setSectionLoading(true);
     setList([]);
     try {
@@ -127,7 +153,11 @@ export function StaffPatientDetailScreen({ route, navigation }: Props) {
         onBack={() => (section === 'hub' ? navigation.goBack() : setSection('hub'))}
         onMenu={() => setMenuOpen((open) => !open)}
       />
-      {section === 'meds' && token ? (
+      {section === 'mar' && token ? (
+        <PatientMarView patientId={patientId} token={token} />
+      ) : section === 'tar' && token ? (
+        <PatientTarView patientId={patientId} token={token} />
+      ) : section === 'meds' && token ? (
         <PatientMedicationsView
           patientId={patientId}
           token={token}

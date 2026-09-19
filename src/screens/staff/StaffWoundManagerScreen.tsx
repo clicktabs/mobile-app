@@ -26,6 +26,7 @@ import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import type { WoundCareRow, WoundButtonState } from '../../api/staff';
 import { ApiError } from '../../api/client';
+import { SignaturePad } from '../../components/SignaturePad';
 import type { StaffScheduleStackParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 import { showAlert } from '../../utils/confirm';
@@ -123,6 +124,28 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
   const [woundType, setWoundType] = useState('');
   const [stage, setStage] = useState('');
   const [treatmentPerformed, setTreatmentPerformed] = useState('');
+
+  /*
+   * The treatment order, written alongside the wound.
+   *
+   * Optional on purpose. A wound found on a visit is real before anybody has decided how
+   * to dress it, and forcing a frequency here would mean inventing one. Left blank, the
+   * wound is recorded and reported on the TAR as having no order — which is true.
+   * Filled in, the order is written and the treatment starts appearing on the record.
+   */
+  const [treatmentFrequency, setTreatmentFrequency] = useState('');
+  const [orderInstructions, setOrderInstructions] = useState('');
+  const [suppliesNeeded, setSuppliesNeeded] = useState('');
+  const [frequencies, setFrequencies] = useState<string[]>([]);
+  /*
+   * The signature that puts the order in force.
+   *
+   * The same gate New Wound Order applies, and the server applies it too: an order with
+   * no signature is saved as a draft whatever the app sends. Unsigned is a usable answer —
+   * the wound is recorded, the order is written down, and the TAR reports it as awaiting
+   * a signature rather than quietly scheduling nothing.
+   */
+  const [orderSignature, setOrderSignature] = useState<string | null>(null);
   const [createNotes, setCreateNotes] = useState('');
 
   const [length, setLength] = useState('');
@@ -183,6 +206,7 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
         const res = await staffApi.getWoundCare(token, patientId);
         setWounds(res.data || []);
         setButtonState(res.meta?.button_state || 'na');
+        setFrequencies(res.meta?.treatment_frequencies || []);
       } catch (e) {
         showAlert('Wound Manager', e instanceof ApiError ? e.message : 'Unable to load wounds.');
       } finally {
@@ -209,6 +233,10 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
     setStage('');
     setTreatmentPerformed('');
     setCreateNotes('');
+    setTreatmentFrequency('');
+    setOrderInstructions('');
+    setSuppliesNeeded('');
+    setOrderSignature(null);
   };
 
   const openDocument = (w: WoundCareRow) => {
@@ -240,6 +268,38 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
     }
     setSaving(true);
     try {
+      /*
+       * The order first, when one is being written.
+       *
+       * It has to exist before the wound so the wound can name it — that link is what
+       * lets a later visit note be recorded against the treatment the TAR schedules.
+       * Without a frequency there is nothing to schedule, so no order is written and the
+       * wound stands on its own.
+       */
+      let woundOrderId: number | undefined;
+      let orderStatus: string | undefined;
+
+      if (treatmentFrequency) {
+        const order = await staffApi.createWoundOrder(token, patientId, {
+          wound_location: location,
+          wound_type: woundType,
+          wound_stage: stage || undefined,
+          treatment_frequency: treatmentFrequency,
+          treatment_instructions: orderInstructions || undefined,
+          supplies_needed: suppliesNeeded || undefined,
+          start_date: onsetDate,
+          // The server decides from the signature; sending a status would only be a
+          // suggestion, and an unsigned order is a draft either way.
+          // The signer is whoever is logged in; the server fills the name in from the
+          // session rather than trusting one the app supplies.
+          electronic_signature: orderSignature
+            ? { path: orderSignature, signed_at: new Date().toISOString() }
+            : undefined,
+        });
+        woundOrderId = order?.data?.id;
+        orderStatus = order?.data?.status;
+      }
+
       await staffApi.createWoundCare(token, patientId, {
         location,
         wound_type: woundType,
@@ -247,6 +307,8 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
         onset_date: onsetDate,
         present_on_admission: poa === 'yes',
         additional_location: additionalLocation,
+        wound_order_id: woundOrderId,
+        supplies_needed: suppliesNeeded || undefined,
         treatment_performed: treatmentPerformed,
         notes: createNotes || undefined,
         map_x: mapPin.x,
@@ -257,7 +319,13 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
       resetCreate();
       setTab('document');
       await load(true);
-      showAlert('Wound created', 'Document the wound assessment on the Document tab.');
+      // Three outcomes, and they mean different things to whoever reads the TAR next.
+      const outcome = !woundOrderId
+        ? 'No treatment ordered yet, so nothing is scheduled on the TAR.'
+        : orderStatus === 'active'
+          ? 'Order signed — treatments will appear on the TAR.'
+          : 'Order saved as a draft. It is listed on the TAR as awaiting a signature, and schedules nothing until signed.';
+      showAlert('Wound created', `${outcome} Document the assessment on the Document tab.`);
     } catch (e) {
       showAlert('Create failed', e instanceof ApiError ? e.message : 'Unable to create wound.');
     } finally {
@@ -287,7 +355,7 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
         woundMeasured === 'yes' && length && width
           ? Number(length) * Number(width)
           : null;
-      await staffApi.updateWoundCare(token, patientId, docWound.id, {
+      const result = await staffApi.updateWoundCare(token, patientId, docWound.id, {
         length: woundMeasured === 'yes' && length ? Number(length) : undefined,
         width: woundMeasured === 'yes' && width ? Number(width) : undefined,
         depth: woundMeasured === 'yes' && depth ? Number(depth) : undefined,
@@ -306,7 +374,15 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
       });
       setDocWound(null);
       await load(true);
-      showAlert(validate ? 'Validated' : 'Saved', validate ? 'Wound documentation validated.' : 'Progress saved.');
+      // Whether this also recorded the treatment tells the nurse if the TAR is now
+      // complete for today, or if there is still a treatment showing as due.
+      const onTar = result?.data?.tar_record_id
+        ? ' The treatment was recorded on the TAR.'
+        : '';
+      showAlert(
+        validate ? 'Validated' : 'Saved',
+        (validate ? 'Wound documentation validated.' : 'Progress saved.') + onTar,
+      );
     } catch (e) {
       showAlert('Save failed', e instanceof ApiError ? e.message : 'Unable to save.');
     } finally {
@@ -321,7 +397,7 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
     }
     setSaving(true);
     try {
-      await staffApi.updateWoundCare(token, patientId, docWound.id, {
+      const notDone = await staffApi.updateWoundCare(token, patientId, docWound.id, {
         care_not_performed: true,
         care_not_performed_reason: pickReason,
         validated: true,
@@ -330,7 +406,13 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
       setPickReason('');
       setDocWound(null);
       await load(true);
-      showAlert('Updated', 'Care not performed recorded. Validations cleared for this wound.');
+      // The reason given here is the reason the TAR shows against the missed treatment,
+      // which is why one is required before any of this is sent.
+      showAlert(
+        'Updated',
+        'Care not performed recorded. Validations cleared for this wound.'
+          + (notDone?.data?.tar_record_id ? ' The treatment is marked missed on the TAR.' : ''),
+      );
     } catch (e) {
       showAlert('Update failed', e instanceof ApiError ? e.message : 'Unable to update.');
     } finally {
@@ -846,6 +928,65 @@ export function StaffWoundManagerScreen({ navigation, route }: Props) {
               placeholder="Clear asterisks from associated order text and document what was performed"
             />
             <Field label="Notes" value={createNotes} onChangeText={setCreateNotes} multiline />
+
+            {/*
+              The treatment order.
+
+              Separated from the wound above it because they are different statements: the
+              wound is what was found, the order is what is to be done about it. Leaving
+              this blank is a real answer — a wound found on a visit is often ordered for
+              later, by somebody else — so the section says plainly what follows from
+              leaving it blank rather than letting the TAR quietly stay empty.
+            */}
+            <View style={styles.orderSection}>
+              <Text style={styles.orderHeading}>Treatment order</Text>
+              <Text style={styles.orderHint}>
+                {treatmentFrequency
+                  ? 'This wound will be scheduled on the TAR at this frequency.'
+                  : 'Optional. Without a frequency nothing is scheduled on the TAR, and the wound is listed there as having no order.'}
+              </Text>
+
+              <Text style={styles.addLabel}>How often</Text>
+              <View style={styles.chipRow}>
+                {frequencies.map((o) => (
+                  <Chip
+                    key={o}
+                    label={o}
+                    selected={treatmentFrequency === o}
+                    // Tapping the chosen one again clears it, which is how the order is
+                    // taken back off without abandoning the wound.
+                    onPress={() => setTreatmentFrequency(treatmentFrequency === o ? '' : o)}
+                  />
+                ))}
+              </View>
+
+              {treatmentFrequency ? (
+                <>
+                  <Field
+                    label="Order instructions"
+                    value={orderInstructions}
+                    onChangeText={setOrderInstructions}
+                    multiline
+                    placeholder="e.g. Cleanse with normal saline, apply foam dressing"
+                  />
+                  <Field
+                    label="Supplies needed"
+                    value={suppliesNeeded}
+                    onChangeText={setSuppliesNeeded}
+                    multiline
+                    placeholder="What to bring — read at the door, not found out on arrival"
+                  />
+
+                  <Text style={styles.addLabel}>Signature</Text>
+                  <Text style={styles.orderHint}>
+                    {orderSignature
+                      ? 'Signed. The order comes into force and treatments start appearing on the TAR.'
+                      : 'Sign to put the order in force. Left unsigned it is saved as a draft and schedules nothing.'}
+                  </Text>
+                  <SignaturePad onChange={setOrderSignature} height={140} />
+                </>
+              ) : null}
+            </View>
           </ScrollView>
 
           <View style={styles.createFooter}>
@@ -1172,6 +1313,15 @@ const styles = StyleSheet.create({
   tabLabelOn: { color: colors.brandMagenta, fontWeight: '700' },
   modalContent: { padding: 16, gap: 8, paddingBottom: 40 },
   addModalContent: { padding: 16, gap: 10, paddingBottom: 28 },
+  // The order sits in its own block so it reads as a separate statement from the wound.
+  orderSection: {
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  orderHeading: { fontSize: 14, fontWeight: '800', color: '#0F172A' },
+  orderHint: { fontSize: 12, color: '#64748B', marginTop: 3, marginBottom: 10, lineHeight: 17 },
   createFooter: {
     paddingHorizontal: 16,
     paddingTop: 10,
