@@ -331,7 +331,7 @@ function ChartList({
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: '#FAFAFA' },
+  scroll: { flex: 1, backgroundColor: colors.bg },
   hubPad: { paddingBottom: 28 },
   sectionPad: { padding: 16, paddingBottom: 32 },
   empty: { color: colors.textMuted, marginTop: 16, textAlign: 'center' },

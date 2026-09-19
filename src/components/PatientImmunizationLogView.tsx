@@ -278,7 +278,7 @@ export function PatientImmunizationLogView({
             style={({ pressed }) => [styles.btnToolbar, pressed && styles.pressed]}
             onPress={openAdd}
           >
-            <Ionicons name="add-circle" size={16} color="#1D4ED8" />
+            <Ionicons name="add-circle" size={16} color="#FFFFFF" />
             <Text style={styles.btnToolbarText}>ADD IMMUNIZATION</Text>
           </Pressable>
 
@@ -295,7 +295,7 @@ export function PatientImmunizationLogView({
               <Ionicons
                 name="grid-outline"
                 size={14}
-                color={displayMode === 'table' ? '#1D4ED8' : '#FFFFFF'}
+                color={displayMode === 'table' ? '#DC2626' : '#FFFFFF'}
               />
               <Text
                 style={[
@@ -318,7 +318,7 @@ export function PatientImmunizationLogView({
               <Ionicons
                 name="albums-outline"
                 size={14}
-                color={displayMode === 'cards' ? '#1D4ED8' : '#FFFFFF'}
+                color={displayMode === 'cards' ? '#DC2626' : '#FFFFFF'}
               />
               <Text
                 style={[
@@ -335,7 +335,7 @@ export function PatientImmunizationLogView({
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1D4ED8" />
+          <ActivityIndicator size="large" color="#DC2626" />
           <Text style={styles.loadingText}>Loading immunization records...</Text>
         </View>
       ) : (
@@ -347,7 +347,7 @@ export function PatientImmunizationLogView({
             {/* Header */}
             <View style={styles.sectionHeaderWhite}>
               <View style={styles.sectionHeaderTitleRow}>
-                <Ionicons name="eyedrop" size={16} color="#1D4ED8" />
+                <Ionicons name="eyedrop" size={16} color="#DC2626" />
                 <Text style={styles.sectionHeaderTitleBlue}>Active Immunizations</Text>
                 <View style={styles.countBadgeBlue}>
                   <Text style={styles.countBadgeBlueText}>{activeItems.length}</Text>
@@ -409,7 +409,7 @@ export function PatientImmunizationLogView({
                           onPress={() => setSelectedRecord(item)}
                           accessibilityLabel="View"
                         >
-                          <Ionicons name="eye-outline" size={14} color="#1D4ED8" />
+                          <Ionicons name="eye-outline" size={14} color="#DC2626" />
                         </Pressable>
 
                         <Pressable
@@ -456,7 +456,7 @@ export function PatientImmunizationLogView({
 
                     <View style={styles.cardGrid}>
                       <View style={styles.cardGridItem}>
-                        <Ionicons name="calendar-outline" size={13} color="#1D4ED8" />
+                        <Ionicons name="calendar-outline" size={13} color="#DC2626" />
                         <Text style={styles.cardGridLabel}>Date:</Text>
                         <Text style={styles.cardGridValue}>{toDisplayDate(item.date) || '—'}</Text>
                       </View>
@@ -495,7 +495,7 @@ export function PatientImmunizationLogView({
                         style={({ pressed }) => [styles.cardActionBtn, styles.cardActionBtnPrimary, pressed && styles.pressed]}
                         onPress={() => setSelectedRecord(item)}
                       >
-                        <Ionicons name="eye-outline" size={14} color="#1D4ED8" />
+                        <Ionicons name="eye-outline" size={14} color="#DC2626" />
                         <Text style={styles.cardActionBtnPrimaryText}>View Details</Text>
                       </Pressable>
 
@@ -592,15 +592,15 @@ export function PatientImmunizationLogView({
                           onPress={() => setSelectedRecord(item)}
                           accessibilityLabel="View"
                         >
-                          <Ionicons name="eye-outline" size={14} color="#1D4ED8" />
+                          <Ionicons name="eye-outline" size={14} color="#DC2626" />
                         </Pressable>
 
                         <Pressable
                           style={({ pressed }) => [styles.btnActionOutline, pressed && styles.pressed]}
                           onPress={() => handleToggleActive(item, true)}
                         >
-                          <Ionicons name="refresh-outline" size={12} color="#1D4ED8" />
-                          <Text style={[styles.btnActionOutlineText, { color: '#1D4ED8' }]}>Reactivate</Text>
+                          <Ionicons name="refresh-outline" size={12} color="#DC2626" />
+                          <Text style={[styles.btnActionOutlineText, { color: '#0F172A' }]}>Reactivate</Text>
                         </Pressable>
 
                         <Pressable
@@ -660,7 +660,7 @@ export function PatientImmunizationLogView({
                         style={({ pressed }) => [styles.cardActionBtn, styles.cardActionBtnPrimary, pressed && styles.pressed]}
                         onPress={() => setSelectedRecord(item)}
                       >
-                        <Ionicons name="eye-outline" size={14} color="#1D4ED8" />
+                        <Ionicons name="eye-outline" size={14} color="#DC2626" />
                         <Text style={styles.cardActionBtnPrimaryText}>View Details</Text>
                       </Pressable>
 
@@ -669,8 +669,8 @@ export function PatientImmunizationLogView({
                           style={({ pressed }) => [styles.cardActionBtn, styles.cardActionBtnOutline, pressed && styles.pressed]}
                           onPress={() => handleToggleActive(item, true)}
                         >
-                          <Ionicons name="refresh-outline" size={12} color="#1D4ED8" />
-                          <Text style={[styles.cardActionBtnOutlineText, { color: '#1D4ED8' }]}>Reactivate</Text>
+                          <Ionicons name="refresh-outline" size={12} color="#DC2626" />
+                          <Text style={[styles.cardActionBtnOutlineText, { color: '#0F172A' }]}>Reactivate</Text>
                         </Pressable>
 
                         <Pressable
@@ -1015,7 +1015,7 @@ export function PatientImmunizationLogView({
                     <Text style={[styles.pickerOptionText, isSelected && styles.pickerOptionTextActive]}>
                       {v.label}
                     </Text>
-                    {isSelected && <Ionicons name="checkmark" size={18} color="#1D4ED8" />}
+                    {isSelected && <Ionicons name="checkmark" size={18} color="#DC2626" />}
                   </Pressable>
                 );
               })}
@@ -1053,7 +1053,7 @@ export function PatientImmunizationLogView({
                 <Text style={[styles.pickerOptionText, route === r.value && styles.pickerOptionTextActive]}>
                   {r.label}
                 </Text>
-                {route === r.value && <Ionicons name="checkmark" size={18} color="#1D4ED8" />}
+                {route === r.value && <Ionicons name="checkmark" size={18} color="#DC2626" />}
               </Pressable>
             ))}
           </View>
@@ -1089,7 +1089,7 @@ export function PatientImmunizationLogView({
                 <Text style={[styles.pickerOptionText, site === s.value && styles.pickerOptionTextActive]}>
                   {s.label}
                 </Text>
-                {site === s.value && <Ionicons name="checkmark" size={18} color="#1D4ED8" />}
+                {site === s.value && <Ionicons name="checkmark" size={18} color="#DC2626" />}
               </Pressable>
             ))}
           </View>
@@ -1125,7 +1125,7 @@ export function PatientImmunizationLogView({
                 <Text style={[styles.pickerOptionText, source === s.value && styles.pickerOptionTextActive]}>
                   {s.label}
                 </Text>
-                {source === s.value && <Ionicons name="checkmark" size={18} color="#1D4ED8" />}
+                {source === s.value && <Ionicons name="checkmark" size={18} color="#DC2626" />}
               </Pressable>
             ))}
           </View>
@@ -1161,7 +1161,7 @@ export function PatientImmunizationLogView({
                 <Text style={[styles.pickerOptionText, declineType === t.value && styles.pickerOptionTextActive]}>
                   {t.label}
                 </Text>
-                {declineType === t.value && <Ionicons name="checkmark" size={18} color="#1D4ED8" />}
+                {declineType === t.value && <Ionicons name="checkmark" size={18} color="#DC2626" />}
               </Pressable>
             ))}
           </View>
@@ -1260,11 +1260,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   toolbar: {
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#111111',
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E40AF',
+    borderBottomWidth: 2.5,
+    borderBottomColor: '#DC2626',
   },
   toolbarMainRow: {
     flexDirection: 'row',
@@ -1279,21 +1279,17 @@ const styles = StyleSheet.create({
     paddingRight: 6,
   },
   btnToolbar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#DC2626',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 7,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
     elevation: 2,
   },
   btnToolbarText: {
-    color: '#1D4ED8',
+    color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 11,
     letterSpacing: 0.3,
@@ -1333,7 +1329,7 @@ const styles = StyleSheet.create({
     color: '#CBD5E1',
   },
   viewToggleBtnTextActive: {
-    color: '#1D4ED8',
+    color: '#DC2626',
     fontWeight: '800',
   },
   loadingContainer: {
@@ -1376,20 +1372,20 @@ const styles = StyleSheet.create({
   sectionHeaderTitleBlue: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#1D4ED8',
+    color: '#0F172A',
   },
   countBadgeBlue: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#FEE2E2',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: '#FECACA',
   },
   countBadgeBlueText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#1D4ED8',
+    color: '#DC2626',
   },
   countBadgeGray: {
     backgroundColor: '#F1F5F9',
@@ -1407,7 +1403,7 @@ const styles = StyleSheet.create({
   tableHeaderRowBlue: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#111111',
     paddingVertical: 9,
     paddingHorizontal: 10,
     width: '100%',
@@ -1532,7 +1528,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardIndexBadge: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#FEE2E2',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -1541,7 +1537,7 @@ const styles = StyleSheet.create({
   cardIndexText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#1D4ED8',
+    color: '#DC2626',
   },
   cardVaccineTitle: {
     fontSize: 13,
@@ -1605,14 +1601,14 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   cardActionBtnPrimary: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: '#CBD5E1',
   },
   cardActionBtnPrimaryText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#1D4ED8',
+    color: '#0F172A',
   },
   cardFooterRight: {
     flexDirection: 'row',
@@ -1671,7 +1667,9 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
   },
   modalHeaderBlue: {
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#111111',
+    borderBottomWidth: 3,
+    borderBottomColor: '#DC2626',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1769,7 +1767,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#DC2626',
     paddingHorizontal: 18,
     paddingVertical: 9,
     borderRadius: 6,
@@ -1821,14 +1819,14 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F1F5F9',
   },
   pickerOptionItemActive: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#FEE2E2',
   },
   pickerOptionText: {
     fontSize: 13,
     color: '#334155',
   },
   pickerOptionTextActive: {
-    color: '#1D4ED8',
+    color: '#DC2626',
     fontWeight: '700',
   },
 

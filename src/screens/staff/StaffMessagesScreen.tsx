@@ -233,9 +233,9 @@ export function StaffMessagesScreen() {
       />
       <SegmentTabs
         tabs={[
-          { key: 'inbox', label: 'Inbox', tint: colors.brandMagenta },
-          { key: 'sent', label: 'Sent', tint: colors.brandMagenta },
-          { key: 'deleted', label: 'Deleted', tint: colors.brandMagenta },
+          { key: 'inbox', label: 'Inbox' },
+          { key: 'sent', label: 'Sent' },
+          { key: 'deleted', label: 'Deleted' },
         ]}
         value={folder}
         onChange={setFolder}
@@ -310,7 +310,7 @@ export function StaffMessagesScreen() {
                         <Ionicons
                           name={isUnread ? 'mail-unread' : 'mail-outline'}
                           size={18}
-                          color={isUnread ? '#2563EB' : colors.textMuted}
+                          color={isUnread ? colors.primary : colors.textMuted}
                         />
                       </Pressable>
                     ) : null}
@@ -458,45 +458,43 @@ export function StaffMessagesScreen() {
               ) : null}
               {selected && folder !== 'sent' ? (
                 <Pressable
-                  hitSlop={8}
-                  style={styles.replyHeaderBtn}
                   onPress={() => handleReply(selected)}
+                  style={styles.headerActionBtn}
                   accessibilityLabel="Reply"
                 >
-                  <Ionicons name="arrow-undo" size={16} color="#fff" />
-                  <Text style={styles.replyHeaderBtnText}>Reply</Text>
+                  <Ionicons name="arrow-undo-outline" size={18} color={colors.primary} />
                 </Pressable>
               ) : null}
+              <Pressable
+                onPress={() => setSelected(null)}
+                style={styles.headerActionBtn}
+                accessibilityLabel="Close"
+              >
+                <Ionicons name="close" size={20} color={colors.ink} />
+              </Pressable>
             </View>
           </View>
           <ScrollView contentContainerStyle={styles.viewerScroll}>
+            <Text style={styles.subjectDetail}>{selected?.subject || '(No subject)'}</Text>
+            <View style={styles.divider} />
             <View style={styles.messageMetaBox}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
-                  {((folder === 'sent' ? selected?.to : selected?.from) || 'C')[0]?.toUpperCase()}
+                  {(selected?.from || selected?.from_email || 'S')[0]?.toUpperCase()}
                 </Text>
               </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.fromName}>
-                  {folder === 'sent'
-                    ? `To: ${selected?.to || 'Recipient'}`
-                    : selected?.from || 'Click Tabs'}
-                </Text>
-                {selected?.from_email && folder !== 'sent' ? (
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fromName}>{selected?.from || 'Unknown'}</Text>
+                {selected?.from_email ? (
                   <Text style={styles.fromEmailSub}>{selected.from_email}</Text>
                 ) : null}
-                <Text style={styles.date}>{selected?.created_at}</Text>
               </View>
             </View>
-
-            <Text style={styles.subjectDetail}>{selected?.subject || '(no subject)'}</Text>
-            <View style={styles.divider} />
-            <Text style={styles.bodyDetail}>{selected?.body}</Text>
-
-            {selected && folder !== 'sent' ? (
+            <Text style={styles.bodyDetail}>{selected?.body || ''}</Text>
+            {folder === 'inbox' && selected ? (
               <View style={styles.replyFooter}>
-                <Pressable style={styles.replyPill} onPress={() => handleReply(selected)}>
-                  <Ionicons name="arrow-undo-outline" size={18} color={colors.brandMagenta} />
+                <Pressable onPress={() => handleReply(selected)} style={styles.replyPill}>
+                  <Ionicons name="arrow-undo-outline" size={16} color={colors.primary} />
                   <Text style={styles.replyPillText}>Reply</Text>
                 </Pressable>
               </View>
@@ -509,14 +507,14 @@ export function StaffMessagesScreen() {
 }
 
 const styles = StyleSheet.create({
-  list: { paddingBottom: 88 },
-  emptyWrap: { flexGrow: 1, justifyContent: 'center', padding: 24 },
-  emptyState: { alignItems: 'center', paddingHorizontal: 24 },
+  list: { paddingBottom: 80 },
+  emptyWrap: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  emptyState: { alignItems: 'center', maxWidth: 320 },
   emptyIcon: {
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -527,7 +525,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.brandMagenta,
+    backgroundColor: colors.primary,
     paddingHorizontal: 22,
     paddingVertical: 12,
     borderRadius: 24,
@@ -553,11 +551,11 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#FFE4EC',
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: colors.brandMagenta, fontWeight: '800', fontSize: 16 },
+  avatarText: { color: colors.primary, fontWeight: '800', fontSize: 16 },
   unreadToggleBtn: {
     padding: 4,
     alignItems: 'center',
@@ -566,7 +564,7 @@ const styles = StyleSheet.create({
   from: { flex: 1, fontWeight: '500', color: colors.ink, fontSize: 14 },
   unreadText: { fontWeight: '800', color: '#0F172A' },
   date: { color: colors.textMuted, fontSize: 12 },
-  unreadDate: { color: '#2563EB', fontWeight: '700' },
+  unreadDate: { color: colors.primary, fontWeight: '700' },
   subject: { color: colors.text, marginTop: 2, fontSize: 14 },
   preview: { color: colors.textMuted, marginTop: 2, fontSize: 13 },
   fab: {
@@ -576,7 +574,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.brandMagenta,
+    backgroundColor: colors.primary,
     paddingHorizontal: 18,
     paddingVertical: 14,
     borderRadius: 28,
@@ -605,7 +603,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.brandMagenta,
+    backgroundColor: colors.primary,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 18,
@@ -624,7 +622,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.brandMagenta,
+    backgroundColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -714,14 +712,14 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     gap: 6,
     borderWidth: 1.5,
-    borderColor: colors.brandMagenta,
+    borderColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#FFF1F5',
+    backgroundColor: colors.primaryLight,
   },
   replyPillText: {
-    color: colors.brandMagenta,
+    color: colors.primary,
     fontWeight: '700',
     fontSize: 14,
   },

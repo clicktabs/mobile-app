@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
 import { openPayrollConsole } from '../utils/payrollConsole';
+import { colors } from '../theme/colors';
 
 /**
  * Walking the payroll pipeline forward, at the foot of every stage.
@@ -138,7 +139,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    backgroundColor: '#B4006E',
+    backgroundColor: colors.primary,
     borderRadius: 10,
     paddingVertical: 13,
     paddingHorizontal: 10,

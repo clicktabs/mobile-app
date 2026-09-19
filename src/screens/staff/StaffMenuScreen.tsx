@@ -541,7 +541,7 @@ export function StaffMenuBadgeScreen({
             <Image source={{ uri: photoUri }} style={styles.photo} />
           ) : (
             <View style={styles.photoPlaceholder}>
-              <Ionicons name="camera" size={36} color={colors.brandMagenta} />
+              <Ionicons name="camera" size={36} color={colors.primary} />
               <Text style={styles.uploadText}>Upload Image</Text>
             </View>
           )}
@@ -798,7 +798,7 @@ const styles = StyleSheet.create({
   },
   switchVerifyText: {
     fontSize: 13,
-    color: colors.brandMagenta,
+    color: colors.primary,
     fontWeight: '600',
   },
   passwordSection: {
@@ -833,7 +833,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   uploadText: {
-    color: colors.brandMagenta,
+    color: colors.primary,
     fontWeight: '600',
     fontSize: 15,
   },
@@ -859,13 +859,13 @@ const styles = StyleSheet.create({
   essential: {
     fontSize: 22,
     fontWeight: '800',
-    color: colors.brandMagenta,
+    color: colors.primary,
     textAlign: 'center',
     marginBottom: 6,
   },
   essentialLaw: {
     fontSize: 13,
-    color: '#2563eb',
+    color: colors.secondary,
     textAlign: 'center',
     marginBottom: 22,
   },
@@ -893,8 +893,8 @@ const styles = StyleSheet.create({
   },
   noneBtn: {
     alignSelf: 'stretch',
-    backgroundColor: colors.brandMagenta,
-    borderRadius: 6,
+    backgroundColor: colors.primary,
+    borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
   },

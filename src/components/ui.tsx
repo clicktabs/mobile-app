@@ -76,19 +76,24 @@ export function Button({
   label: string;
   onPress: () => void | Promise<void>;
   loading?: boolean;
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
   disabled?: boolean;
 }) {
-  const isPrimary = variant === 'primary';
   const bg =
     variant === 'secondary'
-      ? colors.ink
+      ? colors.secondary
       : variant === 'danger'
-        ? colors.danger
-        : variant === 'ghost'
+        ? colors.primaryDark
+        : variant === 'ghost' || variant === 'outline'
           ? 'transparent'
-          : colors.brandPink;
-  const textColor = variant === 'ghost' ? colors.brandMagenta : '#fff';
+          : colors.primary;
+
+  const textColor =
+    variant === 'ghost'
+      ? colors.primary
+      : variant === 'outline'
+        ? colors.secondary
+        : '#ffffff';
 
   const content = loading ? (
     <ActivityIndicator color={textColor} />
@@ -96,35 +101,17 @@ export function Button({
     <Text style={[styles.buttonText, { color: textColor }]}>{label}</Text>
   );
 
-  if (isPrimary) {
-    return (
-      <Pressable
-        onPress={onPress}
-        disabled={disabled || loading}
-        style={({ pressed }) => [
-          styles.buttonOuter,
-          { opacity: disabled || loading ? 0.55 : pressed ? 0.9 : 1 },
-        ]}
-      >
-        <LinearGradient
-          colors={[...colors.brandGradient]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.buttonFill}
-        >
-          {content}
-        </LinearGradient>
-      </Pressable>
-    );
-  }
-
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor: bg, opacity: disabled || loading ? 0.55 : pressed ? 0.88 : 1 },
+        {
+          backgroundColor: bg,
+          opacity: disabled || loading ? 0.55 : pressed ? 0.88 : 1,
+        },
+        variant === 'outline' && styles.outlineButton,
         variant === 'ghost' && styles.ghostButton,
       ]}
     >
@@ -224,7 +211,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 14,
     padding: 16,
     marginBottom: 10,
     borderWidth: 1,
@@ -232,22 +219,17 @@ const styles = StyleSheet.create({
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.04)',
     elevation: 1,
   },
-  buttonOuter: {
-    marginTop: 10,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  buttonFill: {
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   button: {
-    height: 52,
-    borderRadius: 14,
+    height: 50,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 10,
+  },
+  outlineButton: {
+    borderWidth: 1.5,
+    borderColor: colors.secondary,
+    backgroundColor: 'transparent',
   },
   ghostButton: {
     borderWidth: 1,
@@ -322,7 +304,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 22,
     fontWeight: '800',
-    color: colors.brandMagenta,
+    color: colors.primary,
   },
   statLabel: {
     fontSize: 11,

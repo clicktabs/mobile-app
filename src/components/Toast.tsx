@@ -86,7 +86,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       ? { bg: '#ECFDF5', border: '#6EE7B7', icon: 'checkmark-circle' as const, tint: colors.success }
       : toast?.type === 'error'
         ? { bg: '#FEF2F2', border: '#FECACA', icon: 'alert-circle' as const, tint: colors.danger }
-        : { bg: '#FFF7ED', border: '#FDBA74', icon: 'information-circle' as const, tint: '#EA580C' };
+        : { bg: '#F8FAFC', border: '#E2E8F0', icon: 'information-circle' as const, tint: colors.secondary };
 
   return (
     <ToastContext.Provider value={value}>

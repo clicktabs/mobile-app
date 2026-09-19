@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  active: { backgroundColor: colors.axxTeal, borderColor: colors.axxTeal },
+  active: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontWeight: '600', color: colors.text },
-  activeText: { color: '#fff' },
+  activeText: { color: '#fff', fontWeight: '700' },
 });

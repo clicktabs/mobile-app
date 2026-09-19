@@ -413,7 +413,7 @@ export function PatientCommNotesView({
       {/* Main Content Area */}
       {loading ? (
         <View style={styles.centerArea}>
-          <ActivityIndicator size="large" color="#0D6EFD" />
+          <ActivityIndicator size="large" color="#DC2626" />
           <Text style={styles.loadingText}>Loading communication notes...</Text>
         </View>
       ) : items.length === 0 ? (
@@ -430,7 +430,7 @@ export function PatientCommNotesView({
             style={styles.emptyActionBtn}
             onPress={handleOpenAddModal}
           >
-            <Ionicons name="add" size={16} color="#0D6EFD" />
+            <Ionicons name="add" size={16} color="#DC2626" />
             <Text style={styles.emptyActionText}>New Communication Note</Text>
           </Pressable>
         </View>
@@ -498,7 +498,7 @@ export function PatientCommNotesView({
                         onPress={() => setSelectedNote(note)}
                         hitSlop={6}
                       >
-                        <Ionicons name="eye-outline" size={16} color="#0D6EFD" />
+                        <Ionicons name="eye-outline" size={16} color="#DC2626" />
                       </Pressable>
                       <Pressable
                         style={styles.actionIconBtn}
@@ -687,7 +687,7 @@ export function PatientCommNotesView({
                               .join(' · ')}
                           </Text>
                         </View>
-                        <Ionicons name="checkmark-circle" size={18} color="#0D6EFD" />
+                        <Ionicons name="checkmark-circle" size={18} color="#DC2626" />
                       </View>
                     )}
 
@@ -723,7 +723,7 @@ export function PatientCommNotesView({
                     <Ionicons
                       name={isRecording ? 'stop-circle' : 'mic'}
                       size={15}
-                      color={isRecording ? '#FFFFFF' : '#0D6EFD'}
+                      color={isRecording ? '#FFFFFF' : '#DC2626'}
                     />
                     <Text
                       style={[
@@ -768,7 +768,7 @@ export function PatientCommNotesView({
                         {
                           width: `${charPct}%`,
                           backgroundColor:
-                            charPct > 90 ? '#EF4444' : charPct > 70 ? '#F59E0B' : '#0D6EFD',
+                            charPct > 90 ? '#EF4444' : charPct > 70 ? '#F59E0B' : '#DC2626',
                         },
                       ]}
                     />
@@ -788,7 +788,7 @@ export function PatientCommNotesView({
               {/* Section 3: Send note as Message Card */}
               <View style={styles.sendAsMessageCard}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                  <Ionicons name="paper-plane" size={18} color="#0D6EFD" />
+                  <Ionicons name="paper-plane" size={18} color="#DC2626" />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.sendAsMessageTitle}>Send note as Message</Text>
                     <Text style={styles.sendAsMessageSubtitle}>
@@ -1099,7 +1099,7 @@ export function PatientCommNotesView({
                   {st}
                 </Text>
                 {patientStatus === st && (
-                  <Ionicons name="checkmark" size={16} color="#0D6EFD" />
+                  <Ionicons name="checkmark" size={16} color="#DC2626" />
                 )}
               </Pressable>
             ))}
@@ -1142,7 +1142,7 @@ export function PatientCommNotesView({
                     {ep.start_date ? ` (${ep.start_date})` : ''}
                   </Text>
                   {String(selectedEpisodeId) === String(ep.id) && (
-                    <Ionicons name="checkmark" size={16} color="#0D6EFD" />
+                    <Ionicons name="checkmark" size={16} color="#DC2626" />
                   )}
                 </Pressable>
               ))
@@ -1157,7 +1157,7 @@ export function PatientCommNotesView({
                 <Text style={[styles.pickerOptionText, styles.pickerOptionTextActive]}>
                   Episode #1 (Active)
                 </Text>
-                <Ionicons name="checkmark" size={16} color="#0D6EFD" />
+                <Ionicons name="checkmark" size={16} color="#DC2626" />
               </Pressable>
             )}
           </View>
@@ -1278,7 +1278,7 @@ const styles = StyleSheet.create({
 
   /* Top Banner Bar matching second screenshot */
   bannerHeader: {
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#111111',
     paddingHorizontal: 16,
     paddingVertical: 12,
     flexDirection: 'row',
@@ -1366,7 +1366,7 @@ const styles = StyleSheet.create({
   emptyActionText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0D6EFD',
+    color: '#DC2626',
   },
 
   /* Table View */
@@ -1383,7 +1383,7 @@ const styles = StyleSheet.create({
   },
   tableHeaderRow: {
     flexDirection: 'row',
-    backgroundColor: '#2563EB',
+    backgroundColor: '#DC2626',
     paddingVertical: 10,
     paddingHorizontal: 12,
     alignItems: 'center',
@@ -1461,7 +1461,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   modalHeader: {
-    backgroundColor: '#0D6EFD',
+    backgroundColor: '#DC2626',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1493,7 +1493,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   sectionCardHeader: {
-    backgroundColor: '#0B5ED7',
+    backgroundColor: '#111111',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -1623,7 +1623,7 @@ const styles = StyleSheet.create({
   physicianChipName: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1D4ED8',
+    color: '#DC2626',
   },
   physicianChipMeta: {
     fontSize: 11,
@@ -1666,7 +1666,7 @@ const styles = StyleSheet.create({
   dictateBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0D6EFD',
+    color: '#DC2626',
   },
   dictateBtnTextActive: {
     color: '#FFFFFF',
@@ -1761,8 +1761,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxBoxChecked: {
-    backgroundColor: '#0D6EFD',
-    borderColor: '#0D6EFD',
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
   },
 
   /* Electronic Signature Card (Dark Navy) */
@@ -1902,7 +1902,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#0D6EFD',
+    backgroundColor: '#DC2626',
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 6,
@@ -1978,7 +1978,7 @@ const styles = StyleSheet.create({
     color: '#334155',
   },
   pickerOptionTextActive: {
-    color: '#0D6EFD',
+    color: '#DC2626',
     fontWeight: '700',
   },
 

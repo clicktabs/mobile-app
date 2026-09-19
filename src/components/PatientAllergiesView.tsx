@@ -361,7 +361,7 @@ export function PatientAllergiesView({
             style={({ pressed }) => [styles.btnSecondary, pressed && styles.pressed]}
             onPress={onRefresh}
           >
-            <Ionicons name="refresh" size={16} color="#1D4ED8" />
+            <Ionicons name="refresh" size={16} color="#DC2626" />
             <Text style={styles.btnSecondaryText}>REFRESH</Text>
           </Pressable>
 
@@ -369,7 +369,7 @@ export function PatientAllergiesView({
             style={({ pressed }) => [styles.btnSecondary, pressed && styles.pressed]}
             onPress={handleDownloadPdf}
           >
-            <Ionicons name="document-text-outline" size={16} color="#1D4ED8" />
+            <Ionicons name="document-text-outline" size={16} color="#DC2626" />
             <Text style={styles.btnSecondaryText}>DOWNLOAD PDF REPORT</Text>
           </Pressable>
         </View>
@@ -392,7 +392,7 @@ export function PatientAllergiesView({
           <Ionicons
             name="alert-circle"
             size={14}
-            color={activeTab === 'active' ? '#1D4ED8' : '#64748B'}
+            color={activeTab === 'active' ? '#FFFFFF' : '#DC2626'}
             style={{ marginRight: 4 }}
           />
           <Text style={[styles.tabButtonText, activeTab === 'active' && styles.tabButtonTextActive]}>
@@ -406,7 +406,7 @@ export function PatientAllergiesView({
           <Ionicons
             name="time-outline"
             size={14}
-            color={activeTab === 'historical' ? '#1D4ED8' : '#64748B'}
+            color={activeTab === 'historical' ? '#FFFFFF' : '#64748B'}
             style={{ marginRight: 4 }}
           />
           <Text style={[styles.tabButtonText, activeTab === 'historical' && styles.tabButtonTextActive]}>
@@ -417,7 +417,7 @@ export function PatientAllergiesView({
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1D4ED8" />
+          <ActivityIndicator size="large" color="#DC2626" />
           <Text style={styles.loadingText}>Loading patient allergies...</Text>
         </View>
       ) : (
@@ -499,7 +499,7 @@ export function PatientAllergiesView({
                               onPress={() => setSelectedAllergy(allergy)}
                               accessibilityLabel="View Details"
                             >
-                              <Ionicons name="eye-outline" size={15} color="#1D4ED8" />
+                              <Ionicons name="eye-outline" size={15} color="#DC2626" />
                             </Pressable>
 
                             <Pressable
@@ -610,7 +610,7 @@ export function PatientAllergiesView({
                               onPress={() => setSelectedAllergy(allergy)}
                               accessibilityLabel="View Details"
                             >
-                              <Ionicons name="eye-outline" size={15} color="#1D4ED8" />
+                              <Ionicons name="eye-outline" size={15} color="#DC2626" />
                             </Pressable>
 
                             <Pressable
@@ -1015,7 +1015,7 @@ export function PatientAllergiesView({
                     <Ionicons name="warning" size={16} color="#DC2626" style={{ marginRight: 6 }} />
                   )}
                   {reaction === item.label && (
-                    <Ionicons name="checkmark" size={18} color="#1D4ED8" />
+                    <Ionicons name="checkmark" size={18} color="#DC2626" />
                   )}
                 </Pressable>
               ))}
@@ -1054,7 +1054,7 @@ export function PatientAllergiesView({
                 >
                   <Text style={styles.pickerOptionLabel}>{r}</Text>
                   {exposureRoute === r && (
-                    <Ionicons name="checkmark" size={18} color="#1D4ED8" />
+                    <Ionicons name="checkmark" size={18} color="#DC2626" />
                   )}
                 </Pressable>
               ))}
@@ -1260,7 +1260,7 @@ const styles = StyleSheet.create({
   btnPrimary: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2563EB',
+    backgroundColor: '#DC2626',
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 6,
@@ -1274,16 +1274,16 @@ const styles = StyleSheet.create({
   btnSecondary: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
     gap: 6,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: '#CBD5E1',
   },
   btnSecondaryText: {
-    color: '#1D4ED8',
+    color: '#DC2626',
     fontWeight: '600',
     fontSize: 12,
   },
@@ -1305,7 +1305,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
   },
   tabButtonActive: {
-    backgroundColor: '#DBEAFE',
+    backgroundColor: '#DC2626',
   },
   tabButtonText: {
     fontSize: 12,
@@ -1313,7 +1313,8 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   tabButtonTextActive: {
-    color: '#1D4ED8',
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   loadingContainer: {
     flex: 1,
@@ -1371,7 +1372,7 @@ const styles = StyleSheet.create({
   tableHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2563EB',
+    backgroundColor: '#DC2626',
     paddingVertical: 9,
     paddingHorizontal: 12,
     width: '100%',
@@ -1499,7 +1500,9 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   modalHeader: {
-    backgroundColor: '#2E525A', // Dark Slate Teal matching screenshot
+    backgroundColor: '#111111',
+    borderBottomWidth: 3,
+    borderBottomColor: '#DC2626',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1537,7 +1540,7 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#2E525A',
+    backgroundColor: '#111111',
     borderRadius: 2,
   },
   modalContent: {
@@ -1586,7 +1589,7 @@ const styles = StyleSheet.create({
     borderColor: '#CBD5E1',
   },
   suggestionChipActive: {
-    backgroundColor: '#2E525A',
+    backgroundColor: '#111111',
     borderColor: '#2E525A',
   },
   suggestionChipText: {
@@ -1634,7 +1637,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#386370', // Teal button matching screenshot
+    backgroundColor: '#DC2626', // Teal button matching screenshot
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 6,

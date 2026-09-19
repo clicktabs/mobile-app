@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
  * house. Rescheduling stays on the web, where the gesture is precise.
  */
 
+import { colors } from '../theme/colors';
+
 export type CalendarDayState = 'none' | 'scheduled' | 'attention' | 'done';
 
 export type CalendarMark = {
@@ -34,9 +36,9 @@ const MONTHS = [
 
 const STATE_COLOR: Record<Exclude<CalendarDayState, 'none'>, string> = {
   // Needs somebody to act: past due, missed, documentation owed.
-  attention: '#DC2626',
-  scheduled: '#B4006E',
-  done: '#047857',
+  attention: colors.primary,
+  scheduled: colors.secondary,
+  done: colors.success,
 };
 
 export function isoDate(year: number, monthIndex: number, day: number) {
@@ -195,8 +197,8 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   nav: { padding: 6 },
   titleWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
-  todayLink: { fontSize: 12, fontWeight: '700', color: '#B4006E' },
+  title: { fontSize: 16, fontWeight: '700', color: colors.secondary },
+  todayLink: { fontSize: 12, fontWeight: '700', color: colors.primary },
 
   weekRow: { flexDirection: 'row', marginTop: 8 },
   weekday: {
@@ -218,9 +220,9 @@ const styles = StyleSheet.create({
     gap: 2,
     borderRadius: 8,
   },
-  cellSelected: { backgroundColor: '#0F172A' },
+  cellSelected: { backgroundColor: colors.primary },
   dayNum: { fontSize: 14, color: '#334155' },
-  dayNumToday: { fontWeight: '800', color: '#B4006E' },
+  dayNumToday: { fontWeight: '800', color: colors.primary },
   dayNumSelected: { color: '#fff', fontWeight: '700' },
 
   badge: {

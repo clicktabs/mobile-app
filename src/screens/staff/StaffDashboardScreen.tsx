@@ -16,6 +16,7 @@ import { scopeLabels } from '../../utils/scopeLabels';
 import { useAuth } from '../../context/AuthContext';
 import * as staffApi from '../../api/staff';
 import { ApiError } from '../../api/client';
+import { colors } from '../../theme/colors';
 
 const HOME_BANNER =
   'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=1200&q=80';
@@ -324,7 +325,7 @@ export function StaffDashboardScreen() {
                 <Ionicons
                   name={tile.icon}
                   size={22}
-                  color={tile.tone === 'danger' ? '#B91C1C' : '#475569'}
+                  color={tile.tone === 'danger' ? colors.primary : colors.secondary}
                 />
                 <Text style={styles.tileLabel}>{tile.label}</Text>
                 {tile.value !== undefined ? (
@@ -333,10 +334,10 @@ export function StaffDashboardScreen() {
                   </Text>
                 ) : null}
                 {tile.showChevron && tile.value === undefined ? (
-                  <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 ) : null}
                 {tile.showChevron && tile.value !== undefined ? (
-                  <Ionicons name="chevron-forward" size={18} color="#94a3b8" style={{ marginLeft: 4 }} />
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} style={{ marginLeft: 4 }} />
                 ) : null}
               </Pressable>
             ))}
@@ -353,14 +354,16 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     marginTop: 8,
     height: 168,
-    borderRadius: 10,
+    borderRadius: 14,
     overflow: 'hidden',
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  bannerImage: { borderRadius: 10 },
+  bannerImage: { borderRadius: 14 },
   bannerScrim: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(15,23,42,0.08)',
+    backgroundColor: 'rgba(17,17,17,0.12)',
   },
   tileList: {
     marginTop: 14,
@@ -371,25 +374,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 10,
-    paddingHorizontal: 14,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 16,
     paddingVertical: 16,
+    boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.03)',
+    elevation: 1,
   },
   tileLabel: {
     flex: 1,
     fontSize: 15,
     fontWeight: '700',
-    color: '#1e293b',
+    color: colors.secondary,
   },
   tileValue: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#334155',
+    color: colors.secondary,
   },
   // Slightly smaller, because this one carries a phrase rather than a bare figure.
   tileValueDanger: {
     fontSize: 13,
-    color: '#B91C1C',
+    color: colors.primary,
+    fontWeight: '700',
   },
 });

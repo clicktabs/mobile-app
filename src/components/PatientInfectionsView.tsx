@@ -244,7 +244,7 @@ export function PatientInfectionsView({
           style={({ pressed }) => [styles.btnSecondary, pressed && styles.pressed]}
           onPress={onRefresh}
         >
-          <Ionicons name="refresh" size={16} color="#FFFFFF" />
+          <Ionicons name="refresh" size={16} color="#0F172A" />
           <Text style={styles.btnSecondaryText}>REFRESH</Text>
         </Pressable>
       </View>
@@ -263,7 +263,7 @@ export function PatientInfectionsView({
             {/* Header: Red Banner with Virus Icon + Badge Counter */}
             <View style={styles.sectionHeaderRed}>
               <View style={styles.sectionHeaderTitleWrap}>
-                <Ionicons name="bug" size={18} color="#FFFFFF" />
+                <Ionicons name="bug" size={18} color="#DC2626" />
                 <Text style={styles.sectionHeaderTitleWhite}>Active Infections</Text>
               </View>
               <View style={styles.countBadgeWhite}>
@@ -337,7 +337,7 @@ export function PatientInfectionsView({
                           onPress={() => setSelectedInfection(item)}
                           accessibilityLabel="View Details"
                         >
-                          <Ionicons name="eye-outline" size={15} color="#1D4ED8" />
+                          <Ionicons name="eye-outline" size={15} color="#0F172A" />
                         </Pressable>
 
                         <Pressable
@@ -375,7 +375,7 @@ export function PatientInfectionsView({
             {/* Header: Red Banner with Checkmark Icon + Badge Counter */}
             <View style={styles.sectionHeaderRed}>
               <View style={styles.sectionHeaderTitleWrap}>
-                <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                <Ionicons name="checkmark-circle" size={18} color="#15803D" />
                 <Text style={styles.sectionHeaderTitleWhite}>Recently Resolved Infections</Text>
               </View>
               <View style={styles.countBadgeWhite}>
@@ -435,7 +435,7 @@ export function PatientInfectionsView({
                           onPress={() => setSelectedInfection(item)}
                           accessibilityLabel="View Details"
                         >
-                          <Ionicons name="eye-outline" size={15} color="#1D4ED8" />
+                          <Ionicons name="eye-outline" size={15} color="#0F172A" />
                         </Pressable>
 
                         <Pressable
@@ -452,7 +452,7 @@ export function PatientInfectionsView({
                           }}
                           accessibilityLabel="Reactivate"
                         >
-                          <Ionicons name="arrow-undo-outline" size={15} color="#1D4ED8" />
+                          <Ionicons name="arrow-undo-outline" size={15} color="#0F172A" />
                         </Pressable>
                       </View>
                     </View>
@@ -942,24 +942,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   toolbar: {
-    backgroundColor: '#DC2626',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
     gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
   },
   btnPrimary: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: '#DC2626',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   btnPrimaryText: {
     color: '#FFFFFF',
@@ -968,7 +968,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   btnSecondary: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -976,10 +976,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: '#CBD5E1',
   },
   btnSecondaryText: {
-    color: '#FFFFFF',
+    color: '#0F172A',
     fontWeight: '700',
     fontSize: 12,
     letterSpacing: 0.3,
@@ -1011,8 +1011,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: '#DC2626',
+    paddingVertical: 11,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   sectionHeaderTitleWrap: {
     flexDirection: 'row',
@@ -1022,10 +1024,10 @@ const styles = StyleSheet.create({
   sectionHeaderTitleWhite: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#0F172A',
   },
   countBadgeWhite: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: '#FEE2E2',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
@@ -1033,12 +1035,12 @@ const styles = StyleSheet.create({
   countBadgeWhiteText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#DC2626',
   },
   tableHeaderRowBlue: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2563EB',
+    backgroundColor: '#111111',
     paddingVertical: 9,
     paddingHorizontal: 12,
     width: '100%',
@@ -1100,7 +1102,7 @@ const styles = StyleSheet.create({
   },
   isolationBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#FEE2E2',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -1108,7 +1110,7 @@ const styles = StyleSheet.create({
   isolationBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#1D4ED8',
+    color: '#DC2626',
   },
   actionButtonsCol: {
     flexDirection: 'row',
@@ -1125,8 +1127,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   iconBtnPrimary: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
+    backgroundColor: '#F1F5F9',
+    borderColor: '#CBD5E1',
   },
   iconBtnSuccess: {
     backgroundColor: '#DCFCE7',

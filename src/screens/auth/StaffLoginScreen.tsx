@@ -10,8 +10,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Field, Screen } from '../../components/ui';
 import { BrandLogo } from '../../components/BrandLogo';
+import { Button, Field, Screen } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { ApiError } from '../../api/client';
 import type { AuthStackParamList } from '../../navigation/types';
@@ -38,10 +38,10 @@ export function StaffLoginScreen({ navigation }: Props) {
 
     setLoading(true);
     try {
-      await loginStaff(email, password);
-    } catch (e) {
-      const message = e instanceof ApiError ? e.message : 'Authentication failed';
-      showAlert('Sign in failed', message);
+      await loginStaff(email.trim(), password);
+    } catch (err: unknown) {
+      const e = err as ApiError;
+      showAlert('Sign In Failed', e.message || 'Invalid email or password.');
     } finally {
       setLoading(false);
     }
@@ -56,12 +56,7 @@ export function StaffLoginScreen({ navigation }: Props) {
           </View>
 
           <View style={styles.hero}>
-            <LinearGradient
-              colors={[...colors.brandGradient]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.accentBar}
-            />
+            <View style={styles.accentBar} />
             <Text style={styles.eyebrow}>STAFF / CAREGIVER</Text>
             <Text style={styles.title}>Welcome back</Text>
             <Text style={styles.subtitle}>
@@ -95,7 +90,7 @@ export function StaffLoginScreen({ navigation }: Props) {
           </View>
 
           <View style={styles.footerLinks}>
-            <Button label="Patient login" onPress={() => navigation.navigate('PatientLogin')} variant="ghost" />
+            {/* <Button label="Patient login" onPress={() => navigation.navigate('PatientLogin')} variant="ghost" /> */}
             <Button label="Back" onPress={() => navigation.goBack()} variant="ghost" />
           </View>
         </ScrollView>
@@ -105,26 +100,27 @@ export function StaffLoginScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: '#FAF8F7' },
-  brand: { marginBottom: 28, marginTop: 4 },
-  hero: { marginBottom: 22 },
+  screen: { backgroundColor: colors.bg },
+  brand: { marginBottom: 8, marginTop: 2 },
+  hero: { marginBottom: 18, marginTop: 8 },
   accentBar: {
     width: 44,
     height: 4,
     borderRadius: 2,
     marginBottom: 14,
+    backgroundColor: colors.primary,
   },
   eyebrow: {
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.6,
-    color: colors.brandMagenta,
+    color: colors.primary,
     marginBottom: 8,
   },
   title: {
     fontSize: 30,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.secondary,
     letterSpacing: -0.6,
     marginBottom: 8,
   },
@@ -136,7 +132,7 @@ const styles = StyleSheet.create({
   },
   formCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
+    borderRadius: 14,
     padding: 18,
     borderWidth: 1,
     borderColor: colors.border,
@@ -144,7 +140,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   toggle: {
-    color: colors.brandMagenta,
+    color: colors.primary,
     marginBottom: 4,
     marginTop: -4,
     fontWeight: '600',

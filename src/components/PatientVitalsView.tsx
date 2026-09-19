@@ -299,7 +299,7 @@ export function PatientVitalsView({
             style={({ pressed }) => [styles.btnSecondary, pressed && styles.pressed]}
             onPress={onRefresh}
           >
-            <Ionicons name="refresh" size={14} color="#1D4ED8" />
+            <Ionicons name="refresh" size={14} color="#0F172A" />
             <Text style={styles.btnSecondaryText}>REFRESH</Text>
           </Pressable>
 
@@ -307,7 +307,7 @@ export function PatientVitalsView({
             style={({ pressed }) => [styles.btnSecondary, pressed && styles.pressed]}
             onPress={() => setTrendsModalOpen(true)}
           >
-            <Ionicons name="trending-up-outline" size={14} color="#1D4ED8" />
+            <Ionicons name="trending-up-outline" size={14} color="#0F172A" />
             <Text style={styles.btnSecondaryText}>VIEW TRENDS</Text>
           </Pressable>
 
@@ -315,7 +315,7 @@ export function PatientVitalsView({
             style={({ pressed }) => [styles.btnSecondary, pressed && styles.pressed]}
             onPress={() => showAlert('Vital Signs Report', 'Vital signs clinical history PDF report generated.', 'success')}
           >
-            <Ionicons name="print-outline" size={14} color="#1D4ED8" />
+            <Ionicons name="print-outline" size={14} color="#0F172A" />
             <Text style={styles.btnSecondaryText}>PRINT REPORT</Text>
           </Pressable>
         </ScrollView>
@@ -328,9 +328,9 @@ export function PatientVitalsView({
         style={styles.statsScroll}
         contentContainerStyle={styles.statsRow}
       >
-        <View style={[styles.statCard, { backgroundColor: '#1E40AF' }]}>
+        <View style={styles.statCard}>
           <View style={styles.statCardHeader}>
-            <Ionicons name="heart-circle" size={15} color="rgba(255,255,255,0.9)" />
+            <Ionicons name="heart-circle" size={16} color="#DC2626" />
             <Text style={styles.statLabel}>Blood Pressure</Text>
           </View>
           <Text style={styles.statNumber}>
@@ -341,9 +341,9 @@ export function PatientVitalsView({
           <Text style={styles.statSub}>mmHg</Text>
         </View>
 
-        <View style={[styles.statCard, { backgroundColor: '#DC2626' }]}>
+        <View style={styles.statCard}>
           <View style={styles.statCardHeader}>
-            <Ionicons name="pulse" size={15} color="rgba(255,255,255,0.9)" />
+            <Ionicons name="pulse" size={16} color="#DC2626" />
             <Text style={styles.statLabel}>Heart Rate</Text>
           </View>
           <Text style={styles.statNumber}>
@@ -352,9 +352,9 @@ export function PatientVitalsView({
           <Text style={styles.statSub}>Resting</Text>
         </View>
 
-        <View style={[styles.statCard, { backgroundColor: '#0284C7' }]}>
+        <View style={styles.statCard}>
           <View style={styles.statCardHeader}>
-            <Ionicons name="water" size={15} color="rgba(255,255,255,0.9)" />
+            <Ionicons name="water" size={16} color="#DC2626" />
             <Text style={styles.statLabel}>O2 Saturation</Text>
           </View>
           <Text style={styles.statNumber}>
@@ -363,9 +363,9 @@ export function PatientVitalsView({
           <Text style={styles.statSub}>SpO2</Text>
         </View>
 
-        <View style={[styles.statCard, { backgroundColor: '#D97706' }]}>
+        <View style={styles.statCard}>
           <View style={styles.statCardHeader}>
-            <Ionicons name="thermometer" size={15} color="rgba(255,255,255,0.9)" />
+            <Ionicons name="thermometer" size={16} color="#DC2626" />
             <Text style={styles.statLabel}>Temperature</Text>
           </View>
           <Text style={styles.statNumber}>
@@ -377,7 +377,7 @@ export function PatientVitalsView({
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1D4ED8" />
+          <ActivityIndicator size="large" color="#DC2626" />
           <Text style={styles.loadingText}>Loading vital signs history...</Text>
         </View>
       ) : (
@@ -490,7 +490,7 @@ export function PatientVitalsView({
                             onPress={() => setSelectedVital(item)}
                             accessibilityLabel="View Details"
                           >
-                            <Ionicons name="eye-outline" size={14} color="#1D4ED8" />
+                            <Ionicons name="eye-outline" size={14} color="#DC2626" />
                             <Text style={styles.iconBtnLabel}>View</Text>
                           </Pressable>
                         </View>
@@ -583,7 +583,7 @@ export function PatientVitalsView({
                           style={({ pressed }) => [styles.cardDetailsBtn, pressed && styles.pressed]}
                           onPress={() => setSelectedVital(item)}
                         >
-                          <Ionicons name="eye-outline" size={14} color="#1D4ED8" />
+                          <Ionicons name="eye-outline" size={14} color="#DC2626" />
                           <Text style={styles.cardDetailsBtnText}>Details</Text>
                         </Pressable>
                       </View>
@@ -628,7 +628,7 @@ export function PatientVitalsView({
                 {/* Date * */}
                 <View style={styles.topCol}>
                   <View style={styles.fieldLabelRow}>
-                    <Ionicons name="calendar" size={14} color="#0D6EFD" />
+                    <Ionicons name="calendar" size={14} color="#DC2626" />
                     <Text style={styles.fieldLabel}>Date *</Text>
                   </View>
                   <AppDatePicker
@@ -642,7 +642,7 @@ export function PatientVitalsView({
                 {/* Time * */}
                 <View style={styles.topCol}>
                   <View style={styles.fieldLabelRow}>
-                    <Ionicons name="time" size={14} color="#0D6EFD" />
+                    <Ionicons name="time" size={14} color="#DC2626" />
                     <Text style={styles.fieldLabel}>Time *</Text>
                   </View>
                   <AppTimePicker
@@ -656,7 +656,7 @@ export function PatientVitalsView({
                 {/* Provider * */}
                 <View style={styles.topCol}>
                   <View style={styles.fieldLabelRow}>
-                    <Ionicons name="person" size={14} color="#0D6EFD" />
+                    <Ionicons name="person" size={14} color="#DC2626" />
                     <Text style={styles.fieldLabel}>Provider *</Text>
                   </View>
                   <TextInput
@@ -1056,7 +1056,7 @@ export function PatientVitalsView({
                     {item.label}
                   </Text>
                   {painLevel === item.value && (
-                    <Ionicons name="checkmark" size={18} color="#0D6EFD" />
+                    <Ionicons name="checkmark" size={18} color="#DC2626" />
                   )}
                 </Pressable>
               ))}
@@ -1104,7 +1104,7 @@ export function PatientVitalsView({
                     {item.label}
                   </Text>
                   {position === item.value && (
-                    <Ionicons name="checkmark" size={18} color="#0D6EFD" />
+                    <Ionicons name="checkmark" size={18} color="#DC2626" />
                   )}
                 </Pressable>
               ))}
@@ -1151,7 +1151,7 @@ export function PatientVitalsView({
                   {u}
                 </Text>
                 {weightUnit === u && (
-                  <Ionicons name="checkmark" size={18} color="#0D6EFD" />
+                  <Ionicons name="checkmark" size={18} color="#DC2626" />
                 )}
               </Pressable>
             ))}
@@ -1297,7 +1297,7 @@ export function PatientVitalsView({
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, { maxWidth: 500 }]}>
-            <View style={[styles.modalHeader, { backgroundColor: '#1D4ED8' }]}>
+            <View style={[styles.modalHeader, { backgroundColor: '#111111' }]}>
               <Text style={styles.modalHeaderTitle}>VITAL SIGNS TRENDS & HISTORY</Text>
               <Pressable onPress={() => setTrendsModalOpen(false)}>
                 <Ionicons name="close" size={22} color="#FFFFFF" />
@@ -1351,14 +1351,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   btnPrimary: {
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#111111',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
-    shadowColor: '#1D4ED8',
+    shadowColor: '#DC2626',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 3,
@@ -1388,7 +1388,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   viewToggleBtnActive: {
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#111111',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -1411,7 +1411,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   btnSecondary: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
@@ -1419,10 +1419,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: '#CBD5E1',
   },
   btnSecondaryText: {
-    color: '#1D4ED8',
+    color: '#0F172A',
     fontWeight: '700',
     fontSize: 11,
     letterSpacing: 0.3,
@@ -1445,12 +1445,18 @@ const styles = StyleSheet.create({
   statCard: {
     height: 64,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 8,
     minWidth: 124,
     justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: '#CBD5E1',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   statCardHeader: {
     flexDirection: 'row',
@@ -1460,19 +1466,20 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.95)',
+    color: '#64748B',
     letterSpacing: 0.2,
+    textTransform: 'uppercase',
   },
   statNumber: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#0F172A',
     lineHeight: 20,
   },
   statSub: {
     fontSize: 10,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.8)',
+    color: '#94A3B8',
   },
   loadingContainer: {
     flex: 1,
@@ -1542,7 +1549,7 @@ const styles = StyleSheet.create({
   tableHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#111111',
     paddingVertical: 10,
     paddingHorizontal: 10,
     width: '100%',
@@ -1620,7 +1627,7 @@ const styles = StyleSheet.create({
   iconBtnLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#1D4ED8',
+    color: '#DC2626',
   },
 
   /* Cards View Styles */
@@ -1659,7 +1666,7 @@ const styles = StyleSheet.create({
   vitalIndexText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#1D4ED8',
+    color: '#DC2626',
   },
   vitalCardDate: {
     fontSize: 12,
@@ -1759,7 +1766,7 @@ const styles = StyleSheet.create({
   cardDetailsBtnText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#1D4ED8',
+    color: '#DC2626',
   },
   emptyStateContainer: {
     alignItems: 'center',
@@ -1799,7 +1806,7 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
   },
   modalHeader: {
-    backgroundColor: '#0D6EFD',
+    backgroundColor: '#DC2626',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1983,8 +1990,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   checkboxBoxActive: {
-    backgroundColor: '#0D6EFD',
-    borderColor: '#0D6EFD',
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
   },
   checkboxLabel: {
     fontSize: 13,
@@ -2024,7 +2031,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#0D6EFD',
+    backgroundColor: '#DC2626',
     paddingHorizontal: 18,
     paddingVertical: 8,
     borderRadius: 6,
@@ -2083,7 +2090,7 @@ const styles = StyleSheet.create({
     color: '#334155',
   },
   pickerOptionTextActive: {
-    color: '#0D6EFD',
+    color: '#DC2626',
     fontWeight: '700',
   },
 

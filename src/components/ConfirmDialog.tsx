@@ -106,7 +106,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
               <Ionicons
                 name={icon}
                 size={28}
-                color={destructive ? colors.danger : colors.brandPink}
+                color={destructive ? colors.danger : colors.primary}
               />
             </View>
             <Text style={styles.title}>{pending?.title}</Text>
@@ -134,14 +134,9 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                   onPress={() => close(true)}
                   style={({ pressed }) => [styles.btnPrimaryWrap, pressed && { opacity: 0.92 }]}
                 >
-                  <LinearGradient
-                    colors={[...colors.brandGradient]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.btnPrimary}
-                  >
+                  <View style={styles.btnPrimary}>
                     <Text style={styles.btnPrimaryText}>{confirmLabel}</Text>
-                  </LinearGradient>
+                  </View>
                 </Pressable>
               )}
             </View>
@@ -189,7 +184,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   iconWrapBrand: {
-    backgroundColor: '#FFF1F5',
+    backgroundColor: colors.primaryLight,
   },
   iconWrapDanger: {
     backgroundColor: '#FEF2F2',
@@ -233,6 +228,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   btnPrimary: {
+    backgroundColor: colors.primary,
     paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',

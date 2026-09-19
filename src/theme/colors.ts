@@ -1,27 +1,46 @@
 export const colors = {
-  // Brand (Click Tabs TECHNOLOGY — orange → pink)
-  brandOrange: '#FF9A45',
-  brandPink: '#FF4D8D',
-  brandMagenta: '#F73B7C',
-  brandGradient: ['#FFB347', '#FF6B7A', '#FF4D8D'] as const,
+  // Primary (Medical Red)
+  primary: '#DC2626',
+  primaryDark: '#B91C1C',
+  primaryLight: '#FEF2F2',
+  primaryBorder: '#FECACA',
 
-  // Neutrals
-  ink: '#111111',
-  navy: '#1A1A1A',
-  navyMid: '#2A2A2A',
-  navyLight: '#3D3D3D',
-  teal: '#38BEB9',
-  crimson: '#BB233D',
-  blue: '#FF4D8D',
-  blueDark: '#E03A78',
-  axxBlue: '#FF6B5A',
-  axxTeal: '#FF8A4C',
-  bg: '#F7F5F4',
+  // Secondary (Deep Onyx Black)
+  secondary: '#111111',
+  secondaryDark: '#000000',
+  secondaryLight: '#1E1E1E',
+
+  // Canvas & Surfaces (Unified across all screens)
+  bg: '#F8F9FA',
   surface: '#FFFFFF',
-  text: '#161616',
-  textMuted: '#6B7280',
-  border: '#E8E4E1',
+  surfaceSubtle: '#F1F5F9',
+
+  // Typography & Borders
+  text: '#0F172A',
+  textMuted: '#64748B',
+  border: '#E2E8F0',
+
+  // Feedback & Semantic
   danger: '#DC2626',
   success: '#059669',
   warning: '#D97706',
+
+  // Unified Brand Tokens (Aliases for seamless compatibility)
+  brandOrange: '#DC2626',
+  brandPink: '#DC2626',
+  brandMagenta: '#DC2626',
+  brandGradient: ['#111111', '#1A1A1A', '#111111'] as const,
+  brandRedGradient: ['#DC2626', '#B91C1C'] as const,
+
+  // Legacy mappings aligned to Red & Black theme
+  ink: '#111111',
+  navy: '#111111',
+  navyMid: '#1E1E1E',
+  navyLight: '#334155',
+  teal: '#0F172A',
+  crimson: '#DC2626',
+  blue: '#DC2626',
+  blueDark: '#B91C1C',
+  axxBlue: '#DC2626',
+  axxTeal: '#111111',
 };

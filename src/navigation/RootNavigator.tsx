@@ -163,11 +163,15 @@ function StaffApp() {
       backBehavior="history"
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: colors.brandMagenta,
+        tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
+        },
+        tabBarLabelStyle: {
+          fontWeight: '600',
+          fontSize: 11,
         },
         tabBarIcon: ({ color, size }) => {
           const map: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -212,8 +216,8 @@ function PatientHomeNavigator() {
   return (
     <PatientHomeStack.Navigator
       screenOptions={{
-        headerTintColor: colors.brandMagenta,
-        headerTitleStyle: { fontWeight: '700', color: colors.ink },
+        headerTintColor: colors.primary,
+        headerTitleStyle: { fontWeight: '700', color: colors.secondary },
       }}
     >
       <PatientHomeStack.Screen name="PatientHomeMain" component={PatientHomeScreen} options={{ title: 'Home' }} />
@@ -233,13 +237,17 @@ function PatientApp() {
       backBehavior="history"
       screenOptions={({ route }) => ({
         headerShown: route.name === 'Home' ? false : true,
-        headerTintColor: colors.brandMagenta,
-        headerTitleStyle: { fontWeight: '700', color: colors.ink },
-        tabBarActiveTintColor: colors.brandPink,
+        headerTintColor: colors.primary,
+        headerTitleStyle: { fontWeight: '700', color: colors.secondary },
+        tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
+        },
+        tabBarLabelStyle: {
+          fontWeight: '600',
+          fontSize: 11,
         },
         tabBarIcon: ({ color, size }) => {
           const map: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -283,7 +291,7 @@ export function RootNavigator() {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
         <BrandLogo size="md" tone="black" />
-        <ActivityIndicator size="large" color={colors.brandPink} style={{ marginTop: 20 }} />
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
       </View>
     );
   }

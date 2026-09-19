@@ -313,7 +313,7 @@ export function PatientMedicationsView({
           <Ionicons
             name="list-outline"
             size={16}
-            color={viewMode === 'list' ? '#fff' : '#4A7280'}
+            color={viewMode === 'list' ? '#fff' : '#DC2626'}
           />
           <Text
             style={[
@@ -332,7 +332,7 @@ export function PatientMedicationsView({
           <Ionicons
             name="person-outline"
             size={16}
-            color={viewMode === 'profile' ? '#fff' : '#4A7280'}
+            color={viewMode === 'profile' ? '#fff' : '#DC2626'}
           />
           <Text
             style={[
@@ -498,7 +498,7 @@ export function PatientMedicationsView({
                                 onPress={() => setSelectedMedDetail(m)}
                                 accessibilityLabel="View Details"
                               >
-                                <Ionicons name="eye-outline" size={15} color="#1D4ED8" />
+                                <Ionicons name="eye-outline" size={15} color="#0F172A" />
                               </Pressable>
                             </View>
                           </View>
@@ -569,7 +569,7 @@ export function PatientMedicationsView({
                             style={styles.cardDetailBtn}
                             onPress={() => setSelectedMedDetail(m)}
                           >
-                            <Ionicons name="eye-outline" size={14} color="#1D4ED8" />
+                            <Ionicons name="eye-outline" size={14} color="#0F172A" />
                             <Text style={styles.cardDetailBtnText}>Details</Text>
                           </Pressable>
                         </View>
@@ -1118,10 +1118,11 @@ export function PatientMedicationsView({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F5F9' },
   topHeader: {
-    backgroundColor: '#1E3A42',
+    backgroundColor: '#111111',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    boxShadow: '0px 2px 8px rgba(30, 58, 66, 0.25)',
+    borderBottomWidth: 2.5,
+    borderBottomColor: '#DC2626',
   },
   topHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerIconCircle: {
@@ -1176,13 +1177,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   tabBtnActive: {
-    backgroundColor: '#2E525A',
+    backgroundColor: '#111111',
     boxShadow: '0px 1px 3px rgba(0,0,0,0.12)',
   },
   tabBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#4A7280',
+    color: '#64748B',
   },
   tabBtnTextActive: {
     color: '#fff',
@@ -1215,8 +1216,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   filterIconBtnActive: {
-    backgroundColor: '#2E525A',
-    borderColor: '#2E525A',
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
   },
   viewModeToggleGroup: {
     flexDirection: 'row',
@@ -1232,7 +1233,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   viewToggleBtnActive: {
-    backgroundColor: '#2E525A',
+    backgroundColor: '#111111',
   },
   centerLoading: { padding: 32, alignItems: 'center', gap: 8 },
   loadingText: { color: colors.textMuted, fontSize: 13 },
@@ -1248,7 +1249,7 @@ const styles = StyleSheet.create({
   tableHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2E525A',
+    backgroundColor: '#111111',
     paddingVertical: 10,
     paddingHorizontal: 10,
     width: '100%',
@@ -1404,13 +1405,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: '#CBD5E1',
   },
   cardDetailBtnText: {
     fontSize: 12,
-    color: '#1D4ED8',
+    color: '#0F172A',
     fontWeight: '700',
   },
   actionRow: {
@@ -1418,7 +1419,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   addMedBtn: {
-    backgroundColor: '#2E525A',
+    backgroundColor: '#111111',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1444,7 +1445,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
   },
-  secondaryActionBtnText: { color: '#2E525A', fontSize: 11, fontWeight: '700' },
+  secondaryActionBtnText: { color: '#111111', fontSize: 11, fontWeight: '700' },
   detailModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.45)',
@@ -1472,7 +1473,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#2E525A',
+    backgroundColor: '#111111',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1522,7 +1523,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   detailModalCloseBtn: {
-    backgroundColor: '#2E525A',
+    backgroundColor: '#111111',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
@@ -1544,7 +1545,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 16,
   },
-  widePdfBtnText: { color: '#2E525A', fontSize: 14, fontWeight: '700' },
+  widePdfBtnText: { color: '#111111', fontSize: 14, fontWeight: '700' },
   verifiedFooter: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1625,7 +1626,7 @@ const styles = StyleSheet.create({
     boxShadow: '0px 10px 30px rgba(0,0,0,0.25)',
   },
   addHeader: {
-    backgroundColor: '#2E525A',
+    backgroundColor: '#111111',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1643,7 +1644,7 @@ const styles = StyleSheet.create({
   },
   stepProgressLabel: { fontSize: 12, fontWeight: '700', color: '#334155' },
   progressBarTrack: { height: 6, backgroundColor: '#E2E8F0', borderRadius: 3, overflow: 'hidden' },
-  progressBarFill: { height: '100%', backgroundColor: '#2E525A', borderRadius: 3 },
+  progressBarFill: { height: '100%', backgroundColor: '#111111', borderRadius: 3 },
   stepBodyPad: { padding: 16 },
   drugSearchWrap: {
     borderWidth: 1.5,
@@ -1696,11 +1697,11 @@ const styles = StyleSheet.create({
     borderColor: '#CBD5E1',
     backgroundColor: '#F8FAFC',
   },
-  dosePillActive: { backgroundColor: '#2E525A', borderColor: '#2E525A' },
+  dosePillActive: { backgroundColor: '#111111', borderColor: '#DC2626' },
   dosePillText: { fontSize: 12, color: '#475569', fontWeight: '600' },
   dosePillTextActive: { color: '#fff', fontWeight: '700' },
   checkInteractionBtn: {
-    backgroundColor: '#4A7280',
+    backgroundColor: '#DC2626',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1723,7 +1724,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#2E525A',
+    backgroundColor: '#111111',
     marginBottom: 20,
   },
   finalizeAddBtnDisabled: {
@@ -1780,7 +1781,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   cancelAddBtn: {
-    backgroundColor: '#4A7280',
+    backgroundColor: '#DC2626',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 13,

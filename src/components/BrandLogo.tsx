@@ -2,11 +2,13 @@ import React from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Svg, { Path, Text as SvgText } from 'react-native-svg';
 
-export type LogoTone = 'black' | 'white';
+import { colors } from '../theme/colors';
+
+export type LogoTone = 'black' | 'white' | 'red';
 
 type Props = {
   size?: 'sm' | 'md' | 'lg';
-  /** black on white/light screens; white on colored/dark screens */
+  /** black on white/light screens; white on colored/dark screens; red for accent */
   tone?: LogoTone;
   markOnly?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -19,7 +21,9 @@ const SIZES = {
 };
 
 function toneColor(tone: LogoTone) {
-  return tone === 'white' ? '#FFFFFF' : '#111111';
+  if (tone === 'white') return '#FFFFFF';
+  if (tone === 'red') return colors.primary;
+  return '#111111';
 }
 
 /** CT monogram mark (SVG) */
@@ -33,11 +37,12 @@ export function BrandMark({
   style?: StyleProp<ViewStyle>;
 }) {
   const color = toneColor(tone);
+  const markAccent = tone === 'black' ? colors.primary : color;
   return (
     <View style={style} accessibilityLabel="Click Tabs">
       <Svg width={size} height={size} viewBox="0 0 64 64">
         <Path
-          fill={color}
+          fill={markAccent}
           d="M32 6c-14.36 0-26 11.64-26 26s11.64 26 26 26 26-11.64 26-26c0-3.2-.58-6.26-1.64-9.08l-7.9 2.7A18.1 18.1 0 0 1 50 32c0 9.94-8.06 18-18 18S14 41.94 14 32 22.06 14 32 14c3.42 0 6.6.96 9.32 2.62l4.7-6.48A25.8 25.8 0 0 0 32 6z"
         />
         <Path fill={color} d="M24 22h22v7.2H37.2V48h-8.4V29.2H24V22z" />

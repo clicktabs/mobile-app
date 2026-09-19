@@ -2,12 +2,9 @@ import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors } from '../theme/colors';
 
-export const PROFILE_NAVY = '#0D2A4A';
-const CREAM = '#F4F0E4';
-const LABEL = '#3A3A3A';
-const VALUE = '#111111';
-const ICON = '#5B6570';
+export const PROFILE_NAVY = colors.secondary;
 
 export type PatientProfileData = Record<string, any>;
 
@@ -129,7 +126,7 @@ export function PatientProfileHeader({
       <View style={styles.headerRow}>
         {showBack ? (
           <Pressable onPress={onBack} hitSlop={8} style={styles.headerBtn} accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={24} color="#fff" />
+            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
           </Pressable>
         ) : (
           <View style={styles.headerBtn} />
@@ -137,7 +134,7 @@ export function PatientProfileHeader({
         <Text style={styles.headerTitle}>{title}</Text>
         {onMenu ? (
           <Pressable onPress={onMenu} hitSlop={8} style={styles.headerBtn} accessibilityLabel="More options">
-            <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
+            <Ionicons name="ellipsis-vertical" size={20} color="#FFFFFF" />
           </Pressable>
         ) : (
           <View style={styles.headerBtn} />
@@ -152,24 +149,36 @@ function InfoRow({
   label,
   value,
   multiline,
+  isLast,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value: string;
   multiline?: boolean;
+  isLast?: boolean;
 }) {
   return (
-    <View style={styles.infoRow}>
-      <Ionicons name={icon} size={18} color={ICON} style={styles.infoIcon} />
+    <View style={[styles.infoRow, isLast && styles.noBorder]}>
+      <View style={styles.iconCircle}>
+        <Ionicons name={icon} size={16} color={colors.primary} />
+      </View>
       <Text style={styles.infoLabel}>{label}</Text>
       <Text style={[styles.infoValue, multiline && styles.infoValueMulti]}>{value}</Text>
     </View>
   );
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
+function SummaryRow({
+  label,
+  value,
+  isLast,
+}: {
+  label: string;
+  value: string;
+  isLast?: boolean;
+}) {
   return (
-    <View style={styles.summaryRow}>
+    <View style={[styles.summaryRow, isLast && styles.noBorder]}>
       <Text style={styles.summaryLabel}>{label}</Text>
       <Text style={styles.summaryValue}>{value}</Text>
     </View>
@@ -179,7 +188,9 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 export function PatientProfileCard({ patient }: { patient: PatientProfileData }) {
   const name = dash(patient.name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim());
   const status = formatStatus(patient.status);
-  const isActive = String(patient.status || 'active').toLowerCase() === 'active';
+  const statusLower = String(patient.status || 'active').toLowerCase();
+  const isActive = statusLower === 'active';
+  const isPending = statusLower === 'pending';
   const addr = addressLines(patient);
   const ec = (patient.emergency_contact || {}) as Record<string, unknown>;
   const contactName = String(ec.name || '').trim();
@@ -193,7 +204,7 @@ export function PatientProfileCard({ patient }: { patient: PatientProfileData })
   const dob = patient.dob || patient.date_of_birth;
 
   return (
-    <View>
+    <View style={styles.root}>
       <View style={styles.hero}>
         {photo ? (
           <Image source={{ uri: photo }} style={styles.avatar} />
@@ -206,8 +217,18 @@ export function PatientProfileCard({ patient }: { patient: PatientProfileData })
           <Text style={styles.name} numberOfLines={2}>
             {name}
           </Text>
-          <View style={[styles.badge, isActive ? styles.badgeActive : styles.badgeMuted]}>
-            <Text style={[styles.badgeText, isActive ? styles.badgeTextActive : styles.badgeTextMuted]}>
+          <View
+            style={[
+              styles.badge,
+              isActive ? styles.badgeActive : isPending ? styles.badgePending : styles.badgeMuted,
+            ]}
+          >
+            <Text
+              style={[
+                styles.badgeText,
+                isActive ? styles.badgeTextActive : isPending ? styles.badgeTextPending : styles.badgeTextMuted,
+              ]}
+            >
               {status}
             </Text>
           </View>
@@ -215,7 +236,10 @@ export function PatientProfileCard({ patient }: { patient: PatientProfileData })
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Patient Information</Text>
+        <View style={styles.cardHeaderRow}>
+          <View style={styles.accentBar} />
+          <Text style={styles.cardTitle}>Patient Information</Text>
+        </View>
         <InfoRow icon="person-outline" label="Full Name" value={name} />
         <InfoRow icon="calendar-outline" label="Date of Birth" value={formatDob(dob, patient.age)} />
         <InfoRow icon="card-outline" label="MRN" value={dash(patient.mrn)} />
@@ -225,27 +249,42 @@ export function PatientProfileCard({ patient }: { patient: PatientProfileData })
           label="Address"
           value={[addr.line1, addr.line2].filter(Boolean).join('\n')}
           multiline
+          isLast
         />
-
-        <Text style={[styles.cardTitle, styles.cardTitleSpaced]}>Clinical Summary</Text>
-        <SummaryRow label="Episode:" value={formatEpisode(patient.episode)} />
-        <SummaryRow label="Start of Care:" value={formatPretty(patient.start_of_care_date || patient.admission_date)} />
-        <SummaryRow label="Emergency Triage:" value={formatTriage(patient.emergency_triage_level)} />
-        <SummaryRow label="Primary Contact:" value={primaryContact} />
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Care Team</Text>
+        <View style={styles.cardHeaderRow}>
+          <View style={styles.accentBar} />
+          <Text style={styles.cardTitle}>Clinical Summary</Text>
+        </View>
+        <SummaryRow label="Episode:" value={formatEpisode(patient.episode)} />
+        <SummaryRow label="Start of Care:" value={formatPretty(patient.start_of_care_date || patient.admission_date)} />
+        <SummaryRow label="Emergency Triage:" value={formatTriage(patient.emergency_triage_level)} />
+        <SummaryRow label="Primary Contact:" value={primaryContact} isLast />
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.cardHeaderRow}>
+          <View style={styles.accentBar} />
+          <Text style={styles.cardTitle}>Care Team</Text>
+        </View>
         <SummaryRow label="Clinical Manager:" value={dash(patient.clinical_manager)} />
-        <SummaryRow label="Attending Physician:" value={formatPhysician(patient.attending_physician)} />
+        <SummaryRow label="Attending Physician:" value={formatPhysician(patient.attending_physician)} isLast />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    backgroundColor: colors.bg,
+    paddingBottom: 24,
+  },
   header: {
-    backgroundColor: PROFILE_NAVY,
+    backgroundColor: colors.secondary, // Executive Black (#111111)
+    borderBottomWidth: 2.5,
+    borderBottomColor: colors.primary, // Signature Medical Red Accent
     paddingBottom: 12,
   },
   headerRow: {
@@ -263,82 +302,172 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     textAlign: 'center',
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700',
+    letterSpacing: -0.2,
   },
   hero: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingTop: 18,
-    paddingBottom: 14,
+    paddingBottom: 16,
     gap: 16,
+    backgroundColor: colors.bg,
   },
   avatar: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    backgroundColor: '#E8EEF5',
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: '#FFFFFF',
   },
   avatarFallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#D5DEE8',
+    borderWidth: 2.5,
+    borderColor: colors.primary,
+    backgroundColor: '#FFFFFF',
+    boxShadow: '0px 4px 10px rgba(220, 38, 38, 0.12)',
+    elevation: 3,
   },
-  avatarText: { fontSize: 28, fontWeight: '700', color: PROFILE_NAVY },
-  heroText: { flex: 1, minWidth: 0 },
-  name: {
+  avatarText: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#111',
+    color: colors.secondary,
+    letterSpacing: -0.5,
+  },
+  heroText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  name: {
+    fontSize: 23,
+    fontWeight: '800',
+    color: colors.secondary,
     letterSpacing: -0.4,
+    lineHeight: 28,
   },
   badge: {
     alignSelf: 'flex-start',
     marginTop: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
   },
-  badgeActive: { backgroundColor: '#DDF4E4' },
-  badgeMuted: { backgroundColor: '#EEE' },
-  badgeText: { fontSize: 13, fontWeight: '700' },
-  badgeTextActive: { color: '#2F9E5F' },
-  badgeTextMuted: { color: '#6B7280' },
+  badgeActive: {
+    backgroundColor: '#DCFCE7',
+    borderColor: '#86EFAC',
+  },
+  badgePending: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FCD34D',
+  },
+  badgeMuted: {
+    backgroundColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  badgeTextActive: {
+    color: '#15803D',
+  },
+  badgeTextPending: {
+    color: '#B45309',
+  },
+  badgeTextMuted: {
+    color: '#64748B',
+  },
   card: {
     marginHorizontal: 16,
-    marginBottom: 12,
-    backgroundColor: CREAM,
+    marginBottom: 14,
+    backgroundColor: '#FFFFFF', // Clean White Card (replaces old yellow-cream)
     borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 12,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    boxShadow: '0px 3px 12px rgba(0, 0, 0, 0.04)',
+    elevation: 2,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  accentBar: {
+    width: 4,
+    height: 16,
+    borderRadius: 2,
+    backgroundColor: colors.primary, // Red indicator bar
   },
   cardTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
-    color: '#111',
-    marginBottom: 10,
+    color: colors.secondary,
+    letterSpacing: -0.2,
   },
-  cardTitleSpaced: { marginTop: 14 },
   infoRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 7,
-    gap: 8,
-  },
-  infoIcon: { marginTop: 1, width: 20 },
-  infoLabel: { width: 108, color: LABEL, fontSize: 14, fontWeight: '500' },
-  infoValue: { flex: 1, textAlign: 'right', color: VALUE, fontSize: 14, fontWeight: '500' },
-  infoValueMulti: { lineHeight: 20 },
-  summaryRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 6,
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
     gap: 10,
   },
-  summaryLabel: { color: LABEL, fontSize: 14, fontWeight: '600' },
-  summaryValue: { flex: 1, textAlign: 'right', color: VALUE, fontSize: 14, fontWeight: '500' },
+  noBorder: {
+    borderBottomWidth: 0,
+  },
+  iconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoLabel: {
+    width: 104,
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  infoValue: {
+    flex: 1,
+    textAlign: 'right',
+    color: colors.secondary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  infoValueMulti: {
+    lineHeight: 20,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+    gap: 10,
+  },
+  summaryLabel: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  summaryValue: {
+    flex: 1,
+    textAlign: 'right',
+    color: colors.secondary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });

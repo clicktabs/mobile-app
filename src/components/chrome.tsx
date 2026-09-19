@@ -64,71 +64,69 @@ export function AppHeader({
   };
 
   return (
-    <LinearGradient colors={[...colors.brandGradient]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-      <View style={{ paddingTop: topPad, paddingBottom: barPad }}>
-        <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
-            {backVisible ? (
+    <View style={[styles.headerContainer, { paddingTop: topPad, paddingBottom: barPad }]}>
+      <View style={styles.headerRow}>
+        <View style={styles.headerLeft}>
+          {backVisible ? (
+            <Pressable
+              onPress={goBack}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.headerAction,
+                styles.headerActionRound,
+                pressed && styles.headerActionPressed,
+              ]}
+            >
+              <Ionicons name="chevron-back" size={22} color="#fff" />
+            </Pressable>
+          ) : showLogo ? (
+            <Pressable
+              onPress={goHome}
+              accessibilityRole="link"
+              accessibilityLabel="Go to Home"
+              hitSlop={8}
+              style={({ pressed }) => [styles.logoBadge, pressed && { opacity: 0.85 }]}
+            >
+              <BrandMark size={22} tone="white" />
+            </Pressable>
+          ) : null}
+          {backVisible && showLogo ? (
+            <Pressable
+              onPress={goHome}
+              accessibilityRole="link"
+              accessibilityLabel="Go to Home"
+              hitSlop={8}
+              style={({ pressed }) => [styles.logoBadge, pressed && { opacity: 0.85 }]}
+            >
+              <BrandMark size={22} tone="white" />
+            </Pressable>
+          ) : null}
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {title}
+          </Text>
+        </View>
+        {rightActions.length > 0 ? (
+          <View style={styles.headerActions}>
+            {rightActions.map((a, i) => (
               <Pressable
-                onPress={goBack}
-                accessibilityRole="button"
-                accessibilityLabel="Go back"
-                hitSlop={8}
+                key={`${a.icon}-${i}`}
+                onPress={a.onPress}
                 style={({ pressed }) => [
                   styles.headerAction,
-                  styles.headerActionRound,
+                  a.label ? styles.headerActionWide : styles.headerActionRound,
                   pressed && styles.headerActionPressed,
                 ]}
               >
-                <Ionicons name="chevron-back" size={22} color="#fff" />
+                <Ionicons name={a.icon} size={a.label ? 18 : 20} color="#fff" />
+                {a.label ? <Text style={styles.headerActionLabel}>{a.label}</Text> : null}
               </Pressable>
-            ) : showLogo ? (
-              <Pressable
-                onPress={goHome}
-                accessibilityRole="link"
-                accessibilityLabel="Go to Home"
-                hitSlop={8}
-                style={({ pressed }) => [styles.logoBadge, pressed && { opacity: 0.85 }]}
-              >
-                <BrandMark size={22} tone="black" />
-              </Pressable>
-            ) : null}
-            {backVisible && showLogo ? (
-              <Pressable
-                onPress={goHome}
-                accessibilityRole="link"
-                accessibilityLabel="Go to Home"
-                hitSlop={8}
-                style={({ pressed }) => [styles.logoBadge, pressed && { opacity: 0.85 }]}
-              >
-                <BrandMark size={22} tone="black" />
-              </Pressable>
-            ) : null}
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {title}
-            </Text>
+            ))}
           </View>
-          {rightActions.length > 0 ? (
-            <View style={styles.headerActions}>
-              {rightActions.map((a, i) => (
-                <Pressable
-                  key={`${a.icon}-${i}`}
-                  onPress={a.onPress}
-                  style={({ pressed }) => [
-                    styles.headerAction,
-                    a.label ? styles.headerActionWide : styles.headerActionRound,
-                    pressed && styles.headerActionPressed,
-                  ]}
-                >
-                  <Ionicons name={a.icon} size={a.label ? 18 : 20} color="#fff" />
-                  {a.label ? <Text style={styles.headerActionLabel}>{a.label}</Text> : null}
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-        </View>
+        ) : null}
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -194,7 +192,7 @@ export function SegmentTabs<T extends string>({
         const active = t.key === value;
         const color =
           colorsFor?.(t.key, active) ||
-          (active ? t.tint || colors.brandMagenta : colors.textMuted);
+          (active ? colors.primary : colors.textMuted);
         return (
           <Pressable
             key={t.key}
@@ -202,18 +200,15 @@ export function SegmentTabs<T extends string>({
             style={[
               styles.segment,
               idx < tabs.length - 1 && styles.segmentBorder,
-              active && { borderBottomColor: color, borderBottomWidth: 2 },
+              active && { borderBottomColor: colors.primary, borderBottomWidth: 2.5 },
             ]}
           >
-            {/*
-              Four segments leave about 90pt each on a 360pt screen, and "Schedule List"
-              at 13pt does not fit. Stepped down a point past three tabs, then allowed to
-              shrink a little further rather than wrap — a wrapped label makes one tab two
-              lines tall and knocks the row out of line with its neighbours. Rows of two
-              or three keep the size they have.
-            */}
             <Text
-              style={[styles.segmentText, tabs.length > 3 && styles.segmentTextTight, { color }]}
+              style={[
+                styles.segmentText,
+                tabs.length > 3 && styles.segmentTextTight,
+                { color: active ? colors.secondary : colors.textMuted },
+              ]}
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.85}
@@ -303,7 +298,12 @@ export function OfflineCard({
 }
 
 const styles = StyleSheet.create({
-  shell: { flex: 1, backgroundColor: colors.surface },
+  shell: { flex: 1, backgroundColor: colors.bg },
+  headerContainer: {
+    backgroundColor: colors.secondary,
+    borderBottomWidth: 2.5,
+    borderBottomColor: colors.primary,
+  },
   headerRow: {
     paddingHorizontal: 14,
     flexDirection: 'row',
@@ -321,10 +321,12 @@ const styles = StyleSheet.create({
   logoBadge: {
     width: 34,
     height: 34,
-    borderRadius: 10,
-    backgroundColor: '#fff',
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   headerTitle: {
     flexShrink: 1,
@@ -341,9 +343,9 @@ const styles = StyleSheet.create({
   headerAction: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   headerActionRound: {
     width: 40,
@@ -358,7 +360,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   headerActionPressed: {
-    backgroundColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(255,255,255,0.25)',
   },
   headerActionLabel: {
     color: '#fff',
@@ -373,8 +375,10 @@ const styles = StyleSheet.create({
   searchWrap: {
     marginHorizontal: 14,
     marginVertical: 10,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     flexDirection: 'row',
@@ -384,19 +388,17 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 15, color: colors.text, padding: 0 },
   segments: {
     flexDirection: 'row',
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#FFFFFF',
   },
   segment: {
     flex: 1,
-    // Lets flex shrink a segment below its label's natural width instead of pushing the
-    // row wider than the screen.
     minWidth: 0,
     paddingVertical: 12,
     paddingHorizontal: 4,
     alignItems: 'center',
-    borderBottomWidth: 2,
+    borderBottomWidth: 2.5,
     borderBottomColor: 'transparent',
   },
   segmentBorder: {
@@ -442,7 +444,7 @@ const styles = StyleSheet.create({
   offlineHint: { color: colors.text, marginBottom: 12, fontSize: 14 },
   downloadBtn: {
     borderWidth: 1.5,
-    borderColor: colors.brandMagenta,
+    borderColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
@@ -451,7 +453,7 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: '#fff',
   },
-  downloadText: { color: colors.brandMagenta, fontWeight: '700', fontSize: 15 },
+  downloadText: { color: colors.primary, fontWeight: '700', fontSize: 15 },
   offlineToggleRow: {
     marginTop: 14,
     flexDirection: 'row',
