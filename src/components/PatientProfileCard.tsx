@@ -282,9 +282,9 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   header: {
-    backgroundColor: colors.secondary, // Executive Black (#111111)
-    borderBottomWidth: 2.5,
-    borderBottomColor: colors.primary, // Signature Medical Red Accent
+    backgroundColor: colors.primary, // Signature Medical Red (#DC2626)
+    borderBottomWidth: 1,
+    borderBottomColor: '#B91C1C',
     paddingBottom: 12,
   },
   headerRow: {

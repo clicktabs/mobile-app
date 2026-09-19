@@ -300,9 +300,14 @@ export function OfflineCard({
 const styles = StyleSheet.create({
   shell: { flex: 1, backgroundColor: colors.bg },
   headerContainer: {
-    backgroundColor: colors.secondary,
-    borderBottomWidth: 2.5,
-    borderBottomColor: colors.primary,
+    backgroundColor: colors.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: '#B91C1C',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 4,
   },
   headerRow: {
     paddingHorizontal: 14,

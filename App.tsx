@@ -17,7 +17,7 @@ export default function App() {
             <AuthProvider>
               {/* Inside AuthProvider: reconnecting flushes queued work, which needs a token. */}
               <ConnectivityProvider>
-                <StatusBar style="dark" />
+                <StatusBar style="light" />
                 <RootNavigator />
               </ConnectivityProvider>
             </AuthProvider>
