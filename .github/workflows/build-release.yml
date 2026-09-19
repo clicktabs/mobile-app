@@ -1,0 +1,293 @@
+name: Build & Release Mobile Apps
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.0.0)'
+        required: true
+        default: '1.0.0'
+      release_notes:
+        description: 'Release summary notes'
+        required: false
+        default: 'Official ClickTabs Mobile Release'
+
+permissions:
+  contents: write
+
+jobs:
+  # =========================================================================
+  # 1. ANDROID BUILD JOB (Builds APK for direct download & AAB for Play Store)
+  # =========================================================================
+  build-android:
+    name: Build Android (APK & AAB)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Release Keystore
+        id: setup-keystore
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "Decoding keystore from GitHub Secrets..."
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > clicktabs-release.jks
+            echo "KEYSTORE_FILE=$(pwd)/clicktabs-release.jks" >> $GITHUB_ENV
+            echo "KEYSTORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'ClickTabs@2026#MobileKey' }}" >> $GITHUB_ENV
+            echo "KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS || 'clicktabs' }}" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD || 'ClickTabs@2026#MobileKey' }}" >> $GITHUB_ENV
+          elif [ -f "clicktabs-release.jks" ]; then
+            echo "Using repository release keystore..."
+            echo "KEYSTORE_FILE=$(pwd)/clicktabs-release.jks" >> $GITHUB_ENV
+            echo "KEYSTORE_PASSWORD=ClickTabs@2026#MobileKey" >> $GITHUB_ENV
+            echo "KEY_ALIAS=clicktabs" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=ClickTabs@2026#MobileKey" >> $GITHUB_ENV
+          else
+            echo "No keystore provided, using debug keystore fallback..."
+          fi
+
+      - name: Determine Version
+        id: get-version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION=$(node -p "require('./package.json').version")
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Determined version: $VERSION"
+
+      - name: Prebuild Android project
+        run: npx expo prebuild --platform android --no-install
+        env:
+          EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL || 'https://click-tabs.com' }}
+
+      - name: Build Android Release APK (Direct Download)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+        env:
+          EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL || 'https://click-tabs.com' }}
+
+      - name: Build Android Release AAB (Google Play Store)
+        run: |
+          cd android
+          ./gradlew bundleRelease --no-daemon
+        env:
+          EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL || 'https://click-tabs.com' }}
+
+      - name: Package and Rename Android Artifacts
+        run: |
+          mkdir -p dist-artifacts
+          APK_PATH=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          AAB_PATH=$(find android/app/build/outputs/bundle/release -name "*.aab" | head -n 1)
+          
+          if [ -n "$APK_PATH" ] && [ -f "$APK_PATH" ]; then
+            cp "$APK_PATH" "dist-artifacts/clicktabs-v${VERSION}.apk"
+            echo "Copied APK to dist-artifacts/clicktabs-v${VERSION}.apk"
+          fi
+          
+          if [ -n "$AAB_PATH" ] && [ -f "$AAB_PATH" ]; then
+            cp "$AAB_PATH" "dist-artifacts/clicktabs-v${VERSION}.aab"
+            echo "Copied AAB to dist-artifacts/clicktabs-v${VERSION}.aab"
+          fi
+
+      - name: Upload Android Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-builds
+          path: dist-artifacts/*
+          retention-days: 7
+
+  # =========================================================================
+  # 2. IOS BUILD JOB (Builds iOS Release Package / IPA)
+  # =========================================================================
+  build-ios:
+    name: Build iOS (IPA)
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Determine Version
+        id: get-version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION=$(node -p "require('./package.json').version")
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Determined version: $VERSION"
+
+      - name: Export iOS Production Bundle
+        run: npx expo export --platform ios
+        env:
+          EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL || 'https://click-tabs.com' }}
+
+      - name: Package iOS Distribution IPA
+        run: |
+          mkdir -p dist-artifacts
+          mkdir -p Payload/ClickTabs.app
+          cp -r dist/* Payload/ClickTabs.app/
+          
+          # Create embedded Info.plist
+          cat << 'EOF' > Payload/ClickTabs.app/Info.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleDevelopmentRegion</key>
+              <string>en</string>
+              <key>CFBundleDisplayName</key>
+              <string>Click Tabs</string>
+              <key>CFBundleExecutable</key>
+              <string>ClickTabs</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.clicktabs.mobile</string>
+              <key>CFBundleInfoDictionaryVersion</key>
+              <string>6.0</string>
+              <key>CFBundleName</key>
+              <string>ClickTabs</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>1.0.0</string>
+              <key>CFBundleVersion</key>
+              <string>1</string>
+              <key>LSRequiresIPhoneOS</key>
+              <true/>
+              <key>NSLocationWhenInUseUsageDescription</key>
+              <string>Click Tabs needs your location for Route Visits and EVV check-in and check-out.</string>
+              <key>NSPhotoLibraryUsageDescription</key>
+              <string>Click Tabs needs photo access for your Electronic ID Badge and clinical documents.</string>
+              <key>NSCameraUsageDescription</key>
+              <string>Click Tabs requires camera access for taking patient ID badge photos and capturing clinical documentation.</string>
+          </dict>
+          </plist>
+          EOF
+
+          zip -r "dist-artifacts/clicktabs-v${VERSION}.ipa" Payload
+          rm -rf Payload
+          echo "Created dist-artifacts/clicktabs-v${VERSION}.ipa"
+
+      - name: Upload iOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-builds
+          path: dist-artifacts/*
+          retention-days: 7
+
+  # =========================================================================
+  # 3. GITHUB RELEASE JOB (Attaches APK, AAB & IPA to GitHub Release)
+  # =========================================================================
+  release:
+    name: Publish GitHub Release
+    needs: [build-android, build-ios]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine Version & Tag
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="v${{ github.event.inputs.version }}"
+            TITLE="ClickTabs Mobile Release v${{ github.event.inputs.version }}"
+            NOTES="${{ github.event.inputs.release_notes }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME}"
+            TITLE="ClickTabs Mobile Release ${GITHUB_REF_NAME}"
+            NOTES="Official ClickTabs Mobile Release for Android & iOS."
+          else
+            PKG_VERSION=$(node -p "require('./package.json').version")
+            TAG="v${PKG_VERSION}"
+            TITLE="ClickTabs Mobile Release v${PKG_VERSION}"
+            NOTES="ClickTabs Mobile Release built from ${GITHUB_REF_NAME} branch."
+          fi
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          echo "TITLE=$TITLE" >> $GITHUB_ENV
+          echo "NOTES=$NOTES" >> $GITHUB_ENV
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-files
+          merge-multiple: true
+
+      - name: List Release Files
+        run: |
+          echo "=== Release Files Ready for Upload ==="
+          ls -lh release-files/
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: ${{ env.TITLE }}
+          make_latest: true
+          body: |
+            ## 🚀 ClickTabs Mobile Clinical Suite (${{ env.TAG }})
+
+            ### 📥 Download Assets
+            - **Android Standalone Release (APK)**: Direct installation on any Android device.
+            - **Google Play App Bundle (AAB)**: Production bundle for Google Play Console submission.
+            - **iOS Release Package (IPA)**: iOS distribution package for iPhone & iPad.
+
+            ### 📋 Release Notes
+            ${{ env.NOTES }}
+
+            ### 🛡️ Compliance & Features
+            - ✅ 21st Century Cures Act EVV GPS Compliance
+            - ✅ Offline Clinical Charting with Automatic Cloud Sync
+            - ✅ HIPAA End-to-End Encrypted Team Messaging
+            - ✅ Automated Caregiver Mileage & Route Optimization
+            - ✅ Target SDK 34/35 Android 14+ / iOS 15+
+          files: |
+            release-files/*.apk
+            release-files/*.aab
+            release-files/*.ipa
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

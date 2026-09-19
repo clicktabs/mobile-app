@@ -7,14 +7,18 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
+      "bundleIdentifier": "com.clicktabs.mobile",
+      "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Click Tabs needs your location for Route Visits and EVV check-in and check-out.",
-        "NSPhotoLibraryUsageDescription": "Click Tabs needs photo access for your Electronic ID Badge."
+        "NSPhotoLibraryUsageDescription": "Click Tabs needs photo access for your Electronic ID Badge and clinical documents.",
+        "NSCameraUsageDescription": "Click Tabs requires camera access for taking patient ID badge photos and capturing clinical documentation."
       }
     },
     "android": {
       "package": "com.clicktabs.mobile",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#FF6B7A",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -23,7 +27,8 @@
       },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "CAMERA"
       ],
       "predictiveBackGestureEnabled": true
     },
@@ -41,7 +46,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Click Tabs to access photos for your Electronic ID Badge."
+          "photosPermission": "Allow Click Tabs to access photos for your Electronic ID Badge and clinical documents.",
+          "cameraPermission": "Allow Click Tabs to access the camera for ID badges and clinical documents."
         }
       ]
     ]
